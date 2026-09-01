@@ -11,13 +11,13 @@ import (
 )
 
 type Environment struct {
-	Name      string            `yaml:"name"`
-	Variables map[string]string `yaml:"variables"`
+	Name      string            `json:"name" yaml:"name"`
+	Variables map[string]string `json:"variables" yaml:"variables"`
 }
 
 type Local struct {
-	Environment string
-	Secrets     map[string]string
+	Environment string            `json:"environment"`
+	Secrets     map[string]string `json:"secrets"`
 }
 
 type secretsFile struct {

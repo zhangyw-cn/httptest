@@ -58,6 +58,35 @@ func TestRequestCRUDAndTraversal(t *testing.T) {
 	}
 }
 
+func TestEnvironmentJSONKeys(t *testing.T) {
+	ws, err := workspace.Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := New(ws, nil)
+
+	rr := httptest.NewRecorder()
+	putBody := []byte(`{"name":"local","variables":{"baseUrl":"http://h"}}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/environments/local", bytes.NewReader(putBody))
+	h.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("put %d %s", rr.Code, rr.Body.Bytes())
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/environments", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("get %d %s", rr.Code, rr.Body.Bytes())
+	}
+	body := rr.Body.Bytes()
+	if !bytes.Contains(body, []byte(`"name"`)) || !bytes.Contains(body, []byte(`"variables"`)) {
+		t.Fatalf("expected lowercase keys, got %s", body)
+	}
+	if bytes.Contains(body, []byte(`"Name"`)) || bytes.Contains(body, []byte(`"Variables"`)) {
+		t.Fatalf("expected no PascalCase keys, got %s", body)
+	}
+}
+
 func TestLocalAndEnvAPI(t *testing.T) {
 	ws, err := workspace.Init(t.TempDir())
 	if err != nil {
