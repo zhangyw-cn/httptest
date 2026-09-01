@@ -2,4 +2,4 @@
 .worktrees/
 web/node_modules/
 web/dist/
-httptest
+/httptest
