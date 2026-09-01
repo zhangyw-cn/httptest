@@ -1,0 +1,16 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  padding: 1rem;
+}
+
+.error {
+  color: #b00020;
+}
