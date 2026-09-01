@@ -102,10 +102,11 @@ export async function putLocal(local: LocalConfig): Promise<LocalConfig> {
 export async function execute(
   request: HttpRequest,
   requestPath?: string,
+  id?: string,
 ): Promise<{ id: string; result: Result }> {
-  const id = crypto.randomUUID();
+  const execId = id ?? crypto.randomUUID();
   const payload: ExecutePayload = {
-    id,
+    id: execId,
     request,
   };
   if (requestPath !== undefined) {
@@ -117,7 +118,7 @@ export async function execute(
     body: JSON.stringify(payload),
   });
   const result = await parseJSON<Result>(res);
-  return { id, result };
+  return { id: execId, result };
 }
 
 export async function cancelExecute(id: string): Promise<{ ok: string }> {

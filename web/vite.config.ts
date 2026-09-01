@@ -9,4 +9,8 @@ export default defineConfig({
       "/api": "http://127.0.0.1:1370",
     },
   },
+  build: {
+    outDir: "../internal/server/ui",
+    emptyOutDir: true,
+  },
 });
