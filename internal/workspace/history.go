@@ -2,8 +2,10 @@ package workspace
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -115,17 +117,25 @@ func readHistoryFile(path string) ([]HistoryEntry, error) {
 	}
 	defer f.Close()
 	var entries []HistoryEntry
-	sc := bufio.NewScanner(f)
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-		if line == "" {
-			continue
+	r := bufio.NewReader(f)
+	for {
+		line, err := r.ReadBytes('\n')
+		if len(line) > 0 {
+			line = bytes.TrimSpace(line)
+			if len(line) > 0 {
+				var e HistoryEntry
+				if err := json.Unmarshal(line, &e); err != nil {
+					return nil, err
+				}
+				entries = append(entries, e)
+			}
 		}
-		var e HistoryEntry
-		if err := json.Unmarshal([]byte(line), &e); err != nil {
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
 			return nil, err
 		}
-		entries = append(entries, e)
 	}
-	return entries, sc.Err()
+	return entries, nil
 }
