@@ -1,0 +1,169 @@
+package workspace
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+type Environment struct {
+	Name      string            `yaml:"name"`
+	Variables map[string]string `yaml:"variables"`
+}
+
+type Local struct {
+	Environment string
+	Secrets     map[string]string
+}
+
+type secretsFile struct {
+	Variables map[string]string `yaml:"variables"`
+}
+
+type activeFile struct {
+	Environment string `yaml:"environment"`
+}
+
+func (w *Workspace) envPath(name string) (string, error) {
+	cleaned, err := CleanRel(name)
+	if err != nil {
+		return "", err
+	}
+	if strings.Contains(cleaned, "/") {
+		return "", fmt.Errorf("invalid environment name %q", name)
+	}
+	return filepath.Join(w.dir, "environments", cleaned+".yaml"), nil
+}
+
+func (w *Workspace) PutEnvironment(env Environment) error {
+	path, err := w.envPath(env.Name)
+	if err != nil {
+		return err
+	}
+	cleaned, err := CleanRel(env.Name)
+	if err != nil {
+		return err
+	}
+	env.Name = cleaned
+	if env.Variables == nil {
+		env.Variables = map[string]string{}
+	}
+	data, err := yaml.Marshal(&env)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
+func (w *Workspace) ListEnvironments() ([]Environment, error) {
+	root := filepath.Join(w.dir, "environments")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, err
+	}
+	var list []Environment
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".yaml") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(root, e.Name()))
+		if err != nil {
+			continue
+		}
+		var env Environment
+		if err := yaml.Unmarshal(data, &env); err != nil {
+			continue
+		}
+		if env.Variables == nil {
+			env.Variables = map[string]string{}
+		}
+		list = append(list, env)
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].Name < list[j].Name })
+	return list, nil
+}
+
+func (w *Workspace) PutLocal(local Local) error {
+	localDir := filepath.Join(w.dir, "local")
+	if err := os.MkdirAll(localDir, 0o755); err != nil {
+		return err
+	}
+	secrets := secretsFile{Variables: local.Secrets}
+	if secrets.Variables == nil {
+		secrets.Variables = map[string]string{}
+	}
+	sdata, err := yaml.Marshal(&secrets)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(localDir, "secrets.yaml"), sdata, 0o644); err != nil {
+		return err
+	}
+	adata, err := yaml.Marshal(&activeFile{Environment: local.Environment})
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(localDir, "active.yaml"), adata, 0o644)
+}
+
+func (w *Workspace) GetLocal() (Local, error) {
+	out := Local{
+		Secrets: map[string]string{},
+	}
+	sdata, err := os.ReadFile(filepath.Join(w.dir, "local", "secrets.yaml"))
+	if err == nil {
+		var secrets secretsFile
+		if err := yaml.Unmarshal(sdata, &secrets); err != nil {
+			return Local{}, err
+		}
+		if secrets.Variables != nil {
+			out.Secrets = secrets.Variables
+		}
+	} else if !os.IsNotExist(err) {
+		return Local{}, err
+	}
+	adata, err := os.ReadFile(filepath.Join(w.dir, "local", "active.yaml"))
+	if err == nil {
+		var active activeFile
+		if err := yaml.Unmarshal(adata, &active); err != nil {
+			return Local{}, err
+		}
+		out.Environment = active.Environment
+	} else if !os.IsNotExist(err) {
+		return Local{}, err
+	}
+	return out, nil
+}
+
+func (w *Workspace) ResolvedVars() (map[string]string, error) {
+	local, err := w.GetLocal()
+	if err != nil {
+		return nil, err
+	}
+	vars := map[string]string{}
+	if local.Environment != "" {
+		path, err := w.envPath(local.Environment)
+		if err == nil {
+			data, err := os.ReadFile(path)
+			if err == nil {
+				var env Environment
+				if err := yaml.Unmarshal(data, &env); err != nil {
+					return nil, err
+				}
+				for k, v := range env.Variables {
+					vars[k] = v
+				}
+			} else if !os.IsNotExist(err) {
+				return nil, err
+			}
+		}
+	}
+	for k, v := range local.Secrets {
+		vars[k] = v
+	}
+	return vars, nil
+}
