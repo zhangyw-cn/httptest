@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { newId } from "./id";
 import {
   cancelExecute,
   createRequest,
@@ -152,7 +153,7 @@ export default function App() {
   }
 
   async function onSend() {
-    const id = crypto.randomUUID();
+    const id = newId();
     setExecuteId(id);
     setSending(true);
     setError(null);

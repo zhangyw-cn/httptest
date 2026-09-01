@@ -1,3 +1,4 @@
+import { newId } from "./id";
 import type {
   CreateRequestBody,
   Environment,
@@ -104,7 +105,7 @@ export async function execute(
   requestPath?: string,
   id?: string,
 ): Promise<{ id: string; result: Result }> {
-  const execId = id ?? crypto.randomUUID();
+  const execId = id ?? newId();
   const payload: ExecutePayload = {
     id: execId,
     request,

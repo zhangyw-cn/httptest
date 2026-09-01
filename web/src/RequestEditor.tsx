@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { BodyType, HttpRequest } from "./types";
 
 interface Pair {
@@ -40,6 +40,17 @@ function pairsToRecord(pairs: Pair[]): Record<string, string> {
     if (p.key) out[p.key] = p.value;
   }
   return out;
+}
+
+function recordJSON(rec: Record<string, string> | undefined): string {
+  return JSON.stringify(rec ?? {});
+}
+
+function formRecord(
+  content: HttpRequest["body"]["content"],
+): Record<string, string> {
+  if (content && typeof content === "object") return content;
+  return {};
 }
 
 function PairTable({
@@ -124,20 +135,68 @@ export default function RequestEditor({
   onSave,
 }: Props) {
   const [tab, setTab] = useState<"query" | "headers" | "body">("body");
-
-  const queryPairs = useMemo(() => recordToPairs(draft.query), [draft.query]);
-  const headerPairs = useMemo(
-    () => recordToPairs(draft.headers),
-    [draft.headers],
+  const [queryPairs, setQueryPairs] = useState<Pair[]>(() =>
+    recordToPairs(draft.query),
   );
-  const formPairs = useMemo(() => {
-    const c = draft.body.content;
-    if (c && typeof c === "object") return recordToPairs(c);
-    return recordToPairs({});
-  }, [draft.body.content]);
+  const [headerPairs, setHeaderPairs] = useState<Pair[]>(() =>
+    recordToPairs(draft.headers),
+  );
+  const [formPairs, setFormPairs] = useState<Pair[]>(() =>
+    recordToPairs(formRecord(draft.body.content)),
+  );
+  const lastQueryJSON = useRef(recordJSON(draft.query));
+  const lastHeaderJSON = useRef(recordJSON(draft.headers));
+  const lastFormJSON = useRef(recordJSON(formRecord(draft.body.content)));
+
+  const queryJSON = recordJSON(draft.query);
+  const headerJSON = recordJSON(draft.headers);
+  const formJSON = recordJSON(formRecord(draft.body.content));
+
+  useEffect(() => {
+    if (queryJSON !== lastQueryJSON.current) {
+      setQueryPairs(recordToPairs(draft.query));
+      lastQueryJSON.current = queryJSON;
+    }
+  }, [queryJSON, draft.query]);
+
+  useEffect(() => {
+    if (headerJSON !== lastHeaderJSON.current) {
+      setHeaderPairs(recordToPairs(draft.headers));
+      lastHeaderJSON.current = headerJSON;
+    }
+  }, [headerJSON, draft.headers]);
+
+  useEffect(() => {
+    if (draft.body.type !== "form") return;
+    if (formJSON !== lastFormJSON.current) {
+      setFormPairs(recordToPairs(formRecord(draft.body.content)));
+      lastFormJSON.current = formJSON;
+    }
+  }, [formJSON, draft.body.content, draft.body.type]);
 
   const bodyText =
     typeof draft.body.content === "string" ? draft.body.content : "";
+
+  function commitQuery(pairs: Pair[]) {
+    setQueryPairs(pairs);
+    const rec = pairsToRecord(pairs);
+    lastQueryJSON.current = recordJSON(rec);
+    onChange({ ...draft, query: rec });
+  }
+
+  function commitHeaders(pairs: Pair[]) {
+    setHeaderPairs(pairs);
+    const rec = pairsToRecord(pairs);
+    lastHeaderJSON.current = recordJSON(rec);
+    onChange({ ...draft, headers: rec });
+  }
+
+  function commitForm(pairs: Pair[]) {
+    setFormPairs(pairs);
+    const rec = pairsToRecord(pairs);
+    lastFormJSON.current = recordJSON(rec);
+    onChange({ ...draft, body: { type: "form", content: rec } });
+  }
 
   function setBodyType(type: BodyType) {
     if (type === "none") {
@@ -145,10 +204,9 @@ export default function RequestEditor({
       return;
     }
     if (type === "form") {
-      const content =
-        draft.body.content && typeof draft.body.content === "object"
-          ? draft.body.content
-          : {};
+      const content = formRecord(draft.body.content);
+      lastFormJSON.current = recordJSON(content);
+      setFormPairs(recordToPairs(content));
       onChange({ ...draft, body: { type, content } });
       return;
     }
@@ -204,20 +262,10 @@ export default function RequestEditor({
       </div>
       <div className="editor-body">
         {tab === "query" && (
-          <PairTable
-            pairs={queryPairs}
-            onChange={(pairs) =>
-              onChange({ ...draft, query: pairsToRecord(pairs) })
-            }
-          />
+          <PairTable pairs={queryPairs} onChange={commitQuery} />
         )}
         {tab === "headers" && (
-          <PairTable
-            pairs={headerPairs}
-            onChange={(pairs) =>
-              onChange({ ...draft, headers: pairsToRecord(pairs) })
-            }
-          />
+          <PairTable pairs={headerPairs} onChange={commitHeaders} />
         )}
         {tab === "body" && (
           <div className="body-pane">
@@ -235,15 +283,7 @@ export default function RequestEditor({
               </select>
             </label>
             {draft.body.type === "form" && (
-              <PairTable
-                pairs={formPairs}
-                onChange={(pairs) =>
-                  onChange({
-                    ...draft,
-                    body: { type: "form", content: pairsToRecord(pairs) },
-                  })
-                }
-              />
+              <PairTable pairs={formPairs} onChange={commitForm} />
             )}
             {(draft.body.type === "json" || draft.body.type === "raw") && (
               <textarea

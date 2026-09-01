@@ -24,7 +24,7 @@ func ParseListen(s string) (host, port string, err error) {
 // (0.0.0.0 or ::), reminding that httptest acts as an HTTP 代理.
 func WarnPublicListen(host string) string {
 	switch host {
-	case "0.0.0.0", "::":
+	case "", "0.0.0.0", "::":
 		return "警告: 正在监听所有网络接口，httptest 将作为 HTTP 代理对外暴露，请确认网络安全。"
 	default:
 		return ""

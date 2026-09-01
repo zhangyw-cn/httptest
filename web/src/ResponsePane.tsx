@@ -51,6 +51,9 @@ export default function ResponsePane({ result }: Props) {
               {sizeLabel(result.responseSize)}
               {result.truncated ? "（截断）" : ""}
             </span>
+            {result.errorMessage ? (
+              <div className="error">{result.errorMessage}</div>
+            ) : null}
           </>
         ) : (
           <div className="error">

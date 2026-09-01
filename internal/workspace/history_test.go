@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -76,5 +77,39 @@ func TestHistoryLargeResultRoundTrip(t *testing.T) {
 	}
 	if string(got.Result) != string(result) {
 		t.Fatal("get result mismatch")
+	}
+}
+
+func TestListHistorySkipsCorruptLines(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t0 := time.Date(2026, 9, 2, 8, 0, 0, 0, time.Local)
+	good := HistoryEntry{
+		ID: "good-id", Time: t0,
+		Request: Request{Name: "Good", Method: "GET", URL: "http://good"},
+		Result:  json.RawMessage(`{"status":200}`),
+	}
+	if err := ws.AppendHistory(good); err != nil {
+		t.Fatal(err)
+	}
+	path := historyFileFor(ws, t0)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString("this is not json\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	list, err := ws.ListHistory(50)
+	if err != nil {
+		t.Fatalf("ListHistory should skip corrupt lines: %v", err)
+	}
+	if len(list) != 1 || list[0].ID != "good-id" {
+		t.Fatalf("want only valid entry, got %+v", list)
 	}
 }

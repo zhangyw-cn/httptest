@@ -124,6 +124,7 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string)
 
 	var redirects []RedirectHop
 	client := &http.Client{
+		Transport: newExecuteTransport(),
 		CheckRedirect: func(r *http.Request, via []*http.Request) error {
 			hop := RedirectHop{}
 			if r.Response != nil {
@@ -156,10 +157,11 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string)
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, int64(maxBodyBytes)+1))
+	bodyBytes, readErr := io.ReadAll(io.LimitReader(resp.Body, int64(maxBodyBytes)+1))
 	if len(bodyBytes) > maxBodyBytes {
 		res.Truncated = true
 		bodyBytes = bodyBytes[:maxBodyBytes]
+		readErr = nil
 	}
 	res.Body = string(bodyBytes)
 	res.ResponseSize = int64(len(bodyBytes))
@@ -172,7 +174,17 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string)
 	res.StatusText = resp.Status
 	res.Headers = resp.Header
 	res.ErrorClass = ClassHTTP
+	if readErr != nil {
+		res.ErrorMessage = readErr.Error()
+	}
 	return res
+}
+
+func newExecuteTransport() *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.Proxy = nil
+	t.DisableKeepAlives = true
+	return t
 }
 
 func buildBody(req workspace.Request) (io.Reader, string, error) {

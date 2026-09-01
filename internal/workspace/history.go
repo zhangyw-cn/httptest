@@ -124,10 +124,9 @@ func readHistoryFile(path string) ([]HistoryEntry, error) {
 			line = bytes.TrimSpace(line)
 			if len(line) > 0 {
 				var e HistoryEntry
-				if err := json.Unmarshal(line, &e); err != nil {
-					return nil, err
+				if uerr := json.Unmarshal(line, &e); uerr == nil {
+					entries = append(entries, e)
 				}
-				entries = append(entries, e)
 			}
 		}
 		if err != nil {

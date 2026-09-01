@@ -83,4 +83,7 @@ func TestTruncateBody(t *testing.T) {
 	if !res.Truncated || len(res.Body) != 2*1024*1024 {
 		t.Fatalf("truncated=%v len=%d", res.Truncated, len(res.Body))
 	}
+	if res.ErrorMessage != "" {
+		t.Fatalf("truncate is not a read error: %q", res.ErrorMessage)
+	}
 }

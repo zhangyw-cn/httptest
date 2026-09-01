@@ -21,3 +21,16 @@ func TestParseListenDefaultAndError(t *testing.T) {
 		t.Fatalf("warn=%q", w)
 	}
 }
+
+func TestWarnPublicListenEmptyHost(t *testing.T) {
+	h, p, err := ParseListen(":1370")
+	if err != nil || h != "" || p != "1370" {
+		t.Fatalf("ParseListen(:1370)=%q %q %v", h, p, err)
+	}
+	for _, host := range []string{"", "::"} {
+		w := WarnPublicListen(host)
+		if w == "" || !strings.Contains(w, "代理") {
+			t.Fatalf("host %q warn=%q", host, w)
+		}
+	}
+}

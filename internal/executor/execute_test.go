@@ -75,3 +75,55 @@ func TestExecuteNotFoundIsHTTP(t *testing.T) {
 		t.Fatalf("%+v", res)
 	}
 }
+
+func TestExecuteSendsConnectionClose(t *testing.T) {
+	var connHdr string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		connHdr = r.Header.Get("Connection")
+		w.WriteHeader(200)
+	}))
+	defer srv.Close()
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL}, nil)
+	if res.ErrorClass != ClassHTTP || res.Status != 200 {
+		t.Fatalf("%+v", res)
+	}
+	if !strings.EqualFold(connHdr, "close") {
+		t.Fatalf("Connection=%q, want close (DisableKeepAlives)", connHdr)
+	}
+}
+
+func TestExecuteTransportIgnoresProxy(t *testing.T) {
+	tr := newExecuteTransport()
+	if tr.Proxy != nil {
+		t.Fatal("Proxy must be nil so HTTP_PROXY/HTTPS_PROXY are ignored")
+	}
+	if !tr.DisableKeepAlives {
+		t.Fatal("DisableKeepAlives must be true")
+	}
+}
+
+func TestExecuteBodyReadErrorSetsMessage(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			t.Fatal("ResponseWriter is not a Hijacker")
+			return
+		}
+		conn, bufrw, err := hj.Hijack()
+		if err != nil {
+			t.Fatal(err)
+			return
+		}
+		_, _ = bufrw.WriteString("HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\npartial")
+		_ = bufrw.Flush()
+		_ = conn.Close()
+	}))
+	defer srv.Close()
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL}, nil)
+	if res.ErrorMessage == "" {
+		t.Fatalf("want ErrorMessage on body read failure, got %+v", res)
+	}
+	if !strings.Contains(res.Body, "partial") {
+		t.Fatalf("want partial body kept, got %q", res.Body)
+	}
+}
