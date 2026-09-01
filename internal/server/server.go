@@ -1,18 +1,24 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io/fs"
 	"net/http"
 	"strings"
+	"sync"
 
 	"httptest/internal/workspace"
 )
 
 // New registers workspace CRUD routes. When ui is nil, "/" is not mounted.
 func New(ws *workspace.Workspace, ui fs.FS) http.Handler {
-	s := &server{ws: ws}
+	s := &server{ws: ws, cancels: make(map[string]context.CancelFunc)}
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/execute", s.handleExecute)
+	mux.HandleFunc("POST /api/execute/{id}/cancel", s.handleCancel)
+	mux.HandleFunc("GET /api/history", s.handleListHistory)
+	mux.HandleFunc("GET /api/history/{id}", s.handleGetHistory)
 	mux.HandleFunc("GET /api/workspace", s.handleGetWorkspace)
 	mux.HandleFunc("GET /api/requests/{path...}", s.handleGetRequest)
 	mux.HandleFunc("PUT /api/requests/{path...}", s.handlePutRequest)
@@ -35,7 +41,9 @@ func New(ws *workspace.Workspace, ui fs.FS) http.Handler {
 }
 
 type server struct {
-	ws *workspace.Workspace
+	ws        *workspace.Workspace
+	cancelsMu sync.Mutex
+	cancels   map[string]context.CancelFunc
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
