@@ -116,7 +116,7 @@ func (w *Workspace) ListRequests() ([]RequestMeta, error) {
 		rel = strings.TrimSuffix(rel, ".yaml")
 		req, err := w.GetRequest(rel)
 		if err != nil {
-			return err
+			return nil
 		}
 		list = append(list, RequestMeta{Path: rel, Name: req.Name})
 		return nil

@@ -86,6 +86,38 @@ func TestFormBodyRoundTrip(t *testing.T) {
 	}
 }
 
+func TestListRequestsSkipsInvalidFiles(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := Request{
+		Name:   "Good",
+		Method: "GET",
+		URL:    "http://example.com/good",
+	}
+	if err := ws.PutRequest("good", req); err != nil {
+		t.Fatal(err)
+	}
+	collections := filepath.Join(ws.Dir(), "collections")
+	if err := os.WriteFile(filepath.Join(collections, "bad-method.yaml"), []byte("name: Bad\nmethod: FOO\nurl: http://example.com/bad\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(collections, "corrupt.yaml"), []byte("name: Bad\nmethod: [\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	list, err := ws.ListRequests()
+	if err != nil {
+		t.Fatalf("ListRequests should not fail on invalid files: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 request, got %d: %+v", len(list), list)
+	}
+	if list[0].Path != "good" || list[0].Name != "Good" {
+		t.Fatalf("%+v", list)
+	}
+}
+
 func containsAll(s string, parts ...string) bool {
 	for _, p := range parts {
 		if !strings.Contains(s, p) {
