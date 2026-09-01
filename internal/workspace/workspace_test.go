@@ -49,7 +49,7 @@ func TestInitIdempotent(t *testing.T) {
 }
 
 func TestCleanRelRejectsTraversal(t *testing.T) {
-	for _, rel := range []string{"../x", "..", "/abs", "a/../../b", ""} {
+	for _, rel := range []string{"../x", "..", "/abs", "a/../../b", "", "C:/foo", "C:\\foo"} {
 		if _, err := CleanRel(rel); err == nil {
 			t.Fatalf("expected error for %q", rel)
 		}
