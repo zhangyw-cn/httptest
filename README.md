@@ -111,7 +111,6 @@ Cookie 管理、Basic/Bearer 助手、multipart 上传、HTTP/2、WebSocket、gR
 
 ```bash
 go test ./...
-cd web && npm test
 ```
 
 改前端后重建嵌入资源（Vite 输出到 `internal/server/ui/`，由 Go `embed`，无需手工复制）：
