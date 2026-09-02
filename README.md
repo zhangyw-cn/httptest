@@ -1,0 +1,136 @@
+# httptest
+
+本机 HTTP 调试工具。在项目目录运行一个 Go 二进制，浏览器打开 Web UI，由 Go 后端发出请求（避开浏览器 CORS），并展示请求、响应与诊断。
+
+## 能做什么
+
+- 一条命令启动；默认监听 `127.0.0.1:1370`，仅本机可访问
+- 编辑并发送 GET、POST、PUT、PATCH、DELETE、HEAD、OPTIONS；未保存草稿也能发
+- 响应区：状态码、头、格式化 Body、原始报文、体积、重定向链、分阶段耗时
+- 集合与环境模板可随项目 git 共享；历史、密钥、本机覆盖不进 git
+- 数据全部落在启动时当前目录的 `.httptest/`
+
+## 快速开始
+
+需要 Go 1.22+。克隆本仓库后，在仓库根目录执行：
+
+```bash
+go build -o httptest ./cmd/httptest
+./httptest --open
+```
+
+`net.Listen` 成功之后才会在 stdout 打印实际 URL（例如 `http://127.0.0.1:1370`）。`--open` 会尽力打开系统浏览器；失败则忽略，请手动打开打印出的地址。
+
+浏览器打开后：选环境 → 填 Method/URL → Send。
+
+## 命令行
+
+```
+httptest [--listen 127.0.0.1:1370] [--open]
+```
+
+- 工作区固定为当前工作目录下的 `.httptest/`，没有 `--workspace`。
+- `--listen` 非法则退出码非 0。
+- 监听 `0.0.0.0`、`::` 或空 host 时，stderr 会警告：能连到该端口的人可把本机当 HTTP 代理。默认请继续用回环地址。
+
+## 界面
+
+顶栏是产品名、工作区路径（cwd）和环境选择器。左栏为 `集合 | 历史`：集合是可新建、删除请求的目录树；历史按时间倒序，点击后回填中栏并展示当时响应。中栏是 Method、URL 和 `Query | Headers | Body`，底部为 **Send**、**Stop**、**Save**；Send 发送当前草稿。右栏展示状态码、总耗时、体积，以及 `Body | Headers | Raw | Timeline`。
+
+## 工作区
+
+首次启动若目录不存在会创建，并写入 `.httptest/.gitignore`：
+
+```
+local/
+history/
+```
+
+```
+.httptest/
+  .gitignore
+  collections/      # 请求，可提交
+  environments/     # 环境模板，可提交
+  local/            # 密钥与当前环境，不提交
+  history/          # 按日 jsonl，不提交
+```
+
+请求身份是相对 `collections/` 的路径、不含 `.yaml` 后缀（例如 `auth/login`）。重命名文件即改名，移动目录即改分组，不另建 ID。
+
+## 请求文件
+
+路径：`collections/**/*.yaml`。
+
+```yaml
+name: Login
+method: POST
+url: "{{baseUrl}}/api/login"
+query: {}
+headers:
+  Accept: application/json
+body:
+  type: json    # none | json | raw | form
+  content: |
+    {"user": "{{username}}"}
+timeout: 30s    # 可选，默认 30s
+```
+
+- `method` 仅允许 GET、POST、PUT、PATCH、DELETE、HEAD、OPTIONS（大小写不敏感，落盘大写）。
+- `query`、`headers`：string → string，无同名多值。
+- `body.type` 为 `form` 时，`content` 为 YAML map，发送 `application/x-www-form-urlencoded`。
+- `body.type` 为 `json` 且未设 `Content-Type` 时，默认 `application/json`。
+- `body.type` 为 `none` 或 GET/HEAD 时不发送 body。
+- URL、query、header、body 文本均可出现 `{{name}}`。
+
+## 环境与密钥
+
+`environments/<name>.yaml` 可提交，禁止放密钥：
+
+```yaml
+name: local
+variables:
+  baseUrl: http://127.0.0.1:8080
+  username: demo
+```
+
+`local/secrets.yaml` 用同名变量覆盖模板，不提交。`local/active.yaml` 记录当前环境：
+
+```yaml
+environment: local
+```
+
+替换顺序：环境模板 → `secrets.yaml`。缺失任一 `{{var}}` 时分类为 `invalid`，列出变量名，**不发送**。密钥可在 UI 中编辑（本机工具，不上传）。
+
+## v1 明确不做
+
+Cookie 管理、Basic/Bearer 助手、multipart 上传、HTTP/2、WebSocket、gRPC、SSE、多请求标签页、账号登录、云同步、跳过 TLS 校验、关闭跟随重定向。
+
+跟随重定向最多 10 次。HTTPS 使用系统 CA。出站忽略 `HTTP_PROXY` / `HTTPS_PROXY`。
+
+## 开发
+
+```bash
+go test ./...
+cd web && npm test
+```
+
+改前端后重建嵌入资源（Vite 输出到 `internal/server/ui/`，由 Go `embed`，无需手工复制）：
+
+```bash
+cd web && npm run build
+go build -o httptest ./cmd/httptest
+```
+
+开发时可用 `web/` 的 Vite（`npm run dev`）把 `/api` 代理到 `http://127.0.0.1:1370`，须同时先启动 Go 服务。产品形态仍是单二进制。
+
+```
+cmd/httptest/
+internal/workspace/
+internal/executor/
+internal/server/
+web/
+```
+
+## 相关文档
+
+实现与文件格式细节见 [docs/superpowers/specs/2026-09-01-httptest-design.md](docs/superpowers/specs/2026-09-01-httptest-design.md)。
