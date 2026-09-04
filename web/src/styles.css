@@ -159,12 +159,16 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
+.activity-btn:focus-visible {
+  outline-offset: -2px;
+}
+
 .btn,
 .activity-btn,
 .req-item,
 .tab,
 .btn-icon {
-  transition: background-color 80ms ease, border-color 80ms ease, color 80ms ease;
+  transition: background-color 80ms ease, border-color 80ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -215,10 +219,6 @@ button:focus-visible {
   color: var(--ink);
 }
 
-.btn-active:hover:not(:disabled) {
-  background: var(--selected);
-}
-
 .btn-block {
   width: 100%;
 }
@@ -240,12 +240,6 @@ button:focus-visible {
   background: var(--err);
   color: #fff;
   border-color: var(--err);
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: var(--err);
-  border-color: var(--err);
-  color: #fff;
 }
 
 .theme-switch {
