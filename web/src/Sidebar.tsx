@@ -1,33 +1,94 @@
 import { useEffect, useState } from "react";
 import { listHistory } from "./api";
+import { buildRequestTree, type TreeNode } from "./tree";
+import type { LeftView } from "./activity";
 import type { HistoryEntry, RequestMeta } from "./types";
 
 interface Props {
   requests: RequestMeta[];
   currentPath: string | null;
-  tabLeft: "collection" | "history";
+  view: LeftView;
   sending: boolean;
-  onTabLeft: (tab: "collection" | "history") => void;
   onSelectRequest: (path: string) => void;
   onNewRequest: () => void;
+  onDeleteRequest: (path: string) => void;
   onSelectHistory: (entry: HistoryEntry) => void;
+}
+
+function TreeItems({
+  nodes,
+  depth,
+  currentPath,
+  onSelectRequest,
+  onDeleteRequest,
+}: {
+  nodes: TreeNode[];
+  depth: number;
+  currentPath: string | null;
+  onSelectRequest: (path: string) => void;
+  onDeleteRequest: (path: string) => void;
+}) {
+  return (
+    <ul className="req-list" style={{ paddingLeft: depth ? "0.75rem" : 0 }}>
+      {nodes.map((n) => (
+        <li key={n.path ?? `dir:${n.name}:${depth}`}>
+          {n.path ? (
+            <div className="tree-row">
+              <button
+                type="button"
+                className={
+                  currentPath === n.path ? "req-item active" : "req-item"
+                }
+                onClick={() => onSelectRequest(n.path!)}
+              >
+                <span className="req-path">{n.name}</span>
+              </button>
+              <button
+                type="button"
+                className="btn-icon"
+                title="删除"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteRequest(n.path!);
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <div className="tree-folder">{n.name}</div>
+          )}
+          {n.children.length > 0 ? (
+            <TreeItems
+              nodes={n.children}
+              depth={depth + 1}
+              currentPath={currentPath}
+              onSelectRequest={onSelectRequest}
+              onDeleteRequest={onDeleteRequest}
+            />
+          ) : null}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export default function Sidebar({
   requests,
   currentPath,
-  tabLeft,
+  view,
   sending,
-  onTabLeft,
   onSelectRequest,
   onNewRequest,
+  onDeleteRequest,
   onSelectHistory,
 }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [histError, setHistError] = useState<string | null>(null);
+  const tree = buildRequestTree(requests);
 
   useEffect(() => {
-    if (tabLeft !== "history") return;
+    if (view !== "history") return;
     let cancelled = false;
     (async () => {
       try {
@@ -45,51 +106,56 @@ export default function Sidebar({
     return () => {
       cancelled = true;
     };
-  }, [tabLeft, sending]);
+  }, [view, sending]);
+
+  if (view === "collection") {
+    return (
+      <aside className="sidebar">
+        <div className="sidebar-head">
+          集合
+          <button
+            type="button"
+            className="btn-icon"
+            title="新建"
+            onClick={onNewRequest}
+          >
+            ＋
+          </button>
+        </div>
+        <div className="sidebar-body">
+          {requests.length === 0 ? (
+            <div className="empty-state">
+              <p className="empty-title">还没有请求</p>
+              <p className="empty-hint">用标题栏 ＋ 或下方按钮创建</p>
+              <button type="button" className="btn" onClick={onNewRequest}>
+                新建请求
+              </button>
+            </div>
+          ) : (
+            <TreeItems
+              nodes={tree}
+              depth={0}
+              currentPath={currentPath}
+              onSelectRequest={onSelectRequest}
+              onDeleteRequest={onDeleteRequest}
+            />
+          )}
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="sidebar">
-      <div className="tabs">
-        <button
-          type="button"
-          className={tabLeft === "collection" ? "tab active" : "tab"}
-          onClick={() => onTabLeft("collection")}
-        >
-          集合
-        </button>
-        <button
-          type="button"
-          className={tabLeft === "history" ? "tab active" : "tab"}
-          onClick={() => onTabLeft("history")}
-        >
-          历史
-        </button>
-      </div>
-      {tabLeft === "collection" ? (
-        <div className="sidebar-body">
-          <button type="button" className="btn btn-block" onClick={onNewRequest}>
-            新建
-          </button>
-          <ul className="req-list">
-            {requests.map((r) => (
-              <li key={r.path}>
-                <button
-                  type="button"
-                  className={
-                    currentPath === r.path ? "req-item active" : "req-item"
-                  }
-                  onClick={() => onSelectRequest(r.path)}
-                >
-                  <span className="req-path">{r.path}</span>
-                  {r.name ? <span className="req-name">{r.name}</span> : null}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : (
-        <div className="sidebar-body">
-          {histError && <p className="error">{histError}</p>}
+      <div className="sidebar-head">历史</div>
+      <div className="sidebar-body">
+        {histError && <p className="error">{histError}</p>}
+        {history.length === 0 && !histError ? (
+          <div className="empty-state">
+            <p className="empty-title">还没有历史</p>
+            <p className="empty-hint">发送成功的请求会列在这里</p>
+          </div>
+        ) : (
           <ul className="req-list">
             {history.map((h) => (
               <li key={h.id}>
@@ -109,8 +175,8 @@ export default function Sidebar({
               </li>
             ))}
           </ul>
-        </div>
-      )}
+        )}
+      </div>
     </aside>
   );
 }

@@ -19,6 +19,12 @@ function sizeLabel(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function msLabel(n: number): string {
+  if (!Number.isFinite(n)) return "0";
+  if (Math.abs(n) >= 10 || Number.isInteger(n)) return n.toFixed(0);
+  return n.toFixed(2);
+}
+
 export default function ResponsePane({ result }: Props) {
   const [tab, setTab] = useState<"body" | "headers" | "raw" | "timeline">(
     "body",
@@ -27,7 +33,10 @@ export default function ResponsePane({ result }: Props) {
   if (!result) {
     return (
       <section className="response">
-        <div className="response-empty">发送请求后在此查看响应</div>
+        <div className="empty-state">
+          <p className="empty-title">还没有响应</p>
+          <p className="empty-hint">填 URL，按 Send 或 Ctrl+Enter</p>
+        </div>
       </section>
     );
   }
@@ -46,19 +55,32 @@ export default function ResponsePane({ result }: Props) {
             <span className={`status status-${Math.floor(result.status / 100)}xx`}>
               {result.status} {result.statusText}
             </span>
-            <span>{result.timings.totalMs} ms</span>
-            <span>
-              {sizeLabel(result.responseSize)}
+            <span>{msLabel(result.timings.totalMs)} ms</span>
+            <span title="请求体字节">
+              请求 {sizeLabel(result.requestSize ?? 0)}
+            </span>
+            <span title="响应线上字节（解压前）">
+              响应 {sizeLabel(result.responseSize)}
+              {result.body &&
+              result.body.length !== result.responseSize
+                ? ` · 正文 ${sizeLabel(result.body.length)}`
+                : ""}
               {result.truncated ? "（截断）" : ""}
             </span>
             {result.errorMessage ? (
               <div className="error">{result.errorMessage}</div>
+            ) : null}
+            {result.historyError ? (
+              <div className="error">历史记录未写入：{result.historyError}</div>
             ) : null}
           </>
         ) : (
           <div className="error">
             <strong>{result.errorClass || "error"}</strong>
             {result.errorMessage ? <div>{result.errorMessage}</div> : null}
+            {result.historyError ? (
+              <div>历史记录未写入：{result.historyError}</div>
+            ) : null}
             {result.missingVars && result.missingVars.length > 0 ? (
               <div>缺少变量：{result.missingVars.join(", ")}</div>
             ) : null}
@@ -116,11 +138,11 @@ export default function ResponsePane({ result }: Props) {
         {tab === "timeline" && (
           <div className="timeline">
             <ul className="timing-list">
-              <li>dnsMs: {result.timings.dnsMs}</li>
-              <li>connectMs: {result.timings.connectMs}</li>
-              <li>tlsMs: {result.timings.tlsMs}</li>
-              <li>firstByteMs: {result.timings.firstByteMs}</li>
-              <li>totalMs: {result.timings.totalMs}</li>
+              <li>dnsMs: {msLabel(result.timings.dnsMs)}</li>
+              <li>connectMs: {msLabel(result.timings.connectMs)}</li>
+              <li>tlsMs: {msLabel(result.timings.tlsMs)}</li>
+              <li>firstByteMs: {msLabel(result.timings.firstByteMs)}</li>
+              <li>totalMs: {msLabel(result.timings.totalMs)}</li>
             </ul>
             <h3>redirects</h3>
             {(result.redirects ?? []).length === 0 ? (
