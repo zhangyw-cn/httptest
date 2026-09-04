@@ -1,0 +1,48 @@
+import { describe, expect, it } from "vitest";
+import { shortcutFromEvent } from "./shortcut";
+
+function ev(
+  key: string,
+  mods: { ctrl?: boolean; meta?: boolean } = {},
+): { key: string; ctrlKey: boolean; metaKey: boolean } {
+  return { key, ctrlKey: !!mods.ctrl, metaKey: !!mods.meta };
+}
+
+describe("shortcutFromEvent", () => {
+  it("treats Ctrl+Enter as send and plain Enter as nothing", () => {
+    expect(shortcutFromEvent(ev("Enter", { ctrl: true }), { dialogOpen: false })).toBe(
+      "send",
+    );
+    expect(shortcutFromEvent(ev("Enter"), { dialogOpen: false })).toBeNull();
+  });
+
+  it("treats Cmd+S as save", () => {
+    expect(shortcutFromEvent(ev("s", { meta: true }), { dialogOpen: false })).toBe(
+      "save",
+    );
+    expect(shortcutFromEvent(ev("S", { ctrl: true }), { dialogOpen: false })).toBe(
+      "save",
+    );
+  });
+
+  it("treats Ctrl+B as toggle-panel", () => {
+    expect(shortcutFromEvent(ev("b", { ctrl: true }), { dialogOpen: false })).toBe(
+      "toggle-panel",
+    );
+  });
+
+  it("returns escape when the dialog is closed", () => {
+    expect(shortcutFromEvent(ev("Escape"), { dialogOpen: false })).toBe("escape");
+  });
+
+  it("suppresses send save and toggle while a dialog is open", () => {
+    expect(
+      shortcutFromEvent(ev("Enter", { ctrl: true }), { dialogOpen: true }),
+    ).toBeNull();
+    expect(shortcutFromEvent(ev("b", { ctrl: true }), { dialogOpen: true })).toBeNull();
+    expect(shortcutFromEvent(ev("s", { ctrl: true }), { dialogOpen: true })).toBe(
+      "block-browser-save",
+    );
+    expect(shortcutFromEvent(ev("Escape"), { dialogOpen: true })).toBe("escape");
+  });
+});

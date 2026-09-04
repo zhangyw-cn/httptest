@@ -78,6 +78,7 @@ export interface Result {
   timings: Timings;
   errorClass: ErrorClass | "";
   errorMessage: string;
+  historyError?: string;
   missingVars?: string[];
   prepared: HttpRequest;
 }

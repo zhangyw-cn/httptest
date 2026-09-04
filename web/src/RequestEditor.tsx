@@ -8,24 +8,8 @@ interface Pair {
 
 interface Props {
   draft: HttpRequest;
-  dirty: boolean;
-  sending: boolean;
-  saving: boolean;
   onChange: (next: HttpRequest) => void;
-  onSend: () => void;
-  onStop: () => void;
-  onSave: () => void;
 }
-
-const METHODS = [
-  "GET",
-  "POST",
-  "PUT",
-  "PATCH",
-  "DELETE",
-  "HEAD",
-  "OPTIONS",
-] as const;
 
 const BODY_TYPES: BodyType[] = ["none", "json", "raw", "form"];
 
@@ -124,16 +108,7 @@ function PairTable({
   );
 }
 
-export default function RequestEditor({
-  draft,
-  dirty,
-  sending,
-  saving,
-  onChange,
-  onSend,
-  onStop,
-  onSave,
-}: Props) {
+export default function RequestEditor({ draft, onChange }: Props) {
   const [tab, setTab] = useState<"query" | "headers" | "body">("body");
   const [queryPairs, setQueryPairs] = useState<Pair[]>(() =>
     recordToPairs(draft.query),
@@ -217,26 +192,6 @@ export default function RequestEditor({
 
   return (
     <section className="editor">
-      <div className="editor-line">
-        <select
-          className="method"
-          value={draft.method}
-          onChange={(e) => onChange({ ...draft, method: e.target.value })}
-        >
-          {METHODS.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-        <input
-          className="url"
-          value={draft.url}
-          onChange={(e) => onChange({ ...draft, url: e.target.value })}
-          spellCheck={false}
-        />
-        {dirty && <span className="dirty">未保存</span>}
-      </div>
       <div className="tabs">
         <button
           type="button"
@@ -300,32 +255,6 @@ export default function RequestEditor({
             )}
           </div>
         )}
-      </div>
-      <div className="editor-actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={onSend}
-          disabled={sending}
-        >
-          Send
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={onStop}
-          disabled={!sending}
-        >
-          Stop
-        </button>
-        <button
-          type="button"
-          className="btn"
-          onClick={onSave}
-          disabled={saving}
-        >
-          Save
-        </button>
       </div>
     </section>
   );

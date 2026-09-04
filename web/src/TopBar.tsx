@@ -1,22 +1,43 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { secretsJSON } from "./secrets";
+import type { ThemePref } from "./theme";
 import type { Environment, LocalConfig } from "./types";
 
 interface Props {
   cwd: string;
   envs: Environment[];
   local: LocalConfig | null;
+  theme: ThemePref;
+  onThemeChange: (theme: ThemePref) => void;
   onEnvChange: (environment: string) => void;
   onSecretsChange: (secrets: Record<string, string>) => void;
 }
 
+const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
+  { value: "light", label: "浅色" },
+  { value: "dark", label: "深色" },
+  { value: "system", label: "系统" },
+];
+
 interface Pair {
+  id: number;
   key: string;
   value: string;
 }
 
+let pairSeq = 0;
+function nextPairId(): number {
+  pairSeq += 1;
+  return pairSeq;
+}
+
 function secretsToPairs(secrets: Record<string, string>): Pair[] {
-  const rows = Object.entries(secrets).map(([key, value]) => ({ key, value }));
-  return rows.length > 0 ? rows : [{ key: "", value: "" }];
+  const rows = Object.entries(secrets).map(([key, value]) => ({
+    id: nextPairId(),
+    key,
+    value,
+  }));
+  return rows.length > 0 ? rows : [{ id: nextPairId(), key: "", value: "" }];
 }
 
 function pairsToSecrets(pairs: Pair[]): Record<string, string> {
@@ -31,19 +52,33 @@ export default function TopBar({
   cwd,
   envs,
   local,
+  theme,
+  onThemeChange,
   onEnvChange,
   onSecretsChange,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [pairs, setPairs] = useState<Pair[]>([{ key: "", value: "" }]);
+  const [pairs, setPairs] = useState<Pair[]>(() =>
+    secretsToPairs(local?.secrets ?? {}),
+  );
+  const lastJSON = useRef(secretsJSON(local?.secrets));
+  const pairsRef = useRef(pairs);
+  pairsRef.current = pairs;
+  const secretsJ = secretsJSON(local?.secrets);
 
   useEffect(() => {
-    setPairs(secretsToPairs(local?.secrets ?? {}));
-  }, [local]);
+    if (secretsJ !== lastJSON.current) {
+      setPairs(secretsToPairs(local?.secrets ?? {}));
+      lastJSON.current = secretsJ;
+    }
+  }, [secretsJ, local?.secrets]);
 
   function commit(next: Pair[]) {
     setPairs(next);
-    onSecretsChange(pairsToSecrets(next));
+    pairsRef.current = next;
+    const secrets = pairsToSecrets(next);
+    lastJSON.current = secretsJSON(secrets);
+    onSecretsChange(secrets);
   }
 
   return (
@@ -55,6 +90,18 @@ export default function TopBar({
         </span>
       </div>
       <div className="topbar-right">
+        <div className="theme-switch" role="group" aria-label="主题">
+          {THEME_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={theme === opt.value ? "btn btn-active" : "btn"}
+              onClick={() => onThemeChange(opt.value)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
         <label className="env-label">
           环境
           <select
@@ -89,7 +136,7 @@ export default function TopBar({
             </thead>
             <tbody>
               {pairs.map((p, i) => (
-                <tr key={i}>
+                <tr key={p.id}>
                   <td>
                     <input
                       value={p.key}
@@ -99,7 +146,7 @@ export default function TopBar({
                         );
                         setPairs(next);
                       }}
-                      onBlur={() => commit(pairs)}
+                      onBlur={() => commit(pairsRef.current)}
                     />
                   </td>
                   <td>
@@ -112,7 +159,7 @@ export default function TopBar({
                         );
                         setPairs(next);
                       }}
-                      onBlur={() => commit(pairs)}
+                      onBlur={() => commit(pairsRef.current)}
                     />
                   </td>
                   <td>
@@ -121,7 +168,7 @@ export default function TopBar({
                       className="btn-icon"
                       onClick={() => {
                         const next = pairs.filter((_, j) => j !== i);
-                        commit(next.length ? next : [{ key: "", value: "" }]);
+                        commit(next.length ? next : [{ id: nextPairId(), key: "", value: "" }]);
                       }}
                     >
                       ×
@@ -134,7 +181,9 @@ export default function TopBar({
           <button
             type="button"
             className="btn"
-            onClick={() => setPairs([...pairs, { key: "", value: "" }])}
+            onClick={() =>
+              setPairs([...pairs, { id: nextPairId(), key: "", value: "" }])
+            }
           >
             添加密钥
           </button>

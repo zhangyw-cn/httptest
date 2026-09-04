@@ -125,6 +125,8 @@ export async function execute(
 export async function cancelExecute(id: string): Promise<{ ok: string }> {
   const res = await fetch(`/api/execute/${encodeURIComponent(id)}/cancel`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
   });
   return parseJSON<{ ok: string }>(res);
 }

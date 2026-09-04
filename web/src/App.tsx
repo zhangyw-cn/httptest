@@ -3,6 +3,7 @@ import { newId } from "./id";
 import {
   cancelExecute,
   createRequest,
+  deleteRequest,
   execute,
   getEnvironments,
   getLocal,
@@ -11,10 +12,27 @@ import {
   putLocal,
   putRequest,
 } from "./api";
+import {
+  clickActivityIcon,
+  togglePanel,
+  type LeftState,
+} from "./activity";
+import ActivityBar from "./ActivityBar";
+import Dialog, { type DialogMode } from "./Dialog";
+import ErrorBoundary from "./ErrorBoundary";
 import RequestEditor from "./RequestEditor";
 import ResponsePane from "./ResponsePane";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
+import UrlBar from "./UrlBar";
+import { defaultDraft, normalizeRequest, parseHistoryResult } from "./request";
+import { shortcutFromEvent } from "./shortcut";
+import {
+  applyTheme,
+  readStoredTheme,
+  writeStoredTheme,
+  type ThemePref,
+} from "./theme";
 import type {
   Environment,
   HistoryEntry,
@@ -23,37 +41,6 @@ import type {
   Result,
   WorkspaceInfo,
 } from "./types";
-
-export function defaultDraft(): HttpRequest {
-  return {
-    name: "",
-    method: "GET",
-    url: "{{baseUrl}}/",
-    query: {},
-    headers: {},
-    body: { type: "none" },
-  };
-}
-
-export function normalizeRequest(r: HttpRequest): HttpRequest {
-  const next: HttpRequest = {
-    name: r.name ?? "",
-    method: r.method || "GET",
-    url: r.url ?? "",
-    query: r.query ?? {},
-    headers: r.headers ?? {},
-    body: r.body ?? { type: "none" },
-  };
-  if (r.timeout) next.timeout = r.timeout;
-  return next;
-}
-
-export function parseHistoryResult(result: unknown): Result {
-  if (typeof result === "string") {
-    return JSON.parse(result) as Result;
-  }
-  return result as Result;
-}
 
 export default function App() {
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
@@ -64,13 +51,27 @@ export default function App() {
   const [dirty, setDirty] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [executeId, setExecuteId] = useState<string | null>(null);
-  const [tabLeft, setTabLeft] = useState<"collection" | "history">(
-    "collection",
-  );
+  const [left, setLeft] = useState<LeftState>({
+    view: "collection",
+    panelOpen: true,
+  });
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [theme, setTheme] = useState<ThemePref>(() => readStoredTheme());
+  const [dialog, setDialog] = useState<DialogMode | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
   const savedRef = useRef(JSON.stringify(defaultDraft()));
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const currentPathRef = useRef(currentPath);
+  currentPathRef.current = currentPath;
+  const sendingRef = useRef(sending);
+  sendingRef.current = sending;
+  const executeIdRef = useRef(executeId);
+  executeIdRef.current = executeId;
+  const dialogRef = useRef(dialog);
+  dialogRef.current = dialog;
 
   const applyDraft = useCallback((next: HttpRequest, saved?: boolean) => {
     const n = normalizeRequest(next);
@@ -128,39 +129,57 @@ export default function App() {
     setLocal(saved);
   }
 
+  function onThemeChange(pref: ThemePref) {
+    setTheme(pref);
+    writeStoredTheme(pref);
+    applyTheme(pref);
+  }
+
   async function onSelectRequest(path: string) {
     const req = await getRequest(path);
     setCurrentPath(path);
     applyDraft(req, true);
   }
 
-  async function onNewRequest() {
-    const path = window.prompt("请求路径（如 auth/ping）")?.trim();
-    if (!path) return;
-    const req = defaultDraft();
-    const segs = path.split("/").filter(Boolean);
-    req.name = segs[segs.length - 1] ?? path;
-    await createRequest(path, req);
-    await reloadWorkspace();
-    setCurrentPath(path);
-    applyDraft(req, true);
+  function openNewDialog() {
+    setDialogError(null);
+    setDialog({
+      kind: "path",
+      title: "请求路径",
+      submitLabel: "创建",
+      error: null,
+      intent: "create",
+    });
+  }
+
+  function openDeleteDialog(path: string) {
+    setDialogError(null);
+    setDialog({
+      kind: "confirm",
+      title: "删除请求",
+      body: `删除 ${path}？此操作会从磁盘去掉该文件。`,
+      submitLabel: "删除",
+      error: null,
+      path,
+    });
   }
 
   function onSelectHistory(entry: HistoryEntry) {
     applyDraft(entry.request);
     if (entry.requestPath) setCurrentPath(entry.requestPath);
+    else setCurrentPath(null);
     setResult(parseHistoryResult(entry.result));
   }
 
-  async function onSend() {
+  const onSend = useCallback(async () => {
     const id = newId();
     setExecuteId(id);
     setSending(true);
     setError(null);
     try {
       const { result: res } = await execute(
-        draft,
-        currentPath ?? undefined,
+        draftRef.current,
+        currentPathRef.current ?? undefined,
         id,
       );
       setResult(res);
@@ -169,36 +188,120 @@ export default function App() {
     } finally {
       setSending(false);
     }
-  }
+  }, []);
 
-  async function onStop() {
-    if (!executeId) return;
+  const onStop = useCallback(async () => {
+    const id = executeIdRef.current;
+    if (!id) return;
     try {
-      await cancelExecute(executeId);
+      await cancelExecute(id);
     } catch {
       // execute 可能已结束，忽略 404
     }
-  }
+  }, []);
 
-  async function onSave() {
-    let path = currentPath;
-    if (!path) {
-      path = window.prompt("请求路径（如 auth/ping）")?.trim() ?? "";
-      if (!path) return;
-    }
+  const saveToPath = useCallback(async (path: string) => {
     setSaving(true);
-    setError(null);
     try {
-      const saved = await putRequest(path, draft);
+      const saved = await putRequest(path, draftRef.current);
       setCurrentPath(path);
       applyDraft(saved, true);
       await reloadWorkspace();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setSaving(false);
     }
+  }, [applyDraft, reloadWorkspace]);
+
+  const onSave = useCallback(async () => {
+    const path = currentPathRef.current;
+    if (!path) {
+      setDialogError(null);
+      setDialog({
+        kind: "path",
+        title: "请求路径",
+        submitLabel: "保存",
+        error: null,
+        intent: "save",
+      });
+      return;
+    }
+    setError(null);
+    try {
+      await saveToPath(path);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, [saveToPath]);
+
+  async function onDialogSubmit(path?: string) {
+    const current = dialogRef.current;
+    if (!current) return;
+    setDialogError(null);
+    try {
+      if (current.kind === "path") {
+        const p = path?.trim() ?? "";
+        if (!p) return;
+        if (current.intent === "create") {
+          const req = defaultDraft();
+          const segs = p.split("/").filter(Boolean);
+          req.name = segs[segs.length - 1] ?? p;
+          await createRequest(p, req);
+          await reloadWorkspace();
+          setCurrentPath(p);
+          applyDraft(req, true);
+        } else {
+          await saveToPath(p);
+        }
+      } else {
+        await deleteRequest(current.path);
+        if (currentPathRef.current === current.path) {
+          setCurrentPath(null);
+          applyDraft(defaultDraft(), true);
+          setResult(null);
+        }
+        await reloadWorkspace();
+      }
+      setDialog(null);
+      setDialogError(null);
+    } catch (err) {
+      setDialogError(err instanceof Error ? err.message : String(err));
+    }
   }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const action = shortcutFromEvent(e, {
+        dialogOpen: dialogRef.current !== null,
+      });
+      if (!action) return;
+      if (action === "save" || action === "block-browser-save") {
+        e.preventDefault();
+      }
+      if (action === "send") {
+        e.preventDefault();
+        if (!sendingRef.current) void onSend();
+      } else if (action === "save") {
+        void onSave();
+      } else if (action === "toggle-panel") {
+        e.preventDefault();
+        setLeft((s) => togglePanel(s));
+      } else if (action === "escape") {
+        if (dialogRef.current) {
+          setDialog(null);
+          setDialogError(null);
+        } else if (sendingRef.current) {
+          void onStop();
+        }
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onSave, onSend, onStop]);
+
+  const dialogMode =
+    dialog === null
+      ? null
+      : { ...dialog, error: dialogError ?? dialog.error };
 
   return (
     <div className="app">
@@ -206,33 +309,68 @@ export default function App() {
         cwd={workspace?.cwd ?? ""}
         envs={envs}
         local={local}
+        theme={theme}
+        onThemeChange={onThemeChange}
         onEnvChange={onEnvChange}
         onSecretsChange={onSecretsChange}
       />
       {error && <div className="banner error">{error}</div>}
-      <div className="main">
-        <Sidebar
-          requests={workspace?.requests ?? []}
-          currentPath={currentPath}
-          tabLeft={tabLeft}
-          sending={sending}
-          onTabLeft={setTabLeft}
-          onSelectRequest={onSelectRequest}
-          onNewRequest={onNewRequest}
-          onSelectHistory={onSelectHistory}
+      {/* eslint-disable-next-line react/no-unknown-property */}
+      <div className="main" {...(dialogMode ? { inert: "" } : {})}>
+        <ActivityBar
+          view={left.view}
+          panelOpen={left.panelOpen}
+          onClickIcon={(icon) => setLeft((s) => clickActivityIcon(s, icon))}
         />
-        <RequestEditor
-          draft={draft}
-          dirty={dirty}
-          sending={sending}
-          saving={saving}
-          onChange={(next) => applyDraft(next)}
-          onSend={onSend}
-          onStop={onStop}
-          onSave={onSave}
-        />
-        <ResponsePane result={result} />
+        {left.panelOpen && (
+          <Sidebar
+            requests={workspace?.requests ?? []}
+            currentPath={currentPath}
+            view={left.view}
+            sending={sending}
+            onSelectRequest={onSelectRequest}
+            onNewRequest={openNewDialog}
+            onDeleteRequest={openDeleteDialog}
+            onSelectHistory={onSelectHistory}
+          />
+        )}
+        <div className="work">
+          <UrlBar
+            draft={draft}
+            dirty={dirty}
+            sending={sending}
+            saving={saving}
+            onChange={(next) => applyDraft(next)}
+            onSend={() => void onSend()}
+            onStop={() => void onStop()}
+            onSave={() => void onSave()}
+          />
+          <div className="panes">
+            <RequestEditor
+              draft={draft}
+              onChange={(next) => applyDraft(next)}
+            />
+            <ErrorBoundary>
+              <ResponsePane result={result} />
+            </ErrorBoundary>
+          </div>
+        </div>
       </div>
+      {dialogMode && (
+        <Dialog
+          key={
+            dialogMode.kind === "path"
+              ? dialogMode.intent
+              : dialogMode.path
+          }
+          mode={dialogMode}
+          onClose={() => {
+            setDialog(null);
+            setDialogError(null);
+          }}
+          onSubmit={(p) => void onDialogSubmit(p)}
+        />
+      )}
     </div>
   );
 }
