@@ -28,6 +28,9 @@ func historyFileFor(w *Workspace, t time.Time) string {
 
 func (w *Workspace) AppendHistory(e HistoryEntry) error {
 	path := historyFileFor(w, e.Time)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
@@ -56,9 +59,20 @@ func normalizeHistoryLimit(limit int) int {
 func (w *Workspace) ListHistory(limit int) ([]HistoryEntry, error) {
 	limit = normalizeHistoryLimit(limit)
 	dir := filepath.Join(w.dir, "history")
-	entries, err := w.readHistoryDir(dir)
+	files, err := historyFilesNewestFirst(dir)
 	if err != nil {
 		return nil, err
+	}
+	var entries []HistoryEntry
+	for _, name := range files {
+		fileEntries, err := readHistoryFile(filepath.Join(dir, name))
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, fileEntries...)
+		if len(entries) >= limit {
+			break
+		}
 	}
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].Time.After(entries[j].Time)
@@ -84,6 +98,22 @@ func (w *Workspace) GetHistory(id string) (HistoryEntry, error) {
 }
 
 func (w *Workspace) readHistoryDir(dir string) ([]HistoryEntry, error) {
+	files, err := historyFilesNewestFirst(dir)
+	if err != nil {
+		return nil, err
+	}
+	var entries []HistoryEntry
+	for _, name := range files {
+		fileEntries, err := readHistoryFile(filepath.Join(dir, name))
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, fileEntries...)
+	}
+	return entries, nil
+}
+
+func historyFilesNewestFirst(dir string) ([]string, error) {
 	names, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -98,16 +128,7 @@ func (w *Workspace) readHistoryDir(dir string) ([]HistoryEntry, error) {
 	sort.Slice(files, func(i, j int) bool {
 		return files[i] > files[j]
 	})
-	var entries []HistoryEntry
-	for _, name := range files {
-		path := filepath.Join(dir, name)
-		fileEntries, err := readHistoryFile(path)
-		if err != nil {
-			return nil, err
-		}
-		entries = append(entries, fileEntries...)
-	}
-	return entries, nil
+	return files, nil
 }
 
 func readHistoryFile(path string) ([]HistoryEntry, error) {

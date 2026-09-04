@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"httptest/internal/workspace"
+	"github.com/zhangyw-cn/httptest/internal/workspace"
 )
 
 // New registers workspace CRUD routes. When ui is nil, "/" is not mounted.
@@ -32,12 +32,24 @@ func New(ws *workspace.Workspace, ui fs.FS) http.Handler {
 		mux.Handle("/", http.FileServer(http.FS(ui)))
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "..") {
+		if pathHasDotDotSegment(r.URL.Path) {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid path"})
+			return
+		}
+		if !guardAPI(w, r) {
 			return
 		}
 		mux.ServeHTTP(w, r)
 	})
+}
+
+func pathHasDotDotSegment(p string) bool {
+	for _, seg := range strings.Split(p, "/") {
+		if seg == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 type server struct {

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"httptest/internal/workspace"
+	"github.com/zhangyw-cn/httptest/internal/workspace"
 )
 
 func (s *server) handleGetWorkspace(w http.ResponseWriter, r *http.Request) {

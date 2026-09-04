@@ -1,6 +1,6 @@
 package executor
 
-import "httptest/internal/workspace"
+import "github.com/zhangyw-cn/httptest/internal/workspace"
 
 type ErrorClass string
 
@@ -21,11 +21,11 @@ type RedirectHop struct {
 }
 
 type Timings struct {
-	DNSMs       int64 `json:"dnsMs"`
-	ConnectMs   int64 `json:"connectMs"`
-	TLSMs       int64 `json:"tlsMs"`
-	FirstByteMs int64 `json:"firstByteMs"`
-	TotalMs     int64 `json:"totalMs"`
+	DNSMs       float64 `json:"dnsMs"`
+	ConnectMs   float64 `json:"connectMs"`
+	TLSMs       float64 `json:"tlsMs"`
+	FirstByteMs float64 `json:"firstByteMs"`
+	TotalMs     float64 `json:"totalMs"`
 }
 
 type Result struct {
@@ -42,6 +42,7 @@ type Result struct {
 	Timings      Timings             `json:"timings"`
 	ErrorClass   ErrorClass          `json:"errorClass"`
 	ErrorMessage string              `json:"errorMessage"`
+	HistoryError string              `json:"historyError,omitempty"`
 	MissingVars  []string            `json:"missingVars,omitempty"`
 	Prepared     workspace.Request   `json:"prepared"`
 }

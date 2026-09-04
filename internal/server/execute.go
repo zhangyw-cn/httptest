@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"httptest/internal/executor"
-	"httptest/internal/workspace"
+	"github.com/zhangyw-cn/httptest/internal/executor"
+	"github.com/zhangyw-cn/httptest/internal/workspace"
 )
 
 func (s *server) handleExecute(w http.ResponseWriter, r *http.Request) {
@@ -50,13 +50,15 @@ func (s *server) handleExecute(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	_ = s.ws.AppendHistory(workspace.HistoryEntry{
+	if err := s.ws.AppendHistory(workspace.HistoryEntry{
 		ID:          body.ID,
 		Time:        time.Now(),
 		RequestPath: body.RequestPath,
 		Request:     result.Prepared,
 		Result:      raw,
-	})
+	}); err != nil {
+		result.HistoryError = err.Error()
+	}
 
 	writeJSON(w, http.StatusOK, result)
 }

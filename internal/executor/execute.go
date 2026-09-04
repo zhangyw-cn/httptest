@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"httptest/internal/workspace"
+	"github.com/zhangyw-cn/httptest/internal/workspace"
 )
 
 const maxBodyBytes = 2 * 1024 * 1024
@@ -21,7 +21,7 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string)
 	start := time.Now()
 	var timings Timings
 	defer func() {
-		timings.TotalMs = time.Since(start).Milliseconds()
+		timings.TotalMs = elapsedMs(start, time.Now())
 		res.Timings = timings
 	}()
 
@@ -57,11 +57,34 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string)
 		res.ErrorMessage = herr.Error()
 		return res
 	}
+	if bodyReader != nil {
+		bodyBytes, rerr := io.ReadAll(bodyReader)
+		if rerr != nil {
+			res.ErrorClass = ClassInvalid
+			res.ErrorMessage = rerr.Error()
+			return res
+		}
+		res.RequestSize = int64(len(bodyBytes))
+		bodyReader = bytes.NewReader(bodyBytes)
+	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, prepared.Method, prepared.URL, bodyReader)
 	if err != nil {
 		res.ErrorClass = ClassInvalid
 		res.ErrorMessage = err.Error()
+		return res
+	}
+	scheme := ""
+	if httpReq.URL != nil {
+		scheme = strings.ToLower(httpReq.URL.Scheme)
+	}
+	if scheme != "http" && scheme != "https" {
+		res.ErrorClass = ClassInvalid
+		if scheme == "" {
+			res.ErrorMessage = "unsupported protocol scheme"
+		} else {
+			res.ErrorMessage = "unsupported protocol scheme " + scheme
+		}
 		return res
 	}
 
@@ -96,36 +119,34 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string)
 	trace := &httptrace.ClientTrace{
 		DNSStart: func(httptrace.DNSStartInfo) { dnsStart = time.Now() },
 		DNSDone: func(httptrace.DNSDoneInfo) {
-			if !dnsStart.IsZero() {
-				timings.DNSMs = time.Since(dnsStart).Milliseconds()
-			}
+			timings.DNSMs = elapsedMs(dnsStart, time.Now())
 		},
 		ConnectStart: func(_, _ string) { connStart = time.Now() },
 		ConnectDone: func(_, _ string, _ error) {
-			if !connStart.IsZero() {
-				timings.ConnectMs = time.Since(connStart).Milliseconds()
-			}
+			timings.ConnectMs = elapsedMs(connStart, time.Now())
 		},
 		TLSHandshakeStart: func() { tlsStart = time.Now() },
 		TLSHandshakeDone: func(_ tls.ConnectionState, _ error) {
-			if !tlsStart.IsZero() {
-				timings.TLSMs = time.Since(tlsStart).Milliseconds()
-			}
+			timings.TLSMs = elapsedMs(tlsStart, time.Now())
 		},
 		GotFirstResponseByte: func() {
-			timings.FirstByteMs = time.Since(start).Milliseconds()
+			timings.FirstByteMs = elapsedMs(start, time.Now())
 		},
 	}
 	httpReq = httpReq.WithContext(httptrace.WithClientTrace(httpReq.Context(), trace))
 
 	dump, _ := httputil.DumpRequestOut(httpReq, true)
 	res.RequestDump = string(dump)
-	res.RequestSize = int64(len(dump))
 
 	var redirects []RedirectHop
+	redirectLimit := false
 	client := &http.Client{
 		Transport: newExecuteTransport(),
 		CheckRedirect: func(r *http.Request, via []*http.Request) error {
+			if len(via) > 10 {
+				redirectLimit = true
+				return http.ErrUseLastResponse
+			}
 			hop := RedirectHop{}
 			if r.Response != nil {
 				hop.Status = r.Response.StatusCode
@@ -135,9 +156,6 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string)
 				hop.URL = via[len(via)-1].URL.String()
 			}
 			redirects = append(redirects, hop)
-			if len(via) >= 10 {
-				return http.ErrUseLastResponse
-			}
 			return nil
 		},
 	}
@@ -163,10 +181,22 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string)
 		bodyBytes = bodyBytes[:maxBodyBytes]
 		readErr = nil
 	}
-	res.Body = string(bodyBytes)
 	res.ResponseSize = int64(len(bodyBytes))
 
-	resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	wireBody := bodyBytes
+	decoded, decErr := decodeHTTPBody(resp.Header.Get("Content-Encoding"), wireBody)
+	if decErr != nil {
+		if readErr == nil {
+			readErr = decErr
+		}
+		decoded = wireBody
+	} else if len(decoded) > maxBodyBytes {
+		res.Truncated = true
+		decoded = decoded[:maxBodyBytes]
+	}
+	res.Body = string(decoded)
+
+	resp.Body = io.NopCloser(bytes.NewReader(wireBody))
 	respDump, _ := httputil.DumpResponse(resp, true)
 	res.ResponseDump = string(respDump)
 
@@ -174,16 +204,29 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string)
 	res.StatusText = resp.Status
 	res.Headers = resp.Header
 	res.ErrorClass = ClassHTTP
+	if redirectLimit {
+		res.ErrorMessage = "redirect limit reached (10)"
+	}
 	if readErr != nil {
 		res.ErrorMessage = readErr.Error()
 	}
 	return res
 }
 
+func elapsedMs(start, end time.Time) float64 {
+	if start.IsZero() || end.IsZero() || end.Before(start) {
+		return 0
+	}
+	return float64(end.Sub(start)) / float64(time.Millisecond)
+}
+
 func newExecuteTransport() *http.Transport {
 	t := http.DefaultTransport.(*http.Transport).Clone()
+	// Ignore HTTP_PROXY/HTTPS_PROXY so a company proxy cannot silently
+	// intercept or block this local debugger. Documented in the design spec.
 	t.Proxy = nil
 	t.DisableKeepAlives = true
+	t.DisableCompression = true
 	return t
 }
 

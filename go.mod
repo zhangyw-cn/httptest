@@ -1,4 +1,4 @@
-module httptest
+module github.com/zhangyw-cn/httptest
 
 go 1.22
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"strings"
 )
 
@@ -30,11 +31,24 @@ func classify(err error) ErrorClass {
 	if isTLSError(err) {
 		return ClassTLS
 	}
+	if isUnsupportedScheme(err) {
+		return ClassInvalid
+	}
 	var op *net.OpError
 	if errors.As(err, &op) {
 		return ClassConnect
 	}
 	return ClassConnect
+}
+
+func isUnsupportedScheme(err error) bool {
+	var ue *url.Error
+	if errors.As(err, &ue) && ue.Err != nil {
+		if strings.Contains(strings.ToLower(ue.Err.Error()), "unsupported protocol scheme") {
+			return true
+		}
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "unsupported protocol scheme")
 }
 
 func isTLSError(err error) bool {

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"httptest/internal/workspace"
+	"github.com/zhangyw-cn/httptest/internal/workspace"
 )
 
 var allowedMethods = map[string]struct{}{

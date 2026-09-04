@@ -1,6 +1,10 @@
 package workspace
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestResolvedVarsSecretsOverride(t *testing.T) {
 	ws, err := Init(t.TempDir())
@@ -32,6 +36,13 @@ func TestResolvedVarsSecretsOverride(t *testing.T) {
 	}
 	if got.Environment != "local" || got.Secrets["token"] != "secret" {
 		t.Fatalf("%+v", got)
+	}
+	st, err := os.Stat(filepath.Join(ws.Dir(), "local", "secrets.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Mode().Perm() != 0o600 {
+		t.Fatalf("secrets.yaml mode=%o want 0600", st.Mode().Perm())
 	}
 	list, err := ws.ListEnvironments()
 	if err != nil {

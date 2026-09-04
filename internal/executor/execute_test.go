@@ -1,14 +1,17 @@
 package executor
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
-	"httptest/internal/workspace"
+	"github.com/zhangyw-cn/httptest/internal/workspace"
 )
 
 func TestExecuteJSONOK(t *testing.T) {
@@ -50,6 +53,27 @@ func TestExecuteJSONOK(t *testing.T) {
 	if res.Prepared.URL != srv.URL+"/login" {
 		t.Fatalf("prepared %s", res.Prepared.URL)
 	}
+	if res.RequestSize != int64(len(`{"u":"n"}`)) {
+		t.Fatalf("requestSize=%d want body length", res.RequestSize)
+	}
+	if res.ResponseSize != int64(len(`{"ok":true}`)) {
+		t.Fatalf("responseSize=%d", res.ResponseSize)
+	}
+	if res.Timings.TotalMs <= 0 {
+		t.Fatalf("totalMs should be sub-ms precise and > 0, got %v", res.Timings.TotalMs)
+	}
+}
+
+func TestElapsedMsFractional(t *testing.T) {
+	start := time.Now()
+	end := start.Add(250 * time.Microsecond)
+	got := elapsedMs(start, end)
+	if got < 0.2 || got > 0.3 {
+		t.Fatalf("elapsedMs=%v want ~0.25", got)
+	}
+	if elapsedMs(time.Time{}, end) != 0 {
+		t.Fatal("zero start should be 0")
+	}
 }
 
 func TestExecuteMissingVarDoesNotHitServer(t *testing.T) {
@@ -90,6 +114,9 @@ func TestExecuteSendsConnectionClose(t *testing.T) {
 	if !strings.EqualFold(connHdr, "close") {
 		t.Fatalf("Connection=%q, want close (DisableKeepAlives)", connHdr)
 	}
+	if res.RequestSize != 0 {
+		t.Fatalf("GET requestSize=%d want 0 (body bytes, not dump)", res.RequestSize)
+	}
 }
 
 func TestExecuteTransportIgnoresProxy(t *testing.T) {
@@ -99,6 +126,9 @@ func TestExecuteTransportIgnoresProxy(t *testing.T) {
 	}
 	if !tr.DisableKeepAlives {
 		t.Fatal("DisableKeepAlives must be true")
+	}
+	if !tr.DisableCompression {
+		t.Fatal("DisableCompression must be true so DumpResponse keeps Content-Encoding")
 	}
 }
 
@@ -125,5 +155,43 @@ func TestExecuteBodyReadErrorSetsMessage(t *testing.T) {
 	}
 	if !strings.Contains(res.Body, "partial") {
 		t.Fatalf("want partial body kept, got %q", res.Body)
+	}
+}
+
+func TestGzipDumpKeepsEncodingAndWireSize(t *testing.T) {
+	plain := []byte(strings.Repeat("hello gzip body ", 80))
+	var zipped bytes.Buffer
+	zw := gzip.NewWriter(&zipped)
+	if _, err := zw.Write(plain); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	wire := zipped.Bytes()
+	if len(wire) >= len(plain) {
+		t.Fatalf("expected compressed body smaller, plain=%d wire=%d", len(plain), len(wire))
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write(wire)
+	}))
+	defer srv.Close()
+
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL}, nil)
+	if res.ErrorClass != ClassHTTP || res.Status != 200 {
+		t.Fatalf("%+v", res)
+	}
+	if res.Body != string(plain) {
+		t.Fatalf("decoded body=%q", res.Body)
+	}
+	if res.ResponseSize != int64(len(wire)) {
+		t.Fatalf("responseSize=%d want wire %d", res.ResponseSize, len(wire))
+	}
+	if !strings.Contains(res.ResponseDump, "Content-Encoding: gzip") {
+		t.Fatalf("dump missing Content-Encoding:\n%s", res.ResponseDump)
 	}
 }

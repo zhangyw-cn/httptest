@@ -3,7 +3,7 @@ package executor
 import (
 	"testing"
 
-	"httptest/internal/workspace"
+	"github.com/zhangyw-cn/httptest/internal/workspace"
 )
 
 func TestSubstituteMissingAndHit(t *testing.T) {

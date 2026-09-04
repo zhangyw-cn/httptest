@@ -28,23 +28,19 @@ type activeFile struct {
 	Environment string `yaml:"environment"`
 }
 
-func (w *Workspace) envPath(name string) (string, error) {
+func (w *Workspace) envPath(name string) (string, string, error) {
 	cleaned, err := CleanRel(name)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if strings.Contains(cleaned, "/") {
-		return "", fmt.Errorf("invalid environment name %q", name)
+		return "", "", fmt.Errorf("invalid environment name %q", name)
 	}
-	return filepath.Join(w.dir, "environments", cleaned+".yaml"), nil
+	return filepath.Join(w.dir, "environments", cleaned+".yaml"), cleaned, nil
 }
 
 func (w *Workspace) PutEnvironment(env Environment) error {
-	path, err := w.envPath(env.Name)
-	if err != nil {
-		return err
-	}
-	cleaned, err := CleanRel(env.Name)
+	path, cleaned, err := w.envPath(env.Name)
 	if err != nil {
 		return err
 	}
@@ -89,9 +85,10 @@ func (w *Workspace) ListEnvironments() ([]Environment, error) {
 
 func (w *Workspace) PutLocal(local Local) error {
 	localDir := filepath.Join(w.dir, "local")
-	if err := os.MkdirAll(localDir, 0o755); err != nil {
+	if err := os.MkdirAll(localDir, 0o700); err != nil {
 		return err
 	}
+	_ = os.Chmod(localDir, 0o700)
 	secrets := secretsFile{Variables: local.Secrets}
 	if secrets.Variables == nil {
 		secrets.Variables = map[string]string{}
@@ -100,9 +97,10 @@ func (w *Workspace) PutLocal(local Local) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(localDir, "secrets.yaml"), sdata, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(localDir, "secrets.yaml"), sdata, 0o600); err != nil {
 		return err
 	}
+	_ = os.Chmod(filepath.Join(localDir, "secrets.yaml"), 0o600)
 	adata, err := yaml.Marshal(&activeFile{Environment: local.Environment})
 	if err != nil {
 		return err
@@ -146,7 +144,7 @@ func (w *Workspace) ResolvedVars() (map[string]string, error) {
 	}
 	vars := map[string]string{}
 	if local.Environment != "" {
-		path, err := w.envPath(local.Environment)
+		path, _, err := w.envPath(local.Environment)
 		if err == nil {
 			data, err := os.ReadFile(path)
 			if err == nil {

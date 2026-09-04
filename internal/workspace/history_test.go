@@ -3,6 +3,7 @@ package workspace
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -56,7 +57,7 @@ func TestHistoryLargeResultRoundTrip(t *testing.T) {
 	e := HistoryEntry{
 		ID: "large-id", Time: t0,
 		Request: Request{Name: "Large", Method: "GET", URL: "http://large"},
-		Result: result,
+		Result:  result,
 	}
 	if err := ws.AppendHistory(e); err != nil {
 		t.Fatal(err)
@@ -111,5 +112,74 @@ func TestListHistorySkipsCorruptLines(t *testing.T) {
 	}
 	if len(list) != 1 || list[0].ID != "good-id" {
 		t.Fatalf("want only valid entry, got %+v", list)
+	}
+}
+
+func TestAppendHistoryRecreatesDir(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(ws.Dir(), "history")); err != nil {
+		t.Fatal(err)
+	}
+	e := HistoryEntry{
+		ID: "after-rm", Time: time.Date(2026, 9, 2, 9, 0, 0, 0, time.Local),
+		Request: Request{Name: "X", Method: "GET", URL: "http://x"},
+		Result:  json.RawMessage(`{}`),
+	}
+	if err := ws.AppendHistory(e); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ws.GetHistory("after-rm")
+	if err != nil || got.ID != "after-rm" {
+		t.Fatalf("%+v %v", got, err)
+	}
+}
+
+func TestListHistoryStopsAfterLimit(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := HistoryEntry{
+		ID: "old", Time: time.Date(2026, 1, 1, 12, 0, 0, 0, time.Local),
+		Request: Request{Name: "Old", Method: "GET", URL: "http://old"},
+		Result:  json.RawMessage(`{}`),
+	}
+	newer := HistoryEntry{
+		ID: "new", Time: time.Date(2026, 9, 2, 12, 0, 0, 0, time.Local),
+		Request: Request{Name: "New", Method: "GET", URL: "http://new"},
+		Result:  json.RawMessage(`{}`),
+	}
+	if err := ws.AppendHistory(old); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.AppendHistory(newer); err != nil {
+		t.Fatal(err)
+	}
+	list, err := ws.ListHistory(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].ID != "new" {
+		t.Fatalf("%+v", list)
+	}
+
+	oldFile := historyFileFor(ws, old.Time)
+	if err := os.Chmod(oldFile, 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(oldFile, 0o644) })
+	if f, err := os.Open(oldFile); err == nil {
+		_ = f.Close()
+		t.Skip("process can still read mode 000 history file")
+	}
+	list, err = ws.ListHistory(1)
+	if err != nil {
+		t.Fatalf("must not open older files after filling limit: %v", err)
+	}
+	if len(list) != 1 || list[0].ID != "new" {
+		t.Fatalf("%+v", list)
 	}
 }
