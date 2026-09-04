@@ -153,8 +153,9 @@ v1 只支持回放（回填编辑器并展示当时响应），不自动另存�
 - 跟随重定向，最多 10 次；每一跳记入诊断。v1 无「关闭跟随」开关。
 - 默认超时 30s（请求文件可覆盖）。
 - HTTPS 使用系统 CA；v1 不提供 insecure skip。
-- 记录：DNS / 连接 / TLS / 首字节 / 总耗时；请求与响应体积；重定向链（status + location）。
-- 原始报文：替换变量之后，用 `httputil.DumpRequestOut` 与 `DumpResponse`（或等价实现）。
+- 记录：DNS / 连接 / TLS / 首字节 / 总耗时（`float64` 毫秒，保留亚毫秒）；请求体字节数与响应**线上**字节数；重定向链（status + location）。
+- 原始报文：替换变量之后，用 `httputil.DumpRequestOut` 与 `DumpResponse`。Transport **关闭透明 gzip**（`DisableCompression`），因此 dump 保留 `Content-Encoding` 与压缩体；UI 的 Body 标签再解压展示。
+- 出站 **忽略 `HTTP_PROXY` / `HTTPS_PROXY`**（`Transport.Proxy = nil`），避免公司代理静默拦截本机调试流量。
 - Body 超过 2MiB：截断，结果标 `truncated: true`。
 - User-Agent 若调用方未设置，则为 `httptest/0.1`。
 
@@ -174,7 +175,9 @@ v1 只支持回放（回填编辑器并展示当时响应），不自动另存�
 
 ## 6. HTTP API
 
-前缀 `/api`。无鉴权。静态 UI 挂在 `/`。
+前缀 `/api`。无登录账号。静态 UI 挂在 `/`。
+
+浏览器侧仍须防护：`/api` 只接受 Host 为 `localhost` / 回环或字面量 IP 的请求；若带 `Origin`，必须与 Host 同源；`POST`/`PUT`/`PATCH` 必须是 `application/json`。这堵住 simple-request CSRF 与 DNS rebinding 读密钥。
 
 | 用途 | 方法与路径 |
 |------|------------|
@@ -200,9 +203,9 @@ v1 只支持回放（回填编辑器并展示当时响应），不自动另存�
 布局（已选定）：**三栏**。
 
 - **顶栏**：产品名、工作区路径（cwd）、环境选择器（绑定 `local/active.yaml`）。
-- **左栏**：`集合 | 历史`。集合为目录树，可新建请求。历史按时间倒序；点击回填中栏并展示当时响应。
+- **左栏**：`集合 | 历史`。集合为目录树，可新建、删除请求。历史按时间倒序；点击回填中栏并展示当时响应。
 - **中栏**：Method、URL；标签 `Query | Headers | Body`；Body 按 none/json/raw/form 切换。底部 **Send**、**Stop**、**Save**。未保存改动有提示。Send 发当前草稿。
-- **右栏**：状态码、总耗时、体积。标签 `Body | Headers | Raw | Timeline`。JSON Body pretty-print；其它为文本。失败时状态强调错误分类。`Raw` 同时展示发出的请求原文与响应原文。`Timeline` 展示分阶段耗时与重定向链。
+- **右栏**：状态码、总耗时、请求体体积、响应线上体积。标签 `Body | Headers | Raw | Timeline`。JSON Body pretty-print；其它为文本。失败时状态强调错误分类。`Raw` 同时展示发出的请求原文与响应原文。`Timeline` 展示分阶段耗时与重定向链。渲染异常由 error boundary 拦住，避免整页白屏。
 
 技术：React + TypeScript；组件 state / 少量 context，不引入 Redux。v1 不做多标签编辑、不做独立主题开关（跟随系统颜色）。
 
@@ -215,7 +218,7 @@ httptest [--listen 127.0.0.1:1370] [--open]
 ```
 
 - 工作区固定为 `./.httptest`。
-- 启动后在 stdout 打印实际 URL（如 `http://127.0.0.1:1370`）。
+- `net.Listen` **成功之后**才在 stdout 打印实际 URL（如 `http://127.0.0.1:1370`）；端口占用时不会先打出打不开的地址。
 - `--listen` 非法则退出码非 0。
 
 ## 9. 仓库结构（实现时）
@@ -237,10 +240,10 @@ Go：`go test ./...`
 
 - workspace：创建布局、gitignore、CRUD、拒绝路径穿越
 - 变量替换：命中、secrets 覆盖、缺失则 `invalid`
-- executor：`net/http/httptest` 假服务覆盖 2xx/4xx、头、JSON、重定向链、超时分类
-- server：execute 与请求 CRUD 的少量 handler 测试
+- executor：`net/http/httptest` 假服务覆盖 2xx/4xx、头、JSON、重定向链、超时分类、gzip 线上体积
+- server：execute 与请求 CRUD 的少量 handler 测试；embed 产物含 `ui/index.html`
 
-前端 v1 不强制 E2E；手工验证 Send / Save / 历史回放 / 环境切换。
+前端：`cd web && npm test`（vitest，纯函数：normalizeRequest、目录树、密钥 JSON 键序）。v1 不强制 E2E；手工验证 Send / Save / 删除 / 历史回放 / 环境切换。
 
 ## 11. 实现顺序（供计划阶段拆任务）
 

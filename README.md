@@ -12,9 +12,18 @@
 
 ## 快速开始
 
-需要 Go 1.22+。克隆本仓库后，在仓库根目录执行：
+需要 Go 1.22+。模块路径为 `github.com/zhangyw-cn/httptest`。
 
 ```bash
+go install github.com/zhangyw-cn/httptest/cmd/httptest@latest
+httptest --open
+```
+
+或从源码构建：
+
+```bash
+git clone https://github.com/zhangyw-cn/httptest.git
+cd httptest
 go build -o httptest ./cmd/httptest
 ./httptest --open
 ```
@@ -35,7 +44,7 @@ httptest [--listen 127.0.0.1:1370] [--open]
 
 ## 界面
 
-顶栏是产品名、工作区路径（cwd）和环境选择器。左栏为 `集合 | 历史`：集合是可新建、删除请求的目录树；历史按时间倒序，点击后回填中栏并展示当时响应。中栏是 Method、URL 和 `Query | Headers | Body`，底部为 **Send**、**Stop**、**Save**；Send 发送当前草稿。右栏展示状态码、总耗时、体积，以及 `Body | Headers | Raw | Timeline`。
+顶栏是产品名、工作区路径、浅色/深色/系统、环境选择器和密钥。左侧活动栏切换集合与历史；再点当前图标收起树（`Ctrl+B`）。树展开时宽 220px。Method、URL、Send、Stop、Save 横跨中间请求栏和右侧响应栏（`Ctrl+Enter` 发送，`Ctrl+S` 保存）。请求栏为 `Query | Headers | Body`；响应栏为状态码、耗时、体积，以及 `Body | Headers | Raw | Timeline`。新建/删除在应用内对话框完成，不使用浏览器原生弹窗。
 
 ## 工作区
 
