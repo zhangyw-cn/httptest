@@ -191,7 +191,9 @@ button:focus-visible {
   background: var(--hover);
 }
 
-.btn:disabled {
+.btn:disabled,
+.btn-icon:disabled,
+.activity-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -356,7 +358,8 @@ button:focus-visible {
 }
 
 .urlbar .method,
-.urlbar .url {
+.urlbar .url,
+.topbar select {
   height: 32px;
 }
 
