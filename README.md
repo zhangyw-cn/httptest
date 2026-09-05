@@ -7,8 +7,7 @@
 - 一条命令启动；默认监听 `127.0.0.1:1370`，仅本机可访问
 - 编辑并发送 GET、POST、PUT、PATCH、DELETE、HEAD、OPTIONS；未保存草稿也能发
 - 响应区：状态码、头、格式化 Body、原始报文、体积、重定向链、分阶段耗时
-- 集合与环境模板可随项目 git 共享；历史、密钥、本机覆盖不进 git
-- 数据全部落在启动时当前目录的 `.httptest/`
+- 集合与环境模板可随项目 git 共享（工作目录下的 `collections/`、`environments/`）；历史、密钥、本机覆盖在 `.httptest/`，不进 git
 
 ## 快速开始
 
@@ -35,11 +34,12 @@ go build -o httptest ./cmd/httptest
 ## 命令行
 
 ```
-httptest [--listen 127.0.0.1:1370] [--open]
+httptest [DIR] [--listen 127.0.0.1:1370] [--open]
 ```
 
-- 工作区固定为当前工作目录下的 `.httptest/`，没有 `--workspace`。
-- `--listen` 非法则退出码非 0。
+- `DIR` 为工作区根，最多一个；省略则用启动时的当前目录。标志可写在 `DIR` 前后（例如 `httptest ~/proj --open`）。
+- `DIR` 必须已存在且为目录，否则退出码 2；不会自动创建该目录。
+- `--listen` 非法或多余位置参数则退出码 2。
 - 监听 `0.0.0.0`、`::` 或空 host 时，stderr 会警告：能连到该端口的人可把本机当 HTTP 代理。默认请继续用回环地址。
 
 ## 界面
@@ -48,21 +48,25 @@ httptest [--listen 127.0.0.1:1370] [--open]
 
 ## 工作区
 
-首次启动若目录不存在会创建，并写入 `.httptest/.gitignore`：
+首次启动只创建 `.httptest/`（本机数据），并在其中写入 `.gitignore`：
 
 ```
-local/
-history/
+*
 ```
 
+`collections/`、`environments/` 在第一次保存请求或环境时才创建。
+
 ```
-.httptest/
-  .gitignore
+<workdir>/
   collections/      # 请求，可提交
   environments/     # 环境模板，可提交
-  local/            # 密钥与当前环境，不提交
-  history/          # 按日 jsonl，不提交
+  .httptest/
+    .gitignore
+    local/          # 密钥与当前环境，不提交
+    history/        # 按日 jsonl，不提交
 ```
+
+这是破坏性变更：旧版本写在 `.httptest/collections/`、`.httptest/environments/` 的文件不再读取。请自行搬到工作目录下对应的可见目录。
 
 请求身份是相对 `collections/` 的路径、不含 `.yaml` 后缀（例如 `auth/login`）。重命名文件即改名，移动目录即改分组，不另建 ID。
 
@@ -102,7 +106,7 @@ variables:
   username: demo
 ```
 
-`local/secrets.yaml` 用同名变量覆盖模板，不提交。`local/active.yaml` 记录当前环境：
+`.httptest/local/secrets.yaml` 用同名变量覆盖模板，不提交。`.httptest/local/active.yaml` 记录当前环境：
 
 ```yaml
 environment: local
@@ -141,4 +145,4 @@ web/
 
 ## 相关文档
 
-实现与文件格式细节见 [docs/superpowers/specs/2026-09-01-httptest-design.md](docs/superpowers/specs/2026-09-01-httptest-design.md)。
+实现与文件格式细节见 [docs/superpowers/specs/2026-09-01-httptest-design.md](docs/superpowers/specs/2026-09-01-httptest-design.md)。工作目录布局见 [docs/superpowers/specs/2026-09-05-workdir-design.md](docs/superpowers/specs/2026-09-05-workdir-design.md)。
