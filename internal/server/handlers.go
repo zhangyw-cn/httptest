@@ -20,7 +20,7 @@ func (s *server) handleGetWorkspace(w http.ResponseWriter, r *http.Request) {
 		list = []workspace.RequestMeta{}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"cwd":      s.ws.Workdir(),
+		"workdir":  s.ws.Workdir(),
 		"requests": list,
 	})
 }

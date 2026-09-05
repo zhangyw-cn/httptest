@@ -36,7 +36,7 @@ func TestRequestCRUDAndTraversal(t *testing.T) {
 		t.Fatal(rr.Body.String())
 	}
 	var wsj struct {
-		Cwd      string                  `json:"cwd"`
+		Workdir  string                  `json:"workdir"`
 		Requests []workspace.RequestMeta `json:"requests"`
 	}
 	if err := json.Unmarshal(rr.Body.Bytes(), &wsj); err != nil {
@@ -45,8 +45,8 @@ func TestRequestCRUDAndTraversal(t *testing.T) {
 	if len(wsj.Requests) != 1 || wsj.Requests[0].Path != "auth/login" {
 		t.Fatalf("%+v", wsj)
 	}
-	if !filepath.IsAbs(wsj.Cwd) {
-		t.Fatalf("cwd not abs: %q", wsj.Cwd)
+	if !filepath.IsAbs(wsj.Workdir) {
+		t.Fatalf("workdir not abs: %q", wsj.Workdir)
 	}
 
 	rr = httptest.NewRecorder()

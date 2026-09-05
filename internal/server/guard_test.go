@@ -112,7 +112,7 @@ func TestAPIIgnoresNonAPIPrefix(t *testing.T) {
 	}
 }
 
-func TestWorkspaceCwdIsAbsolute(t *testing.T) {
+func TestWorkspaceWorkdirIsAbsolute(t *testing.T) {
 	root := t.TempDir()
 	ws, err := workspace.Init(root)
 	if err != nil {
@@ -125,18 +125,18 @@ func TestWorkspaceCwdIsAbsolute(t *testing.T) {
 		t.Fatalf("%d %s", rr.Code, rr.Body.Bytes())
 	}
 	var body struct {
-		Cwd string `json:"cwd"`
+		Workdir string `json:"workdir"`
 	}
 	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	if !filepath.IsAbs(body.Cwd) {
-		t.Fatalf("cwd is not absolute: %q", body.Cwd)
+	if !filepath.IsAbs(body.Workdir) {
+		t.Fatalf("workdir is not absolute: %q", body.Workdir)
 	}
-	if body.Cwd != root && body.Cwd != filepath.Clean(root) {
+	if body.Workdir != root && body.Workdir != filepath.Clean(root) {
 		abs, _ := filepath.Abs(root)
-		if body.Cwd != abs {
-			t.Fatalf("cwd=%q want %q", body.Cwd, abs)
+		if body.Workdir != abs {
+			t.Fatalf("workdir=%q want %q", body.Workdir, abs)
 		}
 	}
 }
