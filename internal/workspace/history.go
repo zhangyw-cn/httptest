@@ -23,7 +23,7 @@ type HistoryEntry struct {
 
 func historyFileFor(w *Workspace, t time.Time) string {
 	name := t.In(time.Local).Format("2006-01-02") + ".jsonl"
-	return filepath.Join(w.dir, "history", name)
+	return filepath.Join(w.localDir, "history", name)
 }
 
 func (w *Workspace) AppendHistory(e HistoryEntry) error {
@@ -58,7 +58,7 @@ func normalizeHistoryLimit(limit int) int {
 
 func (w *Workspace) ListHistory(limit int) ([]HistoryEntry, error) {
 	limit = normalizeHistoryLimit(limit)
-	dir := filepath.Join(w.dir, "history")
+	dir := filepath.Join(w.localDir, "history")
 	files, err := historyFilesNewestFirst(dir)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func (w *Workspace) ListHistory(limit int) ([]HistoryEntry, error) {
 }
 
 func (w *Workspace) GetHistory(id string) (HistoryEntry, error) {
-	dir := filepath.Join(w.dir, "history")
+	dir := filepath.Join(w.localDir, "history")
 	entries, err := w.readHistoryDir(dir)
 	if err != nil {
 		return HistoryEntry{}, err

@@ -36,7 +36,7 @@ func (w *Workspace) envPath(name string) (string, string, error) {
 	if strings.Contains(cleaned, "/") {
 		return "", "", fmt.Errorf("invalid environment name %q", name)
 	}
-	return filepath.Join(w.dir, "environments", cleaned+".yaml"), cleaned, nil
+	return filepath.Join(w.workdir, "environments", cleaned+".yaml"), cleaned, nil
 }
 
 func (w *Workspace) PutEnvironment(env Environment) error {
@@ -52,13 +52,19 @@ func (w *Workspace) PutEnvironment(env Environment) error {
 	if err != nil {
 		return err
 	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
 	return os.WriteFile(path, data, 0o644)
 }
 
 func (w *Workspace) ListEnvironments() ([]Environment, error) {
-	root := filepath.Join(w.dir, "environments")
+	root := filepath.Join(w.workdir, "environments")
 	entries, err := os.ReadDir(root)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return []Environment{}, nil
+		}
 		return nil, err
 	}
 	var list []Environment
@@ -84,7 +90,7 @@ func (w *Workspace) ListEnvironments() ([]Environment, error) {
 }
 
 func (w *Workspace) PutLocal(local Local) error {
-	localDir := filepath.Join(w.dir, "local")
+	localDir := filepath.Join(w.localDir, "local")
 	if err := os.MkdirAll(localDir, 0o700); err != nil {
 		return err
 	}
@@ -112,7 +118,7 @@ func (w *Workspace) GetLocal() (Local, error) {
 	out := Local{
 		Secrets: map[string]string{},
 	}
-	sdata, err := os.ReadFile(filepath.Join(w.dir, "local", "secrets.yaml"))
+	sdata, err := os.ReadFile(filepath.Join(w.localDir, "local", "secrets.yaml"))
 	if err == nil {
 		var secrets secretsFile
 		if err := yaml.Unmarshal(sdata, &secrets); err != nil {
@@ -124,7 +130,7 @@ func (w *Workspace) GetLocal() (Local, error) {
 	} else if !os.IsNotExist(err) {
 		return Local{}, err
 	}
-	adata, err := os.ReadFile(filepath.Join(w.dir, "local", "active.yaml"))
+	adata, err := os.ReadFile(filepath.Join(w.localDir, "local", "active.yaml"))
 	if err == nil {
 		var active activeFile
 		if err := yaml.Unmarshal(adata, &active); err != nil {

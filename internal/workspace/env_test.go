@@ -37,7 +37,7 @@ func TestResolvedVarsSecretsOverride(t *testing.T) {
 	if got.Environment != "local" || got.Secrets["token"] != "secret" {
 		t.Fatalf("%+v", got)
 	}
-	st, err := os.Stat(filepath.Join(ws.Dir(), "local", "secrets.yaml"))
+	st, err := os.Stat(filepath.Join(ws.LocalDir(), "local", "secrets.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}

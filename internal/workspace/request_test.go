@@ -24,7 +24,7 @@ func TestPutGetDeleteRequest(t *testing.T) {
 	if err := ws.PutRequest("auth/login", req); err != nil {
 		t.Fatal(err)
 	}
-	raw, err := os.ReadFile(filepath.Join(ws.Dir(), "collections", "auth", "login.yaml"))
+	raw, err := os.ReadFile(filepath.Join(ws.Workdir(), "collections", "auth", "login.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestListRequestsSkipsInvalidFiles(t *testing.T) {
 	if err := ws.PutRequest("good", req); err != nil {
 		t.Fatal(err)
 	}
-	collections := filepath.Join(ws.Dir(), "collections")
+	collections := filepath.Join(ws.Workdir(), "collections")
 	if err := os.WriteFile(filepath.Join(collections, "bad-method.yaml"), []byte("name: Bad\nmethod: FOO\nurl: http://example.com/bad\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}

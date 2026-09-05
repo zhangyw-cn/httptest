@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/zhangyw-cn/httptest/internal/workspace"
@@ -21,7 +20,7 @@ func (s *server) handleGetWorkspace(w http.ResponseWriter, r *http.Request) {
 		list = []workspace.RequestMeta{}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"cwd":      filepath.Dir(s.ws.Dir()),
+		"cwd":      s.ws.Workdir(),
 		"requests": list,
 	})
 }

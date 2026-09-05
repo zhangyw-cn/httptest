@@ -45,7 +45,7 @@ func (w *Workspace) fileFor(rel string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(w.dir, "collections", cleaned+".yaml"), nil
+	return filepath.Join(w.workdir, "collections", cleaned+".yaml"), nil
 }
 
 func (w *Workspace) PutRequest(rel string, req Request) error {
@@ -96,9 +96,19 @@ func (w *Workspace) GetRequest(rel string) (Request, error) {
 }
 
 func (w *Workspace) ListRequests() ([]RequestMeta, error) {
-	root := filepath.Join(w.dir, "collections")
+	root := filepath.Join(w.workdir, "collections")
+	st, err := os.Stat(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []RequestMeta{}, nil
+		}
+		return nil, err
+	}
+	if !st.IsDir() {
+		return nil, fmt.Errorf("not a directory: %s", root)
+	}
 	var list []RequestMeta
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

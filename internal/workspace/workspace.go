@@ -5,37 +5,37 @@ import (
 	"path/filepath"
 )
 
-const gitignoreBody = "local/\nhistory/\n"
+const gitignoreBody = "*\n"
 
 type Workspace struct {
-	dir string
+	workdir  string
+	localDir string
 }
 
-func (w *Workspace) Dir() string { return w.dir }
+func (w *Workspace) Workdir() string  { return w.workdir }
+func (w *Workspace) LocalDir() string { return w.localDir }
 
-func Init(cwd string) (*Workspace, error) {
-	abs, err := filepath.Abs(cwd)
+func Init(workdir string) (*Workspace, error) {
+	abs, err := filepath.Abs(workdir)
 	if err != nil {
 		return nil, err
 	}
-	root := filepath.Join(abs, ".httptest")
-	for _, sub := range []string{"collections", "environments", "history"} {
-		if err := os.MkdirAll(filepath.Join(root, sub), 0o755); err != nil {
-			return nil, err
-		}
-	}
-	localDir := filepath.Join(root, "local")
-	if err := os.MkdirAll(localDir, 0o700); err != nil {
+	local := filepath.Join(abs, ".httptest")
+	if err := os.MkdirAll(filepath.Join(local, "history"), 0o755); err != nil {
 		return nil, err
 	}
-	if err := os.Chmod(localDir, 0o700); err != nil {
+	sec := filepath.Join(local, "local")
+	if err := os.MkdirAll(sec, 0o700); err != nil {
 		return nil, err
 	}
-	gi := filepath.Join(root, ".gitignore")
+	if err := os.Chmod(sec, 0o700); err != nil {
+		return nil, err
+	}
+	gi := filepath.Join(local, ".gitignore")
 	if _, err := os.Stat(gi); err != nil {
 		if err := os.WriteFile(gi, []byte(gitignoreBody), 0o644); err != nil {
 			return nil, err
 		}
 	}
-	return &Workspace{dir: root}, nil
+	return &Workspace{workdir: abs, localDir: local}, nil
 }

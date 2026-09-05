@@ -13,30 +13,42 @@ func TestInitCreatesLayoutAndGitignore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	root := filepath.Join(cwd, ".httptest")
-	if ws.Dir() != root {
-		t.Fatalf("Dir=%s", ws.Dir())
+	abs, err := filepath.Abs(cwd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ws.Workdir() != abs {
+		t.Fatalf("Workdir=%s want %s", ws.Workdir(), abs)
+	}
+	local := filepath.Join(abs, ".httptest")
+	if ws.LocalDir() != local {
+		t.Fatalf("LocalDir=%s", ws.LocalDir())
 	}
 	for _, p := range []string{
-		filepath.Join(root, "collections"),
-		filepath.Join(root, "environments"),
-		filepath.Join(root, "local"),
-		filepath.Join(root, "history"),
+		filepath.Join(local, "local"),
+		filepath.Join(local, "history"),
 	} {
 		st, err := os.Stat(p)
 		if err != nil || !st.IsDir() {
 			t.Fatalf("missing dir %s: %v", p, err)
 		}
 	}
-	b, err := os.ReadFile(filepath.Join(root, ".gitignore"))
+	for _, p := range []string{
+		filepath.Join(abs, "collections"),
+		filepath.Join(abs, "environments"),
+	} {
+		if _, err := os.Stat(p); !os.IsNotExist(err) {
+			t.Fatalf("should not create %s: %v", p, err)
+		}
+	}
+	b, err := os.ReadFile(filepath.Join(local, ".gitignore"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := string(b)
-	if !strings.Contains(got, "local/") || !strings.Contains(got, "history/") {
-		t.Fatalf("gitignore=%q", got)
+	if string(b) != "*\n" {
+		t.Fatalf("gitignore=%q", b)
 	}
-	st, err := os.Stat(filepath.Join(root, "local"))
+	st, err := os.Stat(filepath.Join(local, "local"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,15 +71,15 @@ func TestInitResolvesRelativeCwd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !filepath.IsAbs(ws.Dir()) {
-		t.Fatalf("Dir not abs: %q", ws.Dir())
+	if !filepath.IsAbs(ws.LocalDir()) {
+		t.Fatalf("Dir not abs: %q", ws.LocalDir())
 	}
 	abs, err := filepath.Abs(cwd)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(ws.Dir(), abs) {
-		t.Fatalf("Dir=%q cwd=%q", ws.Dir(), abs)
+	if !strings.HasPrefix(ws.LocalDir(), abs) {
+		t.Fatalf("Dir=%q cwd=%q", ws.LocalDir(), abs)
 	}
 }
 
@@ -78,6 +90,105 @@ func TestInitIdempotent(t *testing.T) {
 	}
 	if _, err := Init(cwd); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestInitDoesNotOverwriteGitignore(t *testing.T) {
+	cwd := t.TempDir()
+	gi := filepath.Join(cwd, ".httptest", ".gitignore")
+	if err := os.MkdirAll(filepath.Dir(gi), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(gi, []byte("keep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Init(cwd); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(gi)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != "keep\n" {
+		t.Fatalf("gitignore overwritten: %q", b)
+	}
+}
+
+func TestListRequestsMissingDir(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, err := ws.ListRequests()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("want empty, got %+v", list)
+	}
+}
+
+func TestListEnvironmentsMissingDir(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, err := ws.ListEnvironments()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("want empty, got %+v", list)
+	}
+}
+
+func TestListRequestsIgnoresOldNestedCollections(t *testing.T) {
+	cwd := t.TempDir()
+	ws, err := Init(cwd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := filepath.Join(ws.LocalDir(), "collections")
+	if err := os.MkdirAll(old, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(old, "legacy.yaml"), []byte("name: Old\nmethod: GET\nurl: http://x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	list, err := ws.ListRequests()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 0 {
+		t.Fatalf("old nested collections must be ignored, got %+v", list)
+	}
+}
+
+func TestListRequestsNotDir(t *testing.T) {
+	cwd := t.TempDir()
+	ws, err := Init(cwd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ws.Workdir(), "collections"), []byte("nope"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.ListRequests(); err == nil {
+		t.Fatal("expected error when collections is a file")
+	}
+}
+
+func TestListEnvironmentsNotDir(t *testing.T) {
+	cwd := t.TempDir()
+	ws, err := Init(cwd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ws.Workdir(), "environments"), []byte("nope"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.ListEnvironments(); err == nil {
+		t.Fatal("expected error when environments is a file")
 	}
 }
 

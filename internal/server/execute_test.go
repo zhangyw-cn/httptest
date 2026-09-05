@@ -99,7 +99,7 @@ func TestExecuteHistoryErrorSurfaced(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hist := filepath.Join(ws.Dir(), "history")
+	hist := filepath.Join(ws.LocalDir(), "history")
 	if err := os.RemoveAll(hist); err != nil {
 		t.Fatal(err)
 	}

@@ -120,7 +120,7 @@ func TestAppendHistoryRecreatesDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.RemoveAll(filepath.Join(ws.Dir(), "history")); err != nil {
+	if err := os.RemoveAll(filepath.Join(ws.LocalDir(), "history")); err != nil {
 		t.Fatal(err)
 	}
 	e := HistoryEntry{
