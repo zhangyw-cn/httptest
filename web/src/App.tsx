@@ -306,7 +306,7 @@ export default function App() {
   return (
     <div className="app">
       <TopBar
-        cwd={workspace?.cwd ?? ""}
+        workdir={workspace?.workdir ?? ""}
         envs={envs}
         local={local}
         theme={theme}

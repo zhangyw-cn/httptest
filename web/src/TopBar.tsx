@@ -4,7 +4,7 @@ import type { ThemePref } from "./theme";
 import type { Environment, LocalConfig } from "./types";
 
 interface Props {
-  cwd: string;
+  workdir: string;
   envs: Environment[];
   local: LocalConfig | null;
   theme: ThemePref;
@@ -49,7 +49,7 @@ function pairsToSecrets(pairs: Pair[]): Record<string, string> {
 }
 
 export default function TopBar({
-  cwd,
+  workdir,
   envs,
   local,
   theme,
@@ -85,8 +85,8 @@ export default function TopBar({
     <header className="topbar">
       <div className="topbar-left">
         <h1 className="brand">httptest</h1>
-        <span className="cwd" title={cwd}>
-          {cwd || "…"}
+        <span className="cwd" title={workdir}>
+          {workdir || "…"}
         </span>
       </div>
       <div className="topbar-right">

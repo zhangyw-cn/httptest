@@ -36,7 +36,7 @@ export interface RequestMeta {
 }
 
 export interface WorkspaceInfo {
-  cwd: string;
+  workdir: string;
   requests: RequestMeta[];
 }
 
