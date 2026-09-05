@@ -26,12 +26,12 @@ func newFlagSet() (*flag.FlagSet, *string, *bool) {
 }
 
 func run(args []string) int {
-	fsFlag, listen, open := newFlagSet()
-	if err := fsFlag.Parse(args); err != nil {
+	opt, err := parseArgs(args)
+	if err != nil {
 		return 2
 	}
 
-	host, port, err := server.ParseListen(*listen)
+	host, port, err := server.ParseListen(opt.listen)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "invalid --listen: %v\n", err)
 		return 2
@@ -41,12 +41,16 @@ func run(args []string) int {
 		fmt.Fprintln(os.Stderr, w)
 	}
 
-	cwd, err := os.Getwd()
+	workdir, code, err := resolveWorkdir(opt.workdir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "getcwd: %v\n", err)
-		return 1
+		if opt.workdir == "" {
+			fmt.Fprintf(os.Stderr, "getcwd: %v\n", err)
+		} else {
+			fmt.Fprintf(os.Stderr, "workdir: %v\n", err)
+		}
+		return code
 	}
-	ws, err := workspace.Init(cwd)
+	ws, err := workspace.Init(workdir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "workspace init: %v\n", err)
 		return 1
@@ -67,7 +71,7 @@ func run(args []string) int {
 
 	url := server.LocalURL(port)
 	fmt.Println(url)
-	if *open {
+	if opt.open {
 		_ = server.OpenBrowser(url)
 	}
 
