@@ -86,6 +86,29 @@ func TestResolveWorkdirEmptyUsesGetwd(t *testing.T) {
 	}
 }
 
+func TestResolveWorkdirRelativeGetwdFailureExit1(t *testing.T) {
+	original, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.Chdir(original); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	}()
+	if err := os.Remove(dir); err != nil {
+		t.Skipf("platform cannot remove current working directory: %v", err)
+	}
+
+	if _, code, err := resolveWorkdir("."); err == nil || code != 1 {
+		t.Fatalf("code=%d err=%v", code, err)
+	}
+}
+
 func TestResolveWorkdirMissingAndFile(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "nope")
 	if _, code, err := resolveWorkdir(missing); err == nil || code != 2 {

@@ -67,6 +67,9 @@ func resolveWorkdir(dir string) (string, int, error) {
 	}
 	abs, err := filepath.Abs(dir)
 	if err != nil {
+		if !filepath.IsAbs(dir) {
+			return "", 1, err
+		}
 		return "", 2, err
 	}
 	st, err := os.Stat(abs)
