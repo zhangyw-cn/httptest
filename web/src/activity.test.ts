@@ -29,6 +29,19 @@ describe("clickActivityIcon", () => {
       clickActivityIcon({ view: "collection", panelOpen: false }, "history"),
     ).toEqual({ view: "history", panelOpen: true });
   });
+
+  it("switches from collection to environment and opens", () => {
+    expect(clickActivityIcon(openCollection, "environment")).toEqual({
+      view: "environment",
+      panelOpen: true,
+    });
+  });
+
+  it("collapses environment when clicking the active icon", () => {
+    expect(
+      clickActivityIcon({ view: "environment", panelOpen: true }, "environment"),
+    ).toEqual({ view: "environment", panelOpen: false });
+  });
 });
 
 describe("togglePanel", () => {
@@ -41,5 +54,11 @@ describe("togglePanel", () => {
       view: "history",
       panelOpen: true,
     });
+  });
+
+  it("toggles environment panel without changing view", () => {
+    expect(
+      togglePanel({ view: "environment", panelOpen: true }),
+    ).toEqual({ view: "environment", panelOpen: false });
   });
 });
