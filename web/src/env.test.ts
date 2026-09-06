@@ -70,7 +70,8 @@ describe("envNameError", () => {
     expect(envNameError("a/b", [])).not.toBeNull();
     expect(envNameError("a\\b", [])).not.toBeNull();
     expect(envNameError("a/../dev", ["dev"])).not.toBeNull();
-    expect(envNameError("a/../dev", [])).toBeNull();
+    expect(envNameError("a/../dev", [])).not.toBeNull();
+    expect(envNameError("./local", [])).not.toBeNull();
   });
 });
 

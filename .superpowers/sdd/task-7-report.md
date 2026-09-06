@@ -101,3 +101,24 @@ cd web && npm run build
 结果：PASS。TypeScript 类型检查通过；Vite 转换 49 个模块并完成生产构建，输出 `index-CgCSOSvh.js`、`index-BEqgJsm0.css` 及更新后的 `index.html`。
 
 IDE lint：`web/src/App.tsx` 无诊断。
+
+## 保存期间禁止改名/删除
+
+- `envSavingRef.current` 为 true 时，`openRenameEnvDialog` 与 `openDeleteEnvDialog` 立即返回，不弹出对话框。
+- `onDialogSubmit` 中若 `intent === "rename-env"` 或 `subject === "environment"` 且仍在保存，则 `setDialogError("请等待环境保存完成")` 并返回。
+- 验证：`cd web && npx tsc --noEmit && npm test && npm run build` — PASS（5 文件 31 测试；生成 `index--e6V3G5K.js`）。
+
+## 全分支评审最终修复
+
+- 新增 `cleanEnvName`，仅接受与 trim 后原名一致的 CleanRel 结果；客户端现在拒绝 `./local`、`a/../dev` 等会被规范化改写的名称。
+- 新建环境使用校验后的规范名称调用 `putEnvironment` 并加载编辑器，不再使用原始输入。
+- 新建环境提交时若环境仍在保存，显示「请等待环境保存完成」并终止提交。
+- 环境新建/改名 API 错误中的 `environment exists` 映射为「已有同名环境」，`same environment name` 映射为「不能改成当前名称」；环境编辑器保存错误也使用该映射。
+- 更新 `web/src/env.test.ts`，确认 `a/../dev` 和 `./local` 均被拒绝。
+- 重新构建嵌入资源：删除 `index--e6V3G5K.js`，生成 `index-BfcUKQH1.js`，并更新 `index.html`。
+
+### 最终修复验证
+
+- `cd web && npx tsc --noEmit && npm test && npm run build` — PASS（Vitest 5 个测试文件、31 个测试通过；Vite 转换 49 个模块并完成构建）。
+- `go test ./internal/workspace ./internal/server -count=1` — PASS。
+- IDE lint：`web/src/App.tsx`、`web/src/env.ts`、`web/src/env.test.ts` 无诊断。

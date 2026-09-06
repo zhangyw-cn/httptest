@@ -82,12 +82,25 @@ function cleanRel(name: string): string | null {
   return cleaned;
 }
 
-export function envNameError(name: string, existing: string[]): string | null {
+export function cleanEnvName(name: string): string | null {
+  const trimmed = name.trim();
   const cleaned = cleanRel(name);
+  return cleaned !== null && cleaned === trimmed ? cleaned : null;
+}
+
+export function envNameError(name: string, existing: string[]): string | null {
+  const cleaned = cleanEnvName(name);
   if (cleaned === null) return name.trim() ? "名称非法" : "名称不能为空";
   if (cleaned.includes("/")) return "名称不能含 /";
   if (existing.includes(cleaned)) return "已有同名环境";
   return null;
+}
+
+export function environmentAPIError(message: string): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("same environment name")) return "不能改成当前名称";
+  if (lower.includes("environment exists")) return "已有同名环境";
+  return message;
 }
 
 export function openEnvForEdit(env: Environment): {

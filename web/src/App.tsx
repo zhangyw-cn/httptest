@@ -30,7 +30,9 @@ import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import UrlBar from "./UrlBar";
 import {
+  cleanEnvName,
   envNameError,
+  environmentAPIError,
   isEnvDirty,
   openEnvForEdit,
   pairsToVars,
@@ -325,7 +327,9 @@ export default function App() {
         setEnvDirty(isEnvDirty(currentPairs, envSavedRef.current));
       }
     } catch (err) {
-      setEnvError(err instanceof Error ? err.message : String(err));
+      setEnvError(
+        environmentAPIError(err instanceof Error ? err.message : String(err)),
+      );
     } finally {
       envSavingRef.current = false;
       setEnvSaving(false);
@@ -401,18 +405,26 @@ export default function App() {
           return;
         }
         if (current.intent === "create-env") {
+          if (envSavingRef.current) {
+            setDialogError("请等待环境保存完成");
+            return;
+          }
+          const cleaned = cleanEnvName(p);
           const err = envNameError(
             p,
             envs.map((env) => env.name),
           );
-          if (err) {
-            setDialogError(err);
+          if (err || cleaned === null) {
+            setDialogError(err ?? "名称非法");
             return;
           }
-          await putEnvironment(p, { name: p, variables: {} });
+          await putEnvironment(cleaned, {
+            name: cleaned,
+            variables: {},
+          });
           const list = await getEnvironments();
           setEnvs(list);
-          loadEnv({ name: p, variables: {} });
+          loadEnv({ name: cleaned, variables: {} });
           setDialog(null);
           setDialogError(null);
           return;
@@ -462,7 +474,14 @@ export default function App() {
       setDialog(null);
       setDialogError(null);
     } catch (err) {
-      setDialogError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      setDialogError(
+        current.kind === "path" &&
+          (current.intent === "create-env" ||
+            current.intent === "rename-env")
+          ? environmentAPIError(message)
+          : message,
+      );
     }
   }
 
