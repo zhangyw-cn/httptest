@@ -131,3 +131,104 @@ func TestLocalAndEnvAPI(t *testing.T) {
 		t.Fatalf("%s", rr.Body.Bytes())
 	}
 }
+
+func TestEnvironmentDeleteAndRename(t *testing.T) {
+	ws, err := workspace.Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := New(ws, nil)
+	put := func(name, body string) {
+		t.Helper()
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/environments/"+name, []byte(body)))
+		if rr.Code != 200 {
+			t.Fatalf("put %s %d %s", name, rr.Code, rr.Body.Bytes())
+		}
+	}
+	put("local", `{"name":"local","variables":{"baseUrl":"http://h"}}`)
+	put("prod", `{"name":"prod","variables":{}}`)
+
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"local","secrets":{"t":"1"}}`)))
+	if rr.Code != 200 {
+		t.Fatalf("local %d %s", rr.Code, rr.Body.Bytes())
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/environments/local/rename", []byte(`{"name":"dev"}`)))
+	if rr.Code != 200 {
+		t.Fatalf("rename %d %s", rr.Code, rr.Body.Bytes())
+	}
+	if !bytes.Contains(rr.Body.Bytes(), []byte(`"name":"dev"`)) {
+		t.Fatalf("rename body %s", rr.Body.Bytes())
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodGet, "/api/local", nil))
+	if rr.Code != 200 || !bytes.Contains(rr.Body.Bytes(), []byte(`"environment":"dev"`)) {
+		t.Fatalf("active after rename %s", rr.Body.Bytes())
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/environments/dev/rename", []byte(`{"name":"prod"}`)))
+	if rr.Code != 409 {
+		t.Fatalf("conflict %d %s", rr.Code, rr.Body.Bytes())
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/environments/dev/rename", []byte(`{"name":"dev"}`)))
+	if rr.Code != 400 {
+		t.Fatalf("same name %d %s", rr.Code, rr.Body.Bytes())
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/environments/nope/rename", []byte(`{"name":"x"}`)))
+	if rr.Code != 404 {
+		t.Fatalf("rename missing %d", rr.Code)
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodDelete, "/api/environments/prod", nil))
+	if rr.Code != 204 {
+		t.Fatalf("delete other %d %s", rr.Code, rr.Body.Bytes())
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodGet, "/api/local", nil))
+	if rr.Code != 200 || !bytes.Contains(rr.Body.Bytes(), []byte(`"environment":"dev"`)) {
+		t.Fatalf("active after other delete %s", rr.Body.Bytes())
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodDelete, "/api/environments/dev", nil))
+	if rr.Code != 204 {
+		t.Fatalf("delete current %d", rr.Code)
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodGet, "/api/local", nil))
+	if rr.Code != 200 || !bytes.Contains(rr.Body.Bytes(), []byte(`"environment":""`)) {
+		t.Fatalf("active after delete current %s", rr.Body.Bytes())
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodDelete, "/api/environments/dev", nil))
+	if rr.Code != 404 {
+		t.Fatalf("delete missing %d", rr.Code)
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodDelete, "/api/environments/../x", nil))
+	if rr.Code != 400 {
+		t.Fatalf("escape delete %d", rr.Code)
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/environments/../x/rename", []byte(`{"name":"y"}`)))
+	if rr.Code != 400 {
+		t.Fatalf("escape rename %d", rr.Code)
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodDelete, "/api/environments/a/b", nil))
+	if rr.Code != 400 && rr.Code != 404 {
+		t.Fatalf("slash name %d", rr.Code)
+	}
+}

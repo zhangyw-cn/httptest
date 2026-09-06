@@ -26,6 +26,8 @@ func New(ws *workspace.Workspace, ui fs.FS) http.Handler {
 	mux.HandleFunc("POST /api/requests", s.handlePostRequest)
 	mux.HandleFunc("GET /api/environments", s.handleListEnvironments)
 	mux.HandleFunc("PUT /api/environments/{name}", s.handlePutEnvironment)
+	mux.HandleFunc("DELETE /api/environments/{name}", s.handleDeleteEnvironment)
+	mux.HandleFunc("POST /api/environments/{name}/rename", s.handleRenameEnvironment)
 	mux.HandleFunc("GET /api/local", s.handleGetLocal)
 	mux.HandleFunc("PUT /api/local", s.handlePutLocal)
 	if ui != nil {

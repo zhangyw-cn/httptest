@@ -101,6 +101,32 @@ func (s *server) handlePutEnvironment(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, env)
 }
 
+func (s *server) handleDeleteEnvironment(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if err := s.ws.DeleteEnvironment(name); err != nil {
+		writePathErr(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *server) handleRenameEnvironment(w http.ResponseWriter, r *http.Request) {
+	oldName := r.PathValue("name")
+	var body struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	env, err := s.ws.RenameEnvironment(oldName, body.Name)
+	if err != nil {
+		writePathErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, env)
+}
+
 func (s *server) handleGetLocal(w http.ResponseWriter, r *http.Request) {
 	local, err := s.ws.GetLocal()
 	if err != nil {
@@ -136,6 +162,14 @@ type localJSON struct {
 }
 
 func writePathErr(w http.ResponseWriter, err error) {
+	if errors.Is(err, workspace.ErrEnvExists) {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+		return
+	}
+	if errors.Is(err, workspace.ErrSameEnvName) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
 	if isInvalidPath(err) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
