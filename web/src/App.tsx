@@ -229,6 +229,7 @@ export default function App() {
   }
 
   function openDeleteEnvDialog(name: string) {
+    if (envSavingRef.current) return;
     const isActive = local?.environment === name;
     setDialogError(null);
     setDialog({
@@ -245,6 +246,7 @@ export default function App() {
   }
 
   function openRenameEnvDialog() {
+    if (envSavingRef.current) return;
     const name = editingEnvRef.current;
     if (!name) return;
     const isActive = local?.environment === name;
@@ -372,6 +374,10 @@ export default function App() {
         const p = path?.trim() ?? "";
         if (!p) return;
         if (current.intent === "rename-env") {
+          if (envSavingRef.current) {
+            setDialogError("请等待环境保存完成");
+            return;
+          }
           const oldName = editingEnvRef.current;
           if (!oldName) return;
           const others = envsRef.current
@@ -424,6 +430,10 @@ export default function App() {
         }
       } else {
         if (current.subject === "environment") {
+          if (envSavingRef.current) {
+            setDialogError("请等待环境保存完成");
+            return;
+          }
           await deleteEnvironment(current.path);
           const [list, loc] = await Promise.all([
             getEnvironments(),
