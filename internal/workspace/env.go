@@ -107,11 +107,46 @@ func (w *Workspace) PutLocal(local Local) error {
 		return err
 	}
 	_ = os.Chmod(filepath.Join(localDir, "secrets.yaml"), 0o600)
-	adata, err := yaml.Marshal(&activeFile{Environment: local.Environment})
+	return w.writeActive(local.Environment)
+}
+
+func (w *Workspace) writeActive(environment string) error {
+	localDir := filepath.Join(w.localDir, "local")
+	if err := os.MkdirAll(localDir, 0o700); err != nil {
+		return err
+	}
+	_ = os.Chmod(localDir, 0o700)
+	adata, err := yaml.Marshal(&activeFile{Environment: environment})
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(filepath.Join(localDir, "active.yaml"), adata, 0o644)
+}
+
+func (w *Workspace) DeleteEnvironment(name string) error {
+	path, cleaned, err := w.envPath(name)
+	if err != nil {
+		return err
+	}
+	local, err := w.GetLocal()
+	if err != nil {
+		return err
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil {
+		return err
+	}
+	if local.Environment != cleaned {
+		return nil
+	}
+	if err := w.writeActive(""); err != nil {
+		_ = os.WriteFile(path, data, 0o644)
+		return err
+	}
+	return nil
 }
 
 func (w *Workspace) GetLocal() (Local, error) {
