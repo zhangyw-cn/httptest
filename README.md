@@ -44,7 +44,7 @@ httptest [DIR] [--listen 127.0.0.1:1370] [--open]
 
 ## 界面
 
-顶栏是产品名、工作区路径、浅色/深色/系统、环境选择器和密钥。左侧活动栏切换集合与历史；再点当前图标收起树（`Ctrl+B`）。树展开时宽 220px。Method、URL、Send、Stop、Save 横跨中间请求栏和右侧响应栏（`Ctrl+Enter` 发送，`Ctrl+S` 保存）。请求栏为 `Query | Headers | Body`；响应栏为状态码、耗时、体积，以及 `Body | Headers | Raw | Timeline`。新建/删除在应用内对话框完成，不使用浏览器原生弹窗。
+顶栏是产品名、工作区路径、浅色/深色/系统、环境选择器和密钥。左侧活动栏切换集合、历史与环境；再点当前图标收起树（`Ctrl+B`）。树展开时宽 220px。集合/历史视图下 Method、URL、Send、Stop、Save 横跨中间请求栏和右侧响应栏（`Ctrl+Enter` 发送，`Ctrl+S` 保存请求）。环境视图左侧列环境名，中间编辑模板变量（`Ctrl+S` 保存环境，`Ctrl+Enter` 不发送）；树选中只打开编辑，顶栏环境选择器才是发送用的当前环境。新建/改名/删除在应用内对话框完成，不使用浏览器原生弹窗。请求栏为 `Query | Headers | Body`；响应栏为状态码、耗时、体积，以及 `Body | Headers | Raw | Timeline`。
 
 ## 工作区
 

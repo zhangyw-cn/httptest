@@ -13,6 +13,7 @@ import {
   putEnvironment,
   putLocal,
   putRequest,
+  renameEnvironment,
 } from "./api";
 import {
   clickActivityIcon,
@@ -21,13 +22,22 @@ import {
 } from "./activity";
 import ActivityBar from "./ActivityBar";
 import Dialog, { type DialogMode } from "./Dialog";
+import EnvEditor from "./EnvEditor";
 import ErrorBoundary from "./ErrorBoundary";
 import RequestEditor from "./RequestEditor";
 import ResponsePane from "./ResponsePane";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import UrlBar from "./UrlBar";
-import { envNameError } from "./env";
+import {
+  envNameError,
+  isEnvDirty,
+  openEnvForEdit,
+  pairsToVars,
+  varsJSON,
+  varsToPairs,
+  type EnvPair,
+} from "./env";
 import { defaultDraft, normalizeRequest, parseHistoryResult } from "./request";
 import { shortcutFromEvent } from "./shortcut";
 import {
@@ -50,6 +60,10 @@ export default function App() {
   const [local, setLocal] = useState<LocalConfig | null>(null);
   const [envs, setEnvs] = useState<Environment[]>([]);
   const [editingEnv, setEditingEnv] = useState<string | null>(null);
+  const [envPairs, setEnvPairs] = useState<EnvPair[]>(() => varsToPairs({}));
+  const [envDirty, setEnvDirty] = useState(false);
+  const [envSaving, setEnvSaving] = useState(false);
+  const [envError, setEnvError] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [draft, setDraft] = useState<HttpRequest>(defaultDraft);
   const [dirty, setDirty] = useState(false);
@@ -78,6 +92,13 @@ export default function App() {
   executeIdRef.current = executeId;
   const dialogRef = useRef(dialog);
   dialogRef.current = dialog;
+  const envSavedRef = useRef(varsJSON({}));
+  const envPairsRef = useRef(envPairs);
+  envPairsRef.current = envPairs;
+  const leftRef = useRef(left);
+  leftRef.current = left;
+  const envsRef = useRef(envs);
+  envsRef.current = envs;
 
   const applyDraft = useCallback((next: HttpRequest, saved?: boolean) => {
     const n = normalizeRequest(next);
@@ -94,6 +115,15 @@ export default function App() {
     const ws = await getWorkspace();
     setWorkspace(ws);
     return ws;
+  }, []);
+
+  const loadEnv = useCallback((env: Environment) => {
+    const opened = openEnvForEdit(env);
+    setEditingEnv(opened.name);
+    setEnvPairs(opened.pairs);
+    envSavedRef.current = opened.snapshot;
+    setEnvDirty(false);
+    setEnvError(null);
   }, []);
 
   useEffect(() => {
@@ -171,7 +201,14 @@ export default function App() {
   }
 
   function onSelectEnv(name: string) {
-    setEditingEnv(name);
+    const env = envs.find((e) => e.name === name);
+    if (!env) return;
+    loadEnv(env);
+  }
+
+  function onEnvPairsChange(next: EnvPair[]) {
+    setEnvPairs(next);
+    setEnvDirty(isEnvDirty(next, envSavedRef.current));
   }
 
   function openNewEnvDialog() {
@@ -199,6 +236,23 @@ export default function App() {
       error: null,
       path: name,
       subject: "environment",
+    });
+  }
+
+  function openRenameEnvDialog() {
+    const name = editingEnvRef.current;
+    if (!name) return;
+    const isActive = local?.environment === name;
+    setDialogError(null);
+    setDialog({
+      kind: "path",
+      title: "重命名环境",
+      submitLabel: "重命名",
+      error: null,
+      intent: "rename-env",
+      hint: isActive
+        ? "文件名，例如 local，不能含 /。顶栏当前环境将改为新名称。"
+        : "文件名，例如 local，不能含 /",
     });
   }
 
@@ -237,6 +291,27 @@ export default function App() {
       // execute 可能已结束，忽略 404
     }
   }, []);
+
+  const onSaveEnv = useCallback(async () => {
+    const name = editingEnvRef.current;
+    if (!name) return;
+    if (!isEnvDirty(envPairsRef.current, envSavedRef.current)) return;
+    setEnvSaving(true);
+    setEnvError(null);
+    try {
+      const saved = await putEnvironment(name, {
+        name,
+        variables: pairsToVars(envPairsRef.current),
+      });
+      const list = await getEnvironments();
+      setEnvs(list);
+      loadEnv(saved);
+    } catch (err) {
+      setEnvError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setEnvSaving(false);
+    }
+  }, [loadEnv]);
 
   const saveToPath = useCallback(async (path: string) => {
     setSaving(true);
@@ -279,6 +354,29 @@ export default function App() {
       if (current.kind === "path") {
         const p = path?.trim() ?? "";
         if (!p) return;
+        if (current.intent === "rename-env") {
+          const oldName = editingEnvRef.current;
+          if (!oldName) return;
+          const others = envsRef.current
+            .map((e) => e.name)
+            .filter((n) => n !== oldName);
+          const err = envNameError(p, others);
+          if (err) {
+            setDialogError(err);
+            return;
+          }
+          const renamed = await renameEnvironment(oldName, p);
+          const [list, loc] = await Promise.all([
+            getEnvironments(),
+            getLocal(),
+          ]);
+          setEnvs(list);
+          setLocal(loc);
+          loadEnv(renamed);
+          setDialog(null);
+          setDialogError(null);
+          return;
+        }
         if (current.intent === "create-env") {
           const err = envNameError(
             p,
@@ -291,7 +389,7 @@ export default function App() {
           await putEnvironment(p, { name: p, variables: {} });
           const list = await getEnvironments();
           setEnvs(list);
-          setEditingEnv(p);
+          loadEnv({ name: p, variables: {} });
           setDialog(null);
           setDialogError(null);
           return;
@@ -316,7 +414,11 @@ export default function App() {
           ]);
           setEnvs(list);
           setLocal(loc);
-          if (editingEnvRef.current === current.path) setEditingEnv(null);
+          if (editingEnvRef.current === current.path) {
+            setEditingEnv(null);
+            setEnvPairs(varsToPairs({}));
+            setEnvDirty(false);
+          }
           setDialog(null);
           setDialogError(null);
           return;
@@ -347,9 +449,14 @@ export default function App() {
       }
       if (action === "send") {
         e.preventDefault();
+        if (leftRef.current.view === "environment") return;
         if (!sendingRef.current) void onSend();
       } else if (action === "save") {
-        void onSave();
+        if (leftRef.current.view === "environment") {
+          void onSaveEnv();
+        } else {
+          void onSave();
+        }
       } else if (action === "toggle-panel") {
         e.preventDefault();
         setLeft((s) => togglePanel(s));
@@ -364,7 +471,7 @@ export default function App() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onSave, onSend, onStop]);
+  }, [onSave, onSaveEnv, onSend, onStop]);
 
   const dialogMode =
     dialog === null
@@ -409,25 +516,40 @@ export default function App() {
           />
         )}
         <div className="work">
-          <UrlBar
-            draft={draft}
-            dirty={dirty}
-            sending={sending}
-            saving={saving}
-            onChange={(next) => applyDraft(next)}
-            onSend={() => void onSend()}
-            onStop={() => void onStop()}
-            onSave={() => void onSave()}
-          />
-          <div className="panes">
-            <RequestEditor
-              draft={draft}
-              onChange={(next) => applyDraft(next)}
+          {left.view === "environment" ? (
+            <EnvEditor
+              name={editingEnv}
+              pairs={envPairs}
+              dirty={envDirty}
+              saving={envSaving}
+              error={envError}
+              onPairsChange={onEnvPairsChange}
+              onSave={() => void onSaveEnv()}
+              onRename={openRenameEnvDialog}
             />
-            <ErrorBoundary>
-              <ResponsePane result={result} />
-            </ErrorBoundary>
-          </div>
+          ) : (
+            <>
+              <UrlBar
+                draft={draft}
+                dirty={dirty}
+                sending={sending}
+                saving={saving}
+                onChange={(next) => applyDraft(next)}
+                onSend={() => void onSend()}
+                onStop={() => void onStop()}
+                onSave={() => void onSave()}
+              />
+              <div className="panes">
+                <RequestEditor
+                  draft={draft}
+                  onChange={(next) => applyDraft(next)}
+                />
+                <ErrorBoundary>
+                  <ResponsePane result={result} />
+                </ErrorBoundary>
+              </div>
+            </>
+          )}
         </div>
       </div>
       {dialogMode && (
