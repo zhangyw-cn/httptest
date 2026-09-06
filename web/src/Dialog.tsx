@@ -6,7 +6,8 @@ export type DialogMode =
       title: string;
       submitLabel: string;
       error: string | null;
-      intent: "create" | "save";
+      intent: "create" | "save" | "create-env" | "rename-env";
+      hint?: string;
     }
   | {
       kind: "confirm";
@@ -15,6 +16,7 @@ export type DialogMode =
       submitLabel: string;
       error: string | null;
       path: string;
+      subject?: "request" | "environment";
     };
 
 interface Props {
@@ -64,7 +66,9 @@ export default function Dialog({ mode, onClose, onSubmit }: Props) {
         <h2 id="dialog-title">{mode.title}</h2>
         {mode.kind === "path" ? (
           <>
-            <p>相对 collections/，例如 auth/ping</p>
+            <p>
+              {mode.hint ?? "相对 collections/，例如 auth/ping"}
+            </p>
             <input
               ref={inputRef}
               className="dialog-path"

@@ -86,6 +86,28 @@ export async function putEnvironment(
   return parseJSON<Environment>(res);
 }
 
+export async function deleteEnvironment(name: string): Promise<void> {
+  const res = await fetch(`/api/environments/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
+  await parseJSON<void>(res);
+}
+
+export async function renameEnvironment(
+  name: string,
+  next: string,
+): Promise<Environment> {
+  const res = await fetch(
+    `/api/environments/${encodeURIComponent(name)}/rename`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: next }),
+    },
+  );
+  return parseJSON<Environment>(res);
+}
+
 export async function getLocal(): Promise<LocalConfig> {
   const res = await fetch("/api/local");
   return parseJSON<LocalConfig>(res);
