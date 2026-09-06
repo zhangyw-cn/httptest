@@ -86,6 +86,9 @@ export default function App() {
   currentPathRef.current = currentPath;
   const editingEnvRef = useRef(editingEnv);
   editingEnvRef.current = editingEnv;
+  const envSavingRef = useRef(envSaving);
+  envSavingRef.current = envSaving;
+  const envEpochRef = useRef(0);
   const sendingRef = useRef(sending);
   sendingRef.current = sending;
   const executeIdRef = useRef(executeId);
@@ -118,6 +121,7 @@ export default function App() {
   }, []);
 
   const loadEnv = useCallback((env: Environment) => {
+    envEpochRef.current += 1;
     const opened = openEnvForEdit(env);
     setEditingEnv(opened.name);
     setEnvPairs(opened.pairs);
@@ -207,6 +211,7 @@ export default function App() {
   }
 
   function onEnvPairsChange(next: EnvPair[]) {
+    envEpochRef.current += 1;
     setEnvPairs(next);
     setEnvDirty(isEnvDirty(next, envSavedRef.current));
   }
@@ -293,11 +298,13 @@ export default function App() {
   }, []);
 
   const onSaveEnv = useCallback(async () => {
+    if (envSavingRef.current) return;
     const name = editingEnvRef.current;
     if (!name) return;
     if (!isEnvDirty(envPairsRef.current, envSavedRef.current)) return;
     const variables = pairsToVars(envPairsRef.current);
-    const sentSnapshot = varsJSON(variables);
+    const epoch = envEpochRef.current;
+    envSavingRef.current = true;
     setEnvSaving(true);
     setEnvError(null);
     try {
@@ -309,7 +316,7 @@ export default function App() {
       setEnvs(list);
       if (editingEnvRef.current !== name) return;
       const currentPairs = envPairsRef.current;
-      if (varsJSON(pairsToVars(currentPairs)) === sentSnapshot) {
+      if (envEpochRef.current === epoch) {
         loadEnv(saved);
       } else {
         envSavedRef.current = varsJSON(saved.variables);
@@ -318,6 +325,7 @@ export default function App() {
     } catch (err) {
       setEnvError(err instanceof Error ? err.message : String(err));
     } finally {
+      envSavingRef.current = false;
       setEnvSaving(false);
     }
   }, [loadEnv]);
@@ -424,6 +432,7 @@ export default function App() {
           setEnvs(list);
           setLocal(loc);
           if (editingEnvRef.current === current.path) {
+            envEpochRef.current += 1;
             setEditingEnv(null);
             setEnvPairs(varsToPairs({}));
             setEnvDirty(false);
