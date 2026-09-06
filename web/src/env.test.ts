@@ -19,6 +19,17 @@ describe("pairs", () => {
     expect(vars).toEqual({ a: "2" });
   });
 
+  it("keeps __proto__ keys in objects and JSON", () => {
+    const vars = pairsToVars([
+      { id: 1, key: "__proto__", value: "kept" },
+    ]);
+    expect(Object.prototype.hasOwnProperty.call(vars, "__proto__")).toBe(true);
+    expect(vars["__proto__"]).toBe("kept");
+    const parsed = JSON.parse(varsJSON(vars)) as Record<string, string>;
+    expect(Object.prototype.hasOwnProperty.call(parsed, "__proto__")).toBe(true);
+    expect(parsed["__proto__"]).toBe("kept");
+  });
+
   it("uses one blank row when empty", () => {
     const pairs = varsToPairs({});
     expect(pairs).toHaveLength(1);
@@ -47,6 +58,19 @@ describe("envNameError", () => {
     expect(envNameError("a/b", [])).not.toBeNull();
     expect(envNameError("local", ["local"])).not.toBeNull();
     expect(envNameError("dev", ["local"])).toBeNull();
+  });
+
+  it("matches CleanRel environment-name rules", () => {
+    expect(envNameError("C:", [])).not.toBeNull();
+    expect(envNameError("C:/temp", [])).not.toBeNull();
+    expect(envNameError("/temp", [])).not.toBeNull();
+    expect(envNameError(".", [])).not.toBeNull();
+    expect(envNameError("../temp", [])).not.toBeNull();
+    expect(envNameError("..foo", [])).toBeNull();
+    expect(envNameError("a/b", [])).not.toBeNull();
+    expect(envNameError("a\\b", [])).not.toBeNull();
+    expect(envNameError("a/../dev", ["dev"])).not.toBeNull();
+    expect(envNameError("a/../dev", [])).toBeNull();
   });
 });
 

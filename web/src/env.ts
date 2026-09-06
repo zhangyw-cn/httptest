@@ -24,7 +24,7 @@ export function varsToPairs(vars: Record<string, string>): EnvPair[] {
 }
 
 export function pairsToVars(pairs: EnvPair[]): Record<string, string> {
-  const out: Record<string, string> = {};
+  const out = Object.create(null) as Record<string, string>;
   for (const p of pairs) {
     if (p.key) out[p.key] = p.value;
   }
@@ -34,7 +34,7 @@ export function pairsToVars(pairs: EnvPair[]): Record<string, string> {
 export function varsJSON(vars: Record<string, string> | undefined): string {
   const src = vars ?? {};
   const keys = Object.keys(src).sort();
-  const ordered: Record<string, string> = {};
+  const ordered = Object.create(null) as Record<string, string>;
   for (const k of keys) {
     ordered[k] = src[k];
   }
@@ -45,16 +45,48 @@ export function isEnvDirty(pairs: EnvPair[], savedJSON: string): boolean {
   return varsJSON(pairsToVars(pairs)) !== savedJSON;
 }
 
+function cleanRel(name: string): string | null {
+  const rel = name.trim().replaceAll("\\", "/");
+  if (
+    !rel ||
+    rel.startsWith("/") ||
+    /^[A-Za-z]:(?:$|\/)/.test(rel)
+  ) {
+    return null;
+  }
+
+  const segments: string[] = [];
+  for (const segment of rel.split("/")) {
+    if (!segment || segment === ".") continue;
+    if (segment === "..") {
+      if (segments.length > 0 && segments[segments.length - 1] !== "..") {
+        segments.pop();
+      } else {
+        segments.push(segment);
+      }
+      continue;
+    }
+    segments.push(segment);
+  }
+
+  const cleaned = segments.join("/") || ".";
+  if (
+    cleaned === "." ||
+    cleaned === ".." ||
+    cleaned.startsWith("../") ||
+    cleaned.startsWith("/")
+  ) {
+    return null;
+  }
+  if (cleaned.split("/").includes("..")) return null;
+  return cleaned;
+}
+
 export function envNameError(name: string, existing: string[]): string | null {
-  const trimmed = name.trim();
-  if (!trimmed) return "名称不能为空";
-  if (trimmed.includes("/") || trimmed.includes("\\")) {
-    return "名称不能含 /";
-  }
-  if (trimmed.startsWith("..") || trimmed === "." || trimmed === "..") {
-    return "名称非法";
-  }
-  if (existing.includes(trimmed)) return "已有同名环境";
+  const cleaned = cleanRel(name);
+  if (cleaned === null) return name.trim() ? "名称非法" : "名称不能为空";
+  if (cleaned.includes("/")) return "名称不能含 /";
+  if (existing.includes(cleaned)) return "已有同名环境";
   return null;
 }
 
