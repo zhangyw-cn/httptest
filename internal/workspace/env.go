@@ -139,6 +139,11 @@ func (w *Workspace) DeleteEnvironment(name string) error {
 	if err != nil {
 		return err
 	}
+	st, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	perm := st.Mode().Perm()
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -150,8 +155,7 @@ func (w *Workspace) DeleteEnvironment(name string) error {
 		return nil
 	}
 	if err := w.writeActive(""); err != nil {
-		_ = os.WriteFile(path, data, 0o644)
-		return err
+		return wrapRestore(err, os.WriteFile(path, data, perm))
 	}
 	return nil
 }
@@ -168,8 +172,18 @@ func (w *Workspace) RenameEnvironment(oldName, newName string) (Environment, err
 	if oldClean == newClean {
 		return Environment{}, ErrSameEnvName
 	}
-	if _, err := os.Stat(newPath); err == nil {
-		return Environment{}, ErrEnvExists
+	oldSt, err := os.Stat(oldPath)
+	if err != nil {
+		return Environment{}, err
+	}
+	perm := oldSt.Mode().Perm()
+	caseOnly := false
+	if newSt, err := os.Stat(newPath); err == nil {
+		if os.SameFile(oldSt, newSt) {
+			caseOnly = true
+		} else {
+			return Environment{}, ErrEnvExists
+		}
 	} else if !os.IsNotExist(err) {
 		return Environment{}, err
 	}
@@ -185,35 +199,48 @@ func (w *Workspace) RenameEnvironment(oldName, newName string) (Environment, err
 		env.Variables = map[string]string{}
 	}
 	env.Name = newClean
-	out, err := yaml.Marshal(&env)
+	out, err := rewriteEnvNameYAML(data, newClean)
 	if err != nil {
 		return Environment{}, err
 	}
 	if err := os.MkdirAll(filepath.Dir(newPath), 0o755); err != nil {
 		return Environment{}, err
 	}
-	if err := os.WriteFile(newPath, out, 0o644); err != nil {
+	writePath := newPath
+	if caseOnly {
+		writePath = newPath + ".renaming"
+	}
+	if err := os.WriteFile(writePath, out, perm); err != nil {
 		return Environment{}, err
 	}
 	if err := os.Remove(oldPath); err != nil {
-		_ = os.Remove(newPath)
+		_ = os.Remove(writePath)
 		return Environment{}, err
 	}
-	rollback := func() {
-		_ = os.WriteFile(oldPath, data, 0o644)
+	if caseOnly {
+		if err := os.Rename(writePath, newPath); err != nil {
+			_ = os.WriteFile(oldPath, data, perm)
+			_ = os.Remove(writePath)
+			return Environment{}, err
+		}
+	}
+	rollback := func() error {
+		rerr := os.WriteFile(oldPath, data, perm)
 		_ = os.Remove(newPath)
+		if caseOnly {
+			_ = os.Remove(writePath)
+		}
+		return rerr
 	}
 	local, err := w.GetLocal()
 	if err != nil {
-		rollback()
-		return Environment{}, err
+		return Environment{}, wrapRestore(err, rollback())
 	}
 	if local.Environment != oldClean {
 		return env, nil
 	}
 	if err := w.writeActive(newClean); err != nil {
-		rollback()
-		return Environment{}, err
+		return Environment{}, wrapRestore(err, rollback())
 	}
 	return env, nil
 }

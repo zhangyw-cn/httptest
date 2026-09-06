@@ -19,6 +19,7 @@ interface Props {
   onSelectEnv: (name: string) => void;
   onNewEnv: () => void;
   onDeleteEnv: (name: string) => void;
+  envBusy?: boolean;
 }
 
 function TreeItems({
@@ -94,6 +95,7 @@ export default function Sidebar({
   onSelectEnv,
   onNewEnv,
   onDeleteEnv,
+  envBusy = false,
 }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [histError, setHistError] = useState<string | null>(null);
@@ -167,6 +169,7 @@ export default function Sidebar({
             className="btn-icon"
             title="新建"
             onClick={onNewEnv}
+            disabled={envBusy}
           >
             ＋
           </button>
@@ -176,7 +179,12 @@ export default function Sidebar({
             <div className="empty-state">
               <p className="empty-title">还没有环境</p>
               <p className="empty-hint">用标题栏 ＋ 或下方按钮创建</p>
-              <button type="button" className="btn" onClick={onNewEnv}>
+              <button
+                type="button"
+                className="btn"
+                onClick={onNewEnv}
+                disabled={envBusy}
+              >
                 新建环境
               </button>
             </div>
@@ -201,6 +209,7 @@ export default function Sidebar({
                       type="button"
                       className="btn-icon"
                       title="删除"
+                      disabled={envBusy}
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteEnv(env.name);

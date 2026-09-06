@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyEnvSaveResult,
   envNameError,
+  environmentAPIError,
   isEnvDirty,
   openEnvForEdit,
   pairsToVars,
@@ -17,6 +18,14 @@ describe("pairs", () => {
       { id: 3, key: "a", value: "2" },
     ]);
     expect(vars).toEqual({ a: "2" });
+  });
+
+  it("trims keys before dropping empties", () => {
+    const vars = pairsToVars([
+      { id: 1, key: "  host  ", value: "h" },
+      { id: 2, key: "   ", value: "x" },
+    ]);
+    expect(vars).toEqual({ host: "h" });
   });
 
   it("keeps __proto__ keys in objects and JSON", () => {
@@ -117,5 +126,16 @@ describe("applyEnvSaveResult", () => {
     if (got.action !== "keep") return;
     expect(got.dirty).toBe(true);
     expect(got.snapshot).toBe(varsJSON(saved.variables));
+  });
+});
+
+describe("environmentAPIError", () => {
+  it("maps rename and missing-file errors", () => {
+    expect(environmentAPIError("same environment name")).toBe("不能改成当前名称");
+    expect(environmentAPIError("environment exists")).toBe("已有同名环境");
+    expect(environmentAPIError("404: no such file or directory")).toBe(
+      "环境不存在",
+    );
+    expect(environmentAPIError("404: Not Found")).toBe("环境不存在");
   });
 });

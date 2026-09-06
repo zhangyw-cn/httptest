@@ -31,7 +31,6 @@ import TopBar from "./TopBar";
 import UrlBar from "./UrlBar";
 import {
   applyEnvSaveResult,
-  cleanEnvName,
   envNameError,
   environmentAPIError,
   isEnvDirty,
@@ -220,6 +219,7 @@ export default function App() {
   }
 
   function openNewEnvDialog() {
+    if (envSavingRef.current) return;
     setDialogError(null);
     setDialog({
       kind: "path",
@@ -327,8 +327,11 @@ export default function App() {
         currentPairs: envPairsRef.current,
         saved,
       });
-      if (apply.action === "reload") loadEnv(apply.env);
-      else if (apply.action === "keep") {
+      if (apply.action === "reload") {
+        setEditingEnv(apply.env.name);
+        envSavedRef.current = varsJSON(apply.env.variables);
+        setEnvDirty(false);
+      } else if (apply.action === "keep") {
         envSavedRef.current = apply.snapshot;
         setEnvDirty(apply.dirty);
       }
@@ -340,7 +343,7 @@ export default function App() {
       envSavingRef.current = false;
       setEnvSaving(false);
     }
-  }, [loadEnv]);
+  }, []);
 
   const saveToPath = useCallback(async (path: string) => {
     setSaving(true);
@@ -390,6 +393,10 @@ export default function App() {
           }
           const oldName = editingEnvRef.current;
           if (!oldName) return;
+          if (p === oldName) {
+            setDialogError("不能改成当前名称");
+            return;
+          }
           const others = envsRef.current
             .map((e) => e.name)
             .filter((n) => n !== oldName);
@@ -415,22 +422,21 @@ export default function App() {
             setDialogError("请等待环境保存完成");
             return;
           }
-          const cleaned = cleanEnvName(p);
           const err = envNameError(
             p,
             envs.map((env) => env.name),
           );
-          if (err || cleaned === null) {
-            setDialogError(err ?? "名称非法");
+          if (err) {
+            setDialogError(err);
             return;
           }
-          await putEnvironment(cleaned, {
-            name: cleaned,
+          await putEnvironment(p, {
+            name: p,
             variables: {},
           });
           const list = await getEnvironments();
           setEnvs(list);
-          loadEnv({ name: cleaned, variables: {} });
+          loadEnv({ name: p, variables: {} });
           setDialog(null);
           setDialogError(null);
           return;
@@ -481,13 +487,12 @@ export default function App() {
       setDialogError(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setDialogError(
-        current.kind === "path" &&
+      const envOp =
+        (current.kind === "path" &&
           (current.intent === "create-env" ||
-            current.intent === "rename-env")
-          ? environmentAPIError(message)
-          : message,
-      );
+            current.intent === "rename-env")) ||
+        (current.kind === "confirm" && current.subject === "environment");
+      setDialogError(envOp ? environmentAPIError(message) : message);
     }
   }
 
@@ -566,6 +571,7 @@ export default function App() {
             onSelectEnv={onSelectEnv}
             onNewEnv={openNewEnvDialog}
             onDeleteEnv={openDeleteEnvDialog}
+            envBusy={envSaving}
           />
         )}
         <div className="work">

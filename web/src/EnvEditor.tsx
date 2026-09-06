@@ -37,7 +37,12 @@ export default function EnvEditor({
           {name}
         </span>
         {dirty && <span className="dirty">未保存</span>}
-        <button type="button" className="btn" onClick={onRename}>
+        <button
+          type="button"
+          className="btn"
+          onClick={onRename}
+          disabled={saving}
+        >
           改名
         </button>
         <button

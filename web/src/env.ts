@@ -26,7 +26,8 @@ export function varsToPairs(vars: Record<string, string>): EnvPair[] {
 export function pairsToVars(pairs: EnvPair[]): Record<string, string> {
   const out = Object.create(null) as Record<string, string>;
   for (const p of pairs) {
-    if (p.key) out[p.key] = p.value;
+    const key = p.key.trim();
+    if (key) out[key] = p.value;
   }
   return out;
 }
@@ -100,6 +101,13 @@ export function environmentAPIError(message: string): string {
   const lower = message.toLowerCase();
   if (lower.includes("same environment name")) return "不能改成当前名称";
   if (lower.includes("environment exists")) return "已有同名环境";
+  if (
+    lower.includes("no such file") ||
+    lower.includes("not found") ||
+    /\b404\b/.test(lower)
+  ) {
+    return "环境不存在";
+  }
   return message;
 }
 
