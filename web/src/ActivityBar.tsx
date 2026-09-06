@@ -44,6 +44,24 @@ export default function ActivityBar({ view, panelOpen, onClickIcon }: Props) {
           <path d="M12 10.2V13l2 1.4M8.2 5.2 6.5 7.2l2.2 1" />
         </svg>
       </button>
+      <button
+        type="button"
+        className={
+          view === "environment" && panelOpen
+            ? "activity-btn active"
+            : "activity-btn"
+        }
+        title="环境"
+        aria-label="环境"
+        aria-pressed={view === "environment" && panelOpen}
+        onClick={() => onClickIcon("environment")}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4.8 8.2h14.4v11.3H4.8z" />
+          <path d="M8.2 8.2V5.8h7.6v2.4" />
+          <path d="M4.8 12.8h14.4" />
+        </svg>
+      </button>
     </nav>
   );
 }

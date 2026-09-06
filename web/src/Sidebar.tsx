@@ -2,17 +2,23 @@ import { useEffect, useState } from "react";
 import { listHistory } from "./api";
 import { buildRequestTree, type TreeNode } from "./tree";
 import type { LeftView } from "./activity";
-import type { HistoryEntry, RequestMeta } from "./types";
+import type { Environment, HistoryEntry, RequestMeta } from "./types";
 
 interface Props {
   requests: RequestMeta[];
   currentPath: string | null;
   view: LeftView;
   sending: boolean;
+  envs: Environment[];
+  editingEnv: string | null;
+  activeEnv: string;
   onSelectRequest: (path: string) => void;
   onNewRequest: () => void;
   onDeleteRequest: (path: string) => void;
   onSelectHistory: (entry: HistoryEntry) => void;
+  onSelectEnv: (name: string) => void;
+  onNewEnv: () => void;
+  onDeleteEnv: (name: string) => void;
 }
 
 function TreeItems({
@@ -78,10 +84,16 @@ export default function Sidebar({
   currentPath,
   view,
   sending,
+  envs,
+  editingEnv,
+  activeEnv,
   onSelectRequest,
   onNewRequest,
   onDeleteRequest,
   onSelectHistory,
+  onSelectEnv,
+  onNewEnv,
+  onDeleteEnv,
 }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [histError, setHistError] = useState<string | null>(null);
@@ -139,6 +151,67 @@ export default function Sidebar({
               onSelectRequest={onSelectRequest}
               onDeleteRequest={onDeleteRequest}
             />
+          )}
+        </div>
+      </aside>
+    );
+  }
+
+  if (view === "environment") {
+    return (
+      <aside className="sidebar">
+        <div className="sidebar-head">
+          环境
+          <button
+            type="button"
+            className="btn-icon"
+            title="新建"
+            onClick={onNewEnv}
+          >
+            ＋
+          </button>
+        </div>
+        <div className="sidebar-body">
+          {envs.length === 0 ? (
+            <div className="empty-state">
+              <p className="empty-title">还没有环境</p>
+              <p className="empty-hint">用标题栏 ＋ 或下方按钮创建</p>
+              <button type="button" className="btn" onClick={onNewEnv}>
+                新建环境
+              </button>
+            </div>
+          ) : (
+            <ul className="req-list">
+              {envs.map((env) => (
+                <li key={env.name}>
+                  <div className="tree-row">
+                    <button
+                      type="button"
+                      className={
+                        editingEnv === env.name ? "req-item active" : "req-item"
+                      }
+                      onClick={() => onSelectEnv(env.name)}
+                    >
+                      <span className="req-path">{env.name}</span>
+                      {activeEnv === env.name ? (
+                        <span className="env-send-badge">发送</span>
+                      ) : null}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-icon"
+                      title="删除"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteEnv(env.name);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </aside>

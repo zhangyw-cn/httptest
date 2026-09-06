@@ -693,3 +693,34 @@ button:focus-visible {
   justify-content: flex-end;
   gap: 0.4rem;
 }
+
+.env-send-badge {
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: 0.35rem;
+}
+
+.env-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.env-editor-name {
+  font-family: var(--mono);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.env-editor-body {
+  padding: 0.6rem;
+  overflow: auto;
+}
+
+.env-editor-error {
+  margin: 0.4rem 0.6rem 0;
+}

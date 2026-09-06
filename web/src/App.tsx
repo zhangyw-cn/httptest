@@ -3,12 +3,14 @@ import { newId } from "./id";
 import {
   cancelExecute,
   createRequest,
+  deleteEnvironment,
   deleteRequest,
   execute,
   getEnvironments,
   getLocal,
   getRequest,
   getWorkspace,
+  putEnvironment,
   putLocal,
   putRequest,
 } from "./api";
@@ -25,6 +27,7 @@ import ResponsePane from "./ResponsePane";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import UrlBar from "./UrlBar";
+import { envNameError } from "./env";
 import { defaultDraft, normalizeRequest, parseHistoryResult } from "./request";
 import { shortcutFromEvent } from "./shortcut";
 import {
@@ -46,6 +49,7 @@ export default function App() {
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
   const [local, setLocal] = useState<LocalConfig | null>(null);
   const [envs, setEnvs] = useState<Environment[]>([]);
+  const [editingEnv, setEditingEnv] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [draft, setDraft] = useState<HttpRequest>(defaultDraft);
   const [dirty, setDirty] = useState(false);
@@ -66,6 +70,8 @@ export default function App() {
   draftRef.current = draft;
   const currentPathRef = useRef(currentPath);
   currentPathRef.current = currentPath;
+  const editingEnvRef = useRef(editingEnv);
+  editingEnvRef.current = editingEnv;
   const sendingRef = useRef(sending);
   sendingRef.current = sending;
   const executeIdRef = useRef(executeId);
@@ -164,6 +170,38 @@ export default function App() {
     });
   }
 
+  function onSelectEnv(name: string) {
+    setEditingEnv(name);
+  }
+
+  function openNewEnvDialog() {
+    setDialogError(null);
+    setDialog({
+      kind: "path",
+      title: "环境名",
+      submitLabel: "创建",
+      error: null,
+      intent: "create-env",
+      hint: "文件名，例如 local，不能含 /",
+    });
+  }
+
+  function openDeleteEnvDialog(name: string) {
+    const isActive = local?.environment === name;
+    setDialogError(null);
+    setDialog({
+      kind: "confirm",
+      title: "删除环境",
+      body: isActive
+        ? `删除 ${name}？此操作会从磁盘去掉该文件。顶栏当前环境将变为未选择。`
+        : `删除 ${name}？此操作会从磁盘去掉该文件。`,
+      submitLabel: "删除",
+      error: null,
+      path: name,
+      subject: "environment",
+    });
+  }
+
   function onSelectHistory(entry: HistoryEntry) {
     applyDraft(entry.request);
     if (entry.requestPath) setCurrentPath(entry.requestPath);
@@ -241,6 +279,23 @@ export default function App() {
       if (current.kind === "path") {
         const p = path?.trim() ?? "";
         if (!p) return;
+        if (current.intent === "create-env") {
+          const err = envNameError(
+            p,
+            envs.map((env) => env.name),
+          );
+          if (err) {
+            setDialogError(err);
+            return;
+          }
+          await putEnvironment(p, { name: p, variables: {} });
+          const list = await getEnvironments();
+          setEnvs(list);
+          setEditingEnv(p);
+          setDialog(null);
+          setDialogError(null);
+          return;
+        }
         if (current.intent === "create") {
           const req = defaultDraft();
           const segs = p.split("/").filter(Boolean);
@@ -253,6 +308,19 @@ export default function App() {
           await saveToPath(p);
         }
       } else {
+        if (current.subject === "environment") {
+          await deleteEnvironment(current.path);
+          const [list, loc] = await Promise.all([
+            getEnvironments(),
+            getLocal(),
+          ]);
+          setEnvs(list);
+          setLocal(loc);
+          if (editingEnvRef.current === current.path) setEditingEnv(null);
+          setDialog(null);
+          setDialogError(null);
+          return;
+        }
         await deleteRequest(current.path);
         if (currentPathRef.current === current.path) {
           setCurrentPath(null);
@@ -328,10 +396,16 @@ export default function App() {
             currentPath={currentPath}
             view={left.view}
             sending={sending}
+            envs={envs}
+            editingEnv={editingEnv}
+            activeEnv={local?.environment ?? ""}
             onSelectRequest={onSelectRequest}
             onNewRequest={openNewDialog}
             onDeleteRequest={openDeleteDialog}
             onSelectHistory={onSelectHistory}
+            onSelectEnv={onSelectEnv}
+            onNewEnv={openNewEnvDialog}
+            onDeleteEnv={openDeleteEnvDialog}
           />
         )}
         <div className="work">
