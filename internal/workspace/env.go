@@ -89,6 +89,7 @@ func (w *Workspace) ListEnvironments() ([]Environment, error) {
 		if env.Variables == nil {
 			env.Variables = map[string]string{}
 		}
+		env.Name = strings.TrimSuffix(e.Name(), ".yaml")
 		list = append(list, env)
 	}
 	sort.Slice(list, func(i, j int) bool { return list[i].Name < list[j].Name })

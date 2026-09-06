@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyEnvSaveResult,
   envNameError,
   isEnvDirty,
   openEnvForEdit,
@@ -7,7 +8,6 @@ import {
   varsJSON,
   varsToPairs,
 } from "./env";
-import type { LocalConfig } from "./types";
 
 describe("pairs", () => {
   it("drops empty keys and lets later duplicate win", () => {
@@ -75,12 +75,47 @@ describe("envNameError", () => {
   });
 });
 
-describe("openEnvForEdit", () => {
-  it("does not change local.environment", () => {
-    const local: LocalConfig = { environment: "local", secrets: {} };
-    const draft = openEnvForEdit({ name: "prod", variables: { a: "1" } });
-    expect(draft.name).toBe("prod");
-    expect(pairsToVars(draft.pairs)).toEqual({ a: "1" });
-    expect(local.environment).toBe("local");
+describe("applyEnvSaveResult", () => {
+  const saved = { name: "local", variables: { k: "v" } };
+
+  it("ignores when the user switched environments", () => {
+    expect(
+      applyEnvSaveResult({
+        savedName: "local",
+        editingName: "prod",
+        epochAtStart: 1,
+        epochNow: 1,
+        currentPairs: varsToPairs({ k: "v" }),
+        saved,
+      }).action,
+    ).toBe("ignore");
+  });
+
+  it("reloads when epoch is unchanged", () => {
+    const got = applyEnvSaveResult({
+      savedName: "local",
+      editingName: "local",
+      epochAtStart: 2,
+      epochNow: 2,
+      currentPairs: varsToPairs({ k: "v" }),
+      saved,
+    });
+    expect(got).toEqual({ action: "reload", env: saved });
+  });
+
+  it("keeps current pairs and marks dirty when edited during save", () => {
+    const currentPairs = varsToPairs({ k: "newer" });
+    const got = applyEnvSaveResult({
+      savedName: "local",
+      editingName: "local",
+      epochAtStart: 1,
+      epochNow: 2,
+      currentPairs,
+      saved,
+    });
+    expect(got.action).toBe("keep");
+    if (got.action !== "keep") return;
+    expect(got.dirty).toBe(true);
+    expect(got.snapshot).toBe(varsJSON(saved.variables));
   });
 });

@@ -30,6 +30,7 @@ import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import UrlBar from "./UrlBar";
 import {
+  applyEnvSaveResult,
   cleanEnvName,
   envNameError,
   environmentAPIError,
@@ -318,13 +319,18 @@ export default function App() {
       });
       const list = await getEnvironments();
       setEnvs(list);
-      if (editingEnvRef.current !== name) return;
-      const currentPairs = envPairsRef.current;
-      if (envEpochRef.current === epoch) {
-        loadEnv(saved);
-      } else {
-        envSavedRef.current = varsJSON(saved.variables);
-        setEnvDirty(isEnvDirty(currentPairs, envSavedRef.current));
+      const apply = applyEnvSaveResult({
+        savedName: name,
+        editingName: editingEnvRef.current,
+        epochAtStart: epoch,
+        epochNow: envEpochRef.current,
+        currentPairs: envPairsRef.current,
+        saved,
+      });
+      if (apply.action === "reload") loadEnv(apply.env);
+      else if (apply.action === "keep") {
+        envSavedRef.current = apply.snapshot;
+        setEnvDirty(apply.dirty);
       }
     } catch (err) {
       setEnvError(

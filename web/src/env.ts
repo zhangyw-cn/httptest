@@ -115,3 +115,28 @@ export function openEnvForEdit(env: Environment): {
     snapshot: varsJSON(variables),
   };
 }
+
+export type EnvSaveApply =
+  | { action: "ignore" }
+  | { action: "reload"; env: Environment }
+  | { action: "keep"; snapshot: string; dirty: boolean };
+
+export function applyEnvSaveResult(opts: {
+  savedName: string;
+  editingName: string | null;
+  epochAtStart: number;
+  epochNow: number;
+  currentPairs: EnvPair[];
+  saved: Environment;
+}): EnvSaveApply {
+  if (opts.editingName !== opts.savedName) return { action: "ignore" };
+  if (opts.epochNow === opts.epochAtStart) {
+    return { action: "reload", env: opts.saved };
+  }
+  const snapshot = varsJSON(opts.saved.variables);
+  return {
+    action: "keep",
+    snapshot,
+    dirty: isEnvDirty(opts.currentPairs, snapshot),
+  };
+}

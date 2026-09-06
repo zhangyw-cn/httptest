@@ -55,6 +55,36 @@ func TestResolvedVarsSecretsOverride(t *testing.T) {
 	}
 }
 
+func TestListEnvironmentsUsesFilenameNotYamlName(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(ws.Workdir(), "environments")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "prod.yaml"), []byte("name: production\nvariables:\n  k: v\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "staging.yaml"), []byte("variables:\n  a: 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	list, err := ws.ListEnvironments()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 2 {
+		t.Fatalf("%+v", list)
+	}
+	if list[0].Name != "prod" || list[0].Variables["k"] != "v" {
+		t.Fatalf("prod %+v", list[0])
+	}
+	if list[1].Name != "staging" || list[1].Variables["a"] != "1" {
+		t.Fatalf("staging %+v", list[1])
+	}
+}
+
 func TestDeleteEnvironmentRemovesFileAndClearsActive(t *testing.T) {
 	ws, err := Init(t.TempDir())
 	if err != nil {
