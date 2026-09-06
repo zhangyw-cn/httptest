@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -154,5 +155,155 @@ func TestDeleteEnvironmentRollsBackFileWhenActiveWriteFails(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(ws.Workdir(), "environments", "local.yaml")); err != nil {
 		t.Fatalf("env file should be restored: %v", err)
+	}
+}
+
+func TestRenameEnvironmentMovesFileAndFollowsActive(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutEnvironment(Environment{Name: "local", Variables: map[string]string{"baseUrl": "http://h"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutLocal(Local{Environment: "local", Secrets: map[string]string{"t": "1"}}); err != nil {
+		t.Fatal(err)
+	}
+	env, err := ws.RenameEnvironment("local", "dev")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if env.Name != "dev" || env.Variables["baseUrl"] != "http://h" {
+		t.Fatalf("%+v", env)
+	}
+	if _, err := os.Stat(filepath.Join(ws.Workdir(), "environments", "local.yaml")); !os.IsNotExist(err) {
+		t.Fatalf("old file: %v", err)
+	}
+	got, err := ws.GetLocal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Environment != "dev" || got.Secrets["t"] != "1" {
+		t.Fatalf("%+v", got)
+	}
+}
+
+func TestRenameEnvironmentLeavesOtherActive(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutEnvironment(Environment{Name: "local", Variables: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutEnvironment(Environment{Name: "prod", Variables: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutLocal(Local{Environment: "prod", Secrets: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.RenameEnvironment("local", "dev"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ws.GetLocal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Environment != "prod" {
+		t.Fatalf("active=%q", got.Environment)
+	}
+}
+
+func TestRenameEnvironmentTargetExists(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutEnvironment(Environment{Name: "local", Variables: map[string]string{"k": "1"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutEnvironment(Environment{Name: "prod", Variables: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = ws.RenameEnvironment("local", "prod")
+	if !errors.Is(err, ErrEnvExists) {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(ws.Workdir(), "environments", "local.yaml")); err != nil {
+		t.Fatalf("old file missing: %v", err)
+	}
+}
+
+func TestRenameEnvironmentSameName(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutEnvironment(Environment{Name: "local", Variables: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = ws.RenameEnvironment("local", "local")
+	if !errors.Is(err, ErrSameEnvName) {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(ws.Workdir(), "environments", "local.yaml")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRenameEnvironmentInvalidName(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutEnvironment(Environment{Name: "local", Variables: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = ws.RenameEnvironment("local", "a/b")
+	if err == nil || !strings.Contains(err.Error(), "invalid environment name") {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(ws.Workdir(), "environments", "local.yaml")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRenameEnvironmentMissing(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = ws.RenameEnvironment("nope", "dev")
+	if !os.IsNotExist(err) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestRenameEnvironmentRollsBackWhenActiveWriteFails(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutEnvironment(Environment{Name: "local", Variables: map[string]string{"k": "v"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutLocal(Local{Environment: "local", Secrets: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	active := filepath.Join(ws.LocalDir(), "local", "active.yaml")
+	if err := os.Remove(active); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(active, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.RenameEnvironment("local", "dev"); err == nil {
+		t.Fatal("expected error")
+	}
+	if _, err := os.Stat(filepath.Join(ws.Workdir(), "environments", "local.yaml")); err != nil {
+		t.Fatalf("old file should be restored: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(ws.Workdir(), "environments", "dev.yaml")); !os.IsNotExist(err) {
+		t.Fatal("new file should not remain")
 	}
 }

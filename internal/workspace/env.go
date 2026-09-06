@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,11 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+)
+
+var (
+	ErrEnvExists   = errors.New("environment exists")
+	ErrSameEnvName = errors.New("same environment name")
 )
 
 type Environment struct {
@@ -147,6 +153,68 @@ func (w *Workspace) DeleteEnvironment(name string) error {
 		return err
 	}
 	return nil
+}
+
+func (w *Workspace) RenameEnvironment(oldName, newName string) (Environment, error) {
+	oldPath, oldClean, err := w.envPath(oldName)
+	if err != nil {
+		return Environment{}, err
+	}
+	newPath, newClean, err := w.envPath(newName)
+	if err != nil {
+		return Environment{}, err
+	}
+	if oldClean == newClean {
+		return Environment{}, ErrSameEnvName
+	}
+	if _, err := os.Stat(newPath); err == nil {
+		return Environment{}, ErrEnvExists
+	} else if !os.IsNotExist(err) {
+		return Environment{}, err
+	}
+	data, err := os.ReadFile(oldPath)
+	if err != nil {
+		return Environment{}, err
+	}
+	var env Environment
+	if err := yaml.Unmarshal(data, &env); err != nil {
+		return Environment{}, err
+	}
+	if env.Variables == nil {
+		env.Variables = map[string]string{}
+	}
+	env.Name = newClean
+	out, err := yaml.Marshal(&env)
+	if err != nil {
+		return Environment{}, err
+	}
+	if err := os.MkdirAll(filepath.Dir(newPath), 0o755); err != nil {
+		return Environment{}, err
+	}
+	if err := os.WriteFile(newPath, out, 0o644); err != nil {
+		return Environment{}, err
+	}
+	if err := os.Remove(oldPath); err != nil {
+		_ = os.Remove(newPath)
+		return Environment{}, err
+	}
+	rollback := func() {
+		_ = os.WriteFile(oldPath, data, 0o644)
+		_ = os.Remove(newPath)
+	}
+	local, err := w.GetLocal()
+	if err != nil {
+		rollback()
+		return Environment{}, err
+	}
+	if local.Environment != oldClean {
+		return env, nil
+	}
+	if err := w.writeActive(newClean); err != nil {
+		rollback()
+		return Environment{}, err
+	}
+	return env, nil
 }
 
 func (w *Workspace) GetLocal() (Local, error) {
