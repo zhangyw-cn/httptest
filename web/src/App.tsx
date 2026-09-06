@@ -296,16 +296,25 @@ export default function App() {
     const name = editingEnvRef.current;
     if (!name) return;
     if (!isEnvDirty(envPairsRef.current, envSavedRef.current)) return;
+    const variables = pairsToVars(envPairsRef.current);
+    const sentSnapshot = varsJSON(variables);
     setEnvSaving(true);
     setEnvError(null);
     try {
       const saved = await putEnvironment(name, {
         name,
-        variables: pairsToVars(envPairsRef.current),
+        variables,
       });
       const list = await getEnvironments();
       setEnvs(list);
-      loadEnv(saved);
+      if (editingEnvRef.current !== name) return;
+      const currentPairs = envPairsRef.current;
+      if (varsJSON(pairsToVars(currentPairs)) === sentSnapshot) {
+        loadEnv(saved);
+      } else {
+        envSavedRef.current = varsJSON(saved.variables);
+        setEnvDirty(isEnvDirty(currentPairs, envSavedRef.current));
+      }
     } catch (err) {
       setEnvError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -564,7 +573,7 @@ export default function App() {
             setDialog(null);
             setDialogError(null);
           }}
-          onSubmit={(p) => void onDialogSubmit(p)}
+          onSubmit={(p) => onDialogSubmit(p)}
         />
       )}
     </div>
