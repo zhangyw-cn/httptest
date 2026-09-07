@@ -100,6 +100,116 @@ func TestPutListOverride(t *testing.T) {
 	}
 }
 
+func TestDeleteOverrideClearsActive(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutOverride(Override{Name: "default", Variables: map[string]string{"k": "v"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutLocal(Local{Environment: "local", Override: "default"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.DeleteOverride("default"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(ws.LocalDir(), "local", "overrides", "default.yaml")); !os.IsNotExist(err) {
+		t.Fatal("file remains")
+	}
+	got, err := ws.GetLocal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Override != "" || got.Environment != "local" {
+		t.Fatalf("%+v", got)
+	}
+}
+
+func TestDeleteOverrideLeavesOtherActive(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutOverride(Override{Name: "a", Variables: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutOverride(Override{Name: "b", Variables: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutLocal(Local{Override: "a"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.DeleteOverride("b"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ws.GetLocal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Override != "a" {
+		t.Fatalf("%+v", got)
+	}
+}
+
+func TestRenameOverrideUpdatesActive(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutOverride(Override{Name: "old", Variables: map[string]string{"t": "1"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutLocal(Local{Environment: "local", Override: "old"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ws.RenameOverride("old", "new")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Name != "new" || got.Variables["t"] != "1" {
+		t.Fatalf("%+v", got)
+	}
+	local, err := ws.GetLocal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if local.Override != "new" || local.Environment != "local" {
+		t.Fatalf("%+v", local)
+	}
+}
+
+func TestRenameOverrideConflict(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutOverride(Override{Name: "a", Variables: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutOverride(Override{Name: "b", Variables: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = ws.RenameOverride("a", "b")
+	if !errors.Is(err, ErrOverrideExists) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestRenameOverrideSameName(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutOverride(Override{Name: "a", Variables: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = ws.RenameOverride("a", "a")
+	if !errors.Is(err, ErrSameOverrideName) {
+		t.Fatalf("got %v", err)
+	}
+}
+
 func TestGetPutLocalOverrideField(t *testing.T) {
 	ws, err := Init(t.TempDir())
 	if err != nil {
