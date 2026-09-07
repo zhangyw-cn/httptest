@@ -42,6 +42,15 @@ describe("clickActivityIcon", () => {
       clickActivityIcon({ view: "environment", panelOpen: true }, "environment"),
     ).toEqual({ view: "environment", panelOpen: false });
   });
+
+  it("opens override from collection and collapses it on the next click", () => {
+    const opened = clickActivityIcon(openCollection, "override");
+    expect(opened).toEqual({ view: "override", panelOpen: true });
+    expect(clickActivityIcon(opened, "override")).toEqual({
+      view: "override",
+      panelOpen: false,
+    });
+  });
 });
 
 describe("togglePanel", () => {

@@ -6,6 +6,7 @@ import type {
   HistoryEntry,
   HttpRequest,
   LocalConfig,
+  Override,
   Result,
   WorkspaceInfo,
 } from "./types";
@@ -106,6 +107,45 @@ export async function renameEnvironment(
     },
   );
   return parseJSON<Environment>(res);
+}
+
+export async function getOverrides(): Promise<Override[]> {
+  const res = await fetch("/api/overrides");
+  return parseJSON<Override[]>(res);
+}
+
+export async function putOverride(
+  name: string,
+  override: Override,
+): Promise<Override> {
+  const res = await fetch(`/api/overrides/${encodeURIComponent(name)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(override),
+  });
+  return parseJSON<Override>(res);
+}
+
+export async function deleteOverride(name: string): Promise<void> {
+  const res = await fetch(`/api/overrides/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
+  await parseJSON<void>(res);
+}
+
+export async function renameOverride(
+  name: string,
+  next: string,
+): Promise<Override> {
+  const res = await fetch(
+    `/api/overrides/${encodeURIComponent(name)}/rename`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: next }),
+    },
+  );
+  return parseJSON<Override>(res);
 }
 
 export async function getLocal(): Promise<LocalConfig> {

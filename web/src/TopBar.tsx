@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { secretsJSON } from "./secrets";
 import type { ThemePref } from "./theme";
 import type { Environment, LocalConfig } from "./types";
@@ -58,20 +58,10 @@ export default function TopBar({
   onSecretsChange,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [pairs, setPairs] = useState<Pair[]>(() =>
-    secretsToPairs(local?.secrets ?? {}),
-  );
-  const lastJSON = useRef(secretsJSON(local?.secrets));
+  const [pairs, setPairs] = useState<Pair[]>(() => secretsToPairs({}));
+  const lastJSON = useRef(secretsJSON({}));
   const pairsRef = useRef(pairs);
   pairsRef.current = pairs;
-  const secretsJ = secretsJSON(local?.secrets);
-
-  useEffect(() => {
-    if (secretsJ !== lastJSON.current) {
-      setPairs(secretsToPairs(local?.secrets ?? {}));
-      lastJSON.current = secretsJ;
-    }
-  }, [secretsJ, local?.secrets]);
 
   function commit(next: Pair[]) {
     setPairs(next);

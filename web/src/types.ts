@@ -45,9 +45,14 @@ export interface Environment {
   variables: Record<string, string>;
 }
 
+export interface Override {
+  name: string;
+  variables: Record<string, string>;
+}
+
 export interface LocalConfig {
   environment: string;
-  secrets: Record<string, string>;
+  override: string;
 }
 
 export interface RedirectHop {

@@ -1,4 +1,4 @@
-export type LeftView = "collection" | "history" | "environment";
+export type LeftView = "collection" | "history" | "environment" | "override";
 
 export interface LeftState {
   view: LeftView;
