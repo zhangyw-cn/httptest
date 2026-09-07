@@ -7,7 +7,7 @@
 - 一条命令启动；默认监听 `127.0.0.1:1370`，仅本机可访问
 - 编辑并发送 GET、POST、PUT、PATCH、DELETE、HEAD、OPTIONS；未保存草稿也能发
 - 响应区：状态码、头、格式化 Body、原始报文、体积、重定向链、分阶段耗时
-- 集合与环境模板可随项目 git 共享（工作目录下的 `collections/`、`environments/`）；历史、密钥、本机覆盖在 `.httptest/`，不进 git
+- 集合与环境模板可随项目 git 共享（工作目录下的 `collections/`、`environments/`）；历史、覆盖在 `.httptest/`，不进 git
 
 ## 快速开始
 
@@ -44,7 +44,7 @@ httptest [DIR] [--listen 127.0.0.1:1370] [--open]
 
 ## 界面
 
-顶栏是产品名、工作区路径、浅色/深色/系统、环境选择器和密钥。左侧活动栏切换集合、历史与环境；再点当前图标收起树（`Ctrl+B`）。树展开时宽 220px。集合/历史视图下 Method、URL、Send、Stop、Save 横跨中间请求栏和右侧响应栏（`Ctrl+Enter` 发送，`Ctrl+S` 保存请求）。环境视图左侧列环境名，中间编辑模板变量（`Ctrl+S` 保存环境，`Ctrl+Enter` 不发送）；树选中只打开编辑，顶栏环境选择器才是发送用的当前环境。新建/改名/删除在应用内对话框完成，不使用浏览器原生弹窗。请求栏为 `Query | Headers | Body`；响应栏为状态码、耗时、体积，以及 `Body | Headers | Raw | Timeline`。
+顶栏是产品名、工作区路径、浅色/深色/系统、环境选择器与覆盖选择器（覆盖可选「无」）。左侧活动栏切换集合、历史、环境与覆盖；再点当前图标收起树（`Ctrl+B`）。树展开时宽 220px。集合/历史视图下 Method、URL、Send、Stop、Save 横跨中间请求栏和右侧响应栏（`Ctrl+Enter` 发送，`Ctrl+S` 保存请求）。环境视图左侧列环境名，中间编辑模板变量（`Ctrl+S` 保存环境，`Ctrl+Enter` 不发送）；覆盖视图同理编辑本机覆盖集，树选中只打开编辑，顶栏选择器才是发送用的当前环境与覆盖。新建/改名/删除在应用内对话框完成，不使用浏览器原生弹窗。请求栏为 `Query | Headers | Body`；响应栏为状态码、耗时、体积，以及 `Body | Headers | Raw | Timeline`。
 
 ## 工作区
 
@@ -62,7 +62,9 @@ httptest [DIR] [--listen 127.0.0.1:1370] [--open]
   environments/     # 环境模板，可提交
   .httptest/
     .gitignore
-    local/          # 密钥与当前环境，不提交
+    local/
+      overrides/    # 覆盖集，不提交
+      active.yaml   # 当前环境与覆盖，不提交
     history/        # 按日 jsonl，不提交
 ```
 
@@ -95,9 +97,9 @@ timeout: 30s    # 可选，默认 30s
 - `body.type` 为 `none` 或 GET/HEAD 时不发送 body。
 - URL、query、header、body 文本均可出现 `{{name}}`。
 
-## 环境与密钥
+## 环境与覆盖
 
-`environments/<name>.yaml` 可提交，禁止放密钥：
+`environments/<name>.yaml` 可提交，禁止放敏感值：
 
 ```yaml
 name: local
@@ -106,13 +108,25 @@ variables:
   username: demo
 ```
 
-`.httptest/local/secrets.yaml` 用同名变量覆盖模板，不提交。`.httptest/local/active.yaml` 记录当前环境：
+`.httptest/local/overrides/<name>.yaml` 存放本机覆盖集，不提交；可建多套，顶栏覆盖选择器切换（含「无」表示不应用任何覆盖集）：
+
+```yaml
+name: dev
+variables:
+  baseUrl: http://127.0.0.1:3000
+  apiKey: sk-local-only
+```
+
+`.httptest/local/active.yaml` 记录当前环境与覆盖：
 
 ```yaml
 environment: local
+override: dev
 ```
 
-替换顺序：环境模板 → `secrets.yaml`。缺失任一 `{{var}}` 时分类为 `invalid`，列出变量名，**不发送**。密钥可在 UI 中编辑（本机工具，不上传）。
+替换顺序：环境模板 → 当前覆盖集（若顶栏未选覆盖则为空）。缺失任一 `{{var}}`，或 `active.yaml` 指向的覆盖集文件不存在时，分类为 `invalid`，列出变量名，**不发送**。覆盖集可在 UI 中编辑（本机工具，不上传）。
+
+这是破坏性变更：旧版 `.httptest/local/secrets.yaml` 不再读取。请自行迁移：将其 `variables` 拷到 `overrides/<name>.yaml`（例如 `overrides/default.yaml`），在 `active.yaml` 设 `override: <name>`，确认无误后可删 `secrets.yaml`。不会自动迁移。
 
 ## v1 明确不做
 
