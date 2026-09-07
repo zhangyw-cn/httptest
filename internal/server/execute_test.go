@@ -141,6 +141,31 @@ func TestCancelWithoutContentTypeRejected(t *testing.T) {
 	}
 }
 
+func TestExecuteMissingOverrideInvalid(t *testing.T) {
+	h := newTestHandler(t)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"","override":"missing"}`)))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code)
+	}
+	body := []byte(`{"id":"1","request":{"name":"R","method":"GET","url":"http://127.0.0.1/","query":{},"headers":{},"body":{"type":"none"}}}`)
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/execute", body))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status %d %s", rr.Code, rr.Body.Bytes())
+	}
+	var res struct {
+		ErrorClass   string `json:"errorClass"`
+		ErrorMessage string `json:"errorMessage"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.ErrorClass != "invalid" || !strings.Contains(res.ErrorMessage, "missing") {
+		t.Fatalf("%+v", res)
+	}
+}
+
 func TestCancelJSONEmptyBodyPassesGuard(t *testing.T) {
 	ws, err := workspace.Init(t.TempDir())
 	if err != nil {

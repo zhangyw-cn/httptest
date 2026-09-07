@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -28,6 +29,14 @@ func (s *server) handleExecute(w http.ResponseWriter, r *http.Request) {
 
 	vars, err := s.ws.ResolvedVars()
 	if err != nil {
+		if errors.Is(err, workspace.ErrOverrideNotFound) {
+			writeJSON(w, http.StatusOK, executor.Result{
+				ErrorClass:   executor.ClassInvalid,
+				ErrorMessage: err.Error(),
+				Prepared:     body.Request,
+			})
+			return
+		}
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
