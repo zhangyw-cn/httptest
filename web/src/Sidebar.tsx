@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { listHistory } from "./api";
 import { buildRequestTree, type TreeNode } from "./tree";
 import type { LeftView } from "./activity";
+import { overrideRowStates } from "./override";
 import type {
   Environment,
   HistoryEntry,
@@ -277,20 +278,20 @@ export default function Sidebar({
             </div>
           ) : (
             <ul className="req-list">
-              {overrides.map((override) => (
-                <li key={override.name}>
+              {overrideRowStates(
+                overrides.map((override) => override.name),
+                activeOverride,
+                editingOverride,
+              ).map((row) => (
+                <li key={row.name}>
                   <div className="tree-row">
                     <button
                       type="button"
-                      className={
-                        editingOverride === override.name
-                          ? "req-item active"
-                          : "req-item"
-                      }
-                      onClick={() => onSelectOverride(override.name)}
+                      className={row.itemClassName}
+                      onClick={() => onSelectOverride(row.name)}
                     >
-                      <span className="req-path">{override.name}</span>
-                      {activeOverride === override.name ? (
+                      <span className="req-path">{row.name}</span>
+                      {row.showSendBadge ? (
                         <span className="env-send-badge">发送</span>
                       ) : null}
                     </button>
@@ -301,7 +302,7 @@ export default function Sidebar({
                       disabled={overrideBusy}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDeleteOverride(override.name);
+                        onDeleteOverride(row.name);
                       }}
                     >
                       ×

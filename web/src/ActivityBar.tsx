@@ -1,4 +1,5 @@
 import type { LeftView } from "./activity";
+import { isActivityPressed } from "./activity";
 
 interface Props {
   view: LeftView;
@@ -12,13 +13,13 @@ export default function ActivityBar({ view, panelOpen, onClickIcon }: Props) {
       <button
         type="button"
         className={
-          view === "collection" && panelOpen
+          isActivityPressed(view, panelOpen, "collection")
             ? "activity-btn active"
             : "activity-btn"
         }
         title="集合 (Ctrl+B)"
         aria-label="集合"
-        aria-pressed={view === "collection" && panelOpen}
+        aria-pressed={isActivityPressed(view, panelOpen, "collection")}
         onClick={() => onClickIcon("collection")}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -30,13 +31,13 @@ export default function ActivityBar({ view, panelOpen, onClickIcon }: Props) {
       <button
         type="button"
         className={
-          view === "history" && panelOpen
+          isActivityPressed(view, panelOpen, "history")
             ? "activity-btn active"
             : "activity-btn"
         }
         title="历史"
         aria-label="历史"
-        aria-pressed={view === "history" && panelOpen}
+        aria-pressed={isActivityPressed(view, panelOpen, "history")}
         onClick={() => onClickIcon("history")}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -47,13 +48,13 @@ export default function ActivityBar({ view, panelOpen, onClickIcon }: Props) {
       <button
         type="button"
         className={
-          view === "environment" && panelOpen
+          isActivityPressed(view, panelOpen, "environment")
             ? "activity-btn active"
             : "activity-btn"
         }
         title="环境"
         aria-label="环境"
-        aria-pressed={view === "environment" && panelOpen}
+        aria-pressed={isActivityPressed(view, panelOpen, "environment")}
         onClick={() => onClickIcon("environment")}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -65,13 +66,13 @@ export default function ActivityBar({ view, panelOpen, onClickIcon }: Props) {
       <button
         type="button"
         className={
-          view === "override" && panelOpen
+          isActivityPressed(view, panelOpen, "override")
             ? "activity-btn active"
             : "activity-btn"
         }
         title="覆盖"
         aria-label="覆盖"
-        aria-pressed={view === "override" && panelOpen}
+        aria-pressed={isActivityPressed(view, panelOpen, "override")}
         onClick={() => onClickIcon("override")}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">

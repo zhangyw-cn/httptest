@@ -26,6 +26,25 @@ export function overrideAPIError(message: string): string {
   return message;
 }
 
+export interface OverrideRowState {
+  name: string;
+  itemClassName: "req-item" | "req-item active";
+  showSendBadge: boolean;
+}
+
+export function overrideRowStates(
+  names: string[],
+  activeOverride: string,
+  editingOverride: string | null,
+): OverrideRowState[] {
+  return names.map((name) => ({
+    name,
+    itemClassName:
+      editingOverride === name ? "req-item active" : "req-item",
+    showSendBadge: activeOverride === name,
+  }));
+}
+
 export function overrideDeleteDialog(
   name: string,
   isActive: boolean,
