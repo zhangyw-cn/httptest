@@ -22,16 +22,13 @@ type Environment struct {
 }
 
 type Local struct {
-	Environment string            `json:"environment"`
-	Secrets     map[string]string `json:"secrets"`
-}
-
-type secretsFile struct {
-	Variables map[string]string `yaml:"variables"`
+	Environment string `json:"environment"`
+	Override    string `json:"override"`
 }
 
 type activeFile struct {
 	Environment string `yaml:"environment"`
+	Override    string `yaml:"override"`
 }
 
 func (w *Workspace) envPath(name string) (string, string, error) {
@@ -102,28 +99,16 @@ func (w *Workspace) PutLocal(local Local) error {
 		return err
 	}
 	_ = os.Chmod(localDir, 0o700)
-	secrets := secretsFile{Variables: local.Secrets}
-	if secrets.Variables == nil {
-		secrets.Variables = map[string]string{}
-	}
-	sdata, err := yaml.Marshal(&secrets)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(filepath.Join(localDir, "secrets.yaml"), sdata, 0o600); err != nil {
-		return err
-	}
-	_ = os.Chmod(filepath.Join(localDir, "secrets.yaml"), 0o600)
-	return w.writeActive(local.Environment)
+	return w.writeActive(local.Environment, local.Override)
 }
 
-func (w *Workspace) writeActive(environment string) error {
+func (w *Workspace) writeActive(environment, override string) error {
 	localDir := filepath.Join(w.localDir, "local")
 	if err := os.MkdirAll(localDir, 0o700); err != nil {
 		return err
 	}
 	_ = os.Chmod(localDir, 0o700)
-	adata, err := yaml.Marshal(&activeFile{Environment: environment})
+	adata, err := yaml.Marshal(&activeFile{Environment: environment, Override: override})
 	if err != nil {
 		return err
 	}
@@ -154,7 +139,7 @@ func (w *Workspace) DeleteEnvironment(name string) error {
 	if local.Environment != cleaned {
 		return nil
 	}
-	if err := w.writeActive(""); err != nil {
+	if err := w.writeActive("", local.Override); err != nil {
 		return wrapRestore(err, os.WriteFile(path, data, perm))
 	}
 	return nil
@@ -239,28 +224,14 @@ func (w *Workspace) RenameEnvironment(oldName, newName string) (Environment, err
 	if local.Environment != oldClean {
 		return env, nil
 	}
-	if err := w.writeActive(newClean); err != nil {
+	if err := w.writeActive(newClean, local.Override); err != nil {
 		return Environment{}, wrapRestore(err, rollback())
 	}
 	return env, nil
 }
 
 func (w *Workspace) GetLocal() (Local, error) {
-	out := Local{
-		Secrets: map[string]string{},
-	}
-	sdata, err := os.ReadFile(filepath.Join(w.localDir, "local", "secrets.yaml"))
-	if err == nil {
-		var secrets secretsFile
-		if err := yaml.Unmarshal(sdata, &secrets); err != nil {
-			return Local{}, err
-		}
-		if secrets.Variables != nil {
-			out.Secrets = secrets.Variables
-		}
-	} else if !os.IsNotExist(err) {
-		return Local{}, err
-	}
+	out := Local{}
 	adata, err := os.ReadFile(filepath.Join(w.localDir, "local", "active.yaml"))
 	if err == nil {
 		var active activeFile
@@ -268,6 +239,7 @@ func (w *Workspace) GetLocal() (Local, error) {
 			return Local{}, err
 		}
 		out.Environment = active.Environment
+		out.Override = active.Override
 	} else if !os.IsNotExist(err) {
 		return Local{}, err
 	}
@@ -297,8 +269,25 @@ func (w *Workspace) ResolvedVars() (map[string]string, error) {
 			}
 		}
 	}
-	for k, v := range local.Secrets {
-		vars[k] = v
+	if local.Override != "" {
+		path, cleaned, err := w.overridePath(local.Override)
+		if err != nil {
+			return nil, err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil, fmt.Errorf("%w: %q", ErrOverrideNotFound, cleaned)
+			}
+			return nil, err
+		}
+		var o Override
+		if err := yaml.Unmarshal(data, &o); err != nil {
+			return nil, err
+		}
+		for k, v := range o.Variables {
+			vars[k] = v
+		}
 	}
 	return vars, nil
 }
