@@ -255,6 +255,32 @@ func TestOverrideCRUDAndLocal(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("put %d %s", rr.Code, rr.Body.Bytes())
 	}
+	var putResp struct {
+		Name      string            `json:"name"`
+		Variables map[string]string `json:"variables"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &putResp); err != nil {
+		t.Fatal(err)
+	}
+	if putResp.Name != "default" || putResp.Variables["token"] != "s" {
+		t.Fatalf("%+v", putResp)
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/overrides/empty", []byte(`{"name":"empty"}`)))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("put empty %d %s", rr.Code, rr.Body.Bytes())
+	}
+	putResp = struct {
+		Name      string            `json:"name"`
+		Variables map[string]string `json:"variables"`
+	}{}
+	if err := json.Unmarshal(rr.Body.Bytes(), &putResp); err != nil {
+		t.Fatal(err)
+	}
+	if putResp.Name != "empty" || putResp.Variables == nil || len(putResp.Variables) != 0 {
+		t.Fatalf("variables should be empty map, got %+v", putResp)
+	}
 
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"","override":"default"}`)))
@@ -266,6 +292,32 @@ func TestOverrideCRUDAndLocal(t *testing.T) {
 	h.ServeHTTP(rr, apiReq(http.MethodGet, "/api/overrides", nil))
 	if rr.Code != http.StatusOK {
 		t.Fatal(rr.Code)
+	}
+	var list []struct {
+		Name      string            `json:"name"`
+		Variables map[string]string `json:"variables"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &list); err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 2 {
+		t.Fatalf("want 2 overrides, got %+v", list)
+	}
+	foundDefault, foundEmpty := false, false
+	for _, o := range list {
+		switch o.Name {
+		case "default":
+			if o.Variables["token"] == "s" {
+				foundDefault = true
+			}
+		case "empty":
+			if o.Variables != nil && len(o.Variables) == 0 {
+				foundEmpty = true
+			}
+		}
+	}
+	if !foundDefault || !foundEmpty {
+		t.Fatalf("list missing entries: %+v", list)
 	}
 
 	rr = httptest.NewRecorder()
@@ -322,6 +374,15 @@ func TestPutLocalInvalidOverrideName(t *testing.T) {
 	h := newTestHandler(t)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"","override":"a/b"}`)))
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("got %d %s", rr.Code, rr.Body.Bytes())
+	}
+}
+
+func TestPutOverrideInvalidPathSegment(t *testing.T) {
+	h := newTestHandler(t)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/overrides/a%2Fb", []byte(`{"name":"a/b","variables":{}}`)))
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("got %d %s", rr.Code, rr.Body.Bytes())
 	}

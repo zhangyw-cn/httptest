@@ -46,7 +46,7 @@ func TestDeleteEnvironmentRemovesFileAndClearsActive(t *testing.T) {
 	if err := ws.PutEnvironment(Environment{Name: "local", Variables: map[string]string{"k": "v"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := ws.PutLocal(Local{Environment: "local", Override: "keep"}); err != nil {
+	if _, err := ws.PutLocal(Local{Environment: "local", Override: "keep"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := ws.DeleteEnvironment("local"); err != nil {
@@ -78,7 +78,7 @@ func TestDeleteEnvironmentLeavesOtherActive(t *testing.T) {
 	if err := ws.PutEnvironment(Environment{Name: "prod", Variables: map[string]string{}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := ws.PutLocal(Local{Environment: "local", Override: ""}); err != nil {
+	if _, err := ws.PutLocal(Local{Environment: "local", Override: ""}); err != nil {
 		t.Fatal(err)
 	}
 	if err := ws.DeleteEnvironment("prod"); err != nil {
@@ -123,7 +123,7 @@ func TestDeleteEnvironmentRollsBackFileWhenActiveWriteFails(t *testing.T) {
 	if err := ws.PutEnvironment(Environment{Name: "local", Variables: map[string]string{"k": "v"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := ws.PutLocal(Local{Environment: "local", Override: ""}); err != nil {
+	if _, err := ws.PutLocal(Local{Environment: "local", Override: ""}); err != nil {
 		t.Fatal(err)
 	}
 	envFile := filepath.Join(ws.Workdir(), "environments", "local.yaml")
@@ -158,7 +158,7 @@ func TestRenameEnvironmentMovesFileAndFollowsActive(t *testing.T) {
 	if err := ws.PutEnvironment(Environment{Name: "local", Variables: map[string]string{"baseUrl": "http://h"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := ws.PutLocal(Local{Environment: "local", Override: "default"}); err != nil {
+	if _, err := ws.PutLocal(Local{Environment: "local", Override: "default"}); err != nil {
 		t.Fatal(err)
 	}
 	env, err := ws.RenameEnvironment("local", "dev")
@@ -191,7 +191,7 @@ func TestRenameEnvironmentLeavesOtherActive(t *testing.T) {
 	if err := ws.PutEnvironment(Environment{Name: "prod", Variables: map[string]string{}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := ws.PutLocal(Local{Environment: "prod", Override: ""}); err != nil {
+	if _, err := ws.PutLocal(Local{Environment: "prod", Override: ""}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ws.RenameEnvironment("local", "dev"); err != nil {
@@ -279,7 +279,7 @@ func TestRenameEnvironmentRollsBackWhenActiveWriteFails(t *testing.T) {
 	if err := ws.PutEnvironment(Environment{Name: "local", Variables: map[string]string{"k": "v"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := ws.PutLocal(Local{Environment: "local", Override: ""}); err != nil {
+	if _, err := ws.PutLocal(Local{Environment: "local", Override: ""}); err != nil {
 		t.Fatal(err)
 	}
 	active := filepath.Join(ws.LocalDir(), "local", "active.yaml")

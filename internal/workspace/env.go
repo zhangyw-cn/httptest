@@ -63,11 +63,15 @@ func (w *Workspace) PutEnvironment(env Environment) error {
 
 func (w *Workspace) ListEnvironments() ([]Environment, error) {
 	root := filepath.Join(w.workdir, "environments")
+	exists, err := checkDir(root)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return []Environment{}, nil
+	}
 	entries, err := os.ReadDir(root)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return []Environment{}, nil
-		}
 		return nil, err
 	}
 	var list []Environment
@@ -93,18 +97,23 @@ func (w *Workspace) ListEnvironments() ([]Environment, error) {
 	return list, nil
 }
 
-func (w *Workspace) PutLocal(local Local) error {
+func (w *Workspace) PutLocal(local Local) (Local, error) {
 	if local.Override != "" {
-		if _, _, err := w.overridePath(local.Override); err != nil {
-			return err
+		_, cleaned, err := w.overridePath(local.Override)
+		if err != nil {
+			return Local{}, err
 		}
+		local.Override = cleaned
 	}
 	localDir := filepath.Join(w.localDir, "local")
 	if err := os.MkdirAll(localDir, 0o700); err != nil {
-		return err
+		return Local{}, err
 	}
 	_ = os.Chmod(localDir, 0o700)
-	return w.writeActive(local.Environment, local.Override)
+	if err := w.writeActive(local.Environment, local.Override); err != nil {
+		return Local{}, err
+	}
+	return local, nil
 }
 
 func (w *Workspace) writeActive(environment, override string) error {
@@ -216,8 +225,9 @@ func (w *Workspace) RenameEnvironment(oldName, newName string) (Environment, err
 	}
 	rollback := func() error {
 		rerr := os.WriteFile(oldPath, data, perm)
-		_ = os.Remove(newPath)
-		if caseOnly {
+		if !caseOnly {
+			_ = os.Remove(newPath)
+		} else {
 			_ = os.Remove(writePath)
 		}
 		return rerr
@@ -277,13 +287,12 @@ func (w *Workspace) ResolvedVars() (map[string]string, error) {
 	if local.Override != "" {
 		path, cleaned, err := w.overridePath(local.Override)
 		if err != nil {
-			// Hand-edited active.yaml may contain illegal names; treat like missing.
-			return nil, fmt.Errorf("%w: %q", ErrOverrideNotFound, local.Override)
+			return nil, fmt.Errorf("%w: 覆盖 %q 不存在或名称非法", ErrOverrideNotFound, local.Override)
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			if os.IsNotExist(err) {
-				return nil, fmt.Errorf("%w: %q", ErrOverrideNotFound, cleaned)
+				return nil, fmt.Errorf("%w: 覆盖 %q 不存在", ErrOverrideNotFound, cleaned)
 			}
 			return nil, err
 		}

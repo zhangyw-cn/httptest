@@ -835,6 +835,7 @@ export default function App() {
               saving={overrideSaving}
               error={overrideError}
               emptyTitle="在左侧选择一套覆盖，或新建"
+              maskValues
               onPairsChange={onOverridePairsChange}
               onSave={() => void onSaveOverride()}
               onRename={openRenameOverrideDialog}

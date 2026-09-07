@@ -147,11 +147,12 @@ func (s *server) handlePutOverride(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	override.Name = name
-	if err := s.ws.PutOverride(override); err != nil {
+	saved, err := s.ws.PutOverride(override)
+	if err != nil {
 		writeOverrideErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, override)
+	writeJSON(w, http.StatusOK, saved)
 }
 
 func (s *server) handleDeleteOverride(w http.ResponseWriter, r *http.Request) {
@@ -202,11 +203,15 @@ func (s *server) handlePutLocal(w http.ResponseWriter, r *http.Request) {
 		Environment: body.Environment,
 		Override:    body.Override,
 	}
-	if err := s.ws.PutLocal(local); err != nil {
+	saved, err := s.ws.PutLocal(local)
+	if err != nil {
 		writePathErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, body)
+	writeJSON(w, http.StatusOK, localJSON{
+		Environment: saved.Environment,
+		Override:    saved.Override,
+	})
 }
 
 type localJSON struct {

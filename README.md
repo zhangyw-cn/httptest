@@ -29,7 +29,7 @@ go build -o httptest ./cmd/httptest
 
 `net.Listen` 成功之后才会在 stdout 打印实际 URL（例如 `http://127.0.0.1:1370`）。`--open` 会尽力打开系统浏览器；失败则忽略，请手动打开打印出的地址。
 
-浏览器打开后：选环境 → 填 Method/URL → Send。
+浏览器打开后：选环境（可选覆盖，可留「无」）→ 填 Method/URL → Send。
 
 ## 命令行
 

@@ -22,20 +22,6 @@ type Override struct {
 	Variables map[string]string `json:"variables" yaml:"variables"`
 }
 
-func checkDir(path string) (bool, error) {
-	st, err := os.Stat(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	if !st.IsDir() {
-		return false, fmt.Errorf("not a directory: %s", path)
-	}
-	return true, nil
-}
-
 func (w *Workspace) overridePath(name string) (string, string, error) {
 	cleaned, err := CleanRel(name)
 	if err != nil {
@@ -47,10 +33,10 @@ func (w *Workspace) overridePath(name string) (string, string, error) {
 	return filepath.Join(w.localDir, "local", "overrides", cleaned+".yaml"), cleaned, nil
 }
 
-func (w *Workspace) PutOverride(o Override) error {
+func (w *Workspace) PutOverride(o Override) (Override, error) {
 	path, cleaned, err := w.overridePath(o.Name)
 	if err != nil {
-		return err
+		return Override{}, err
 	}
 	o.Name = cleaned
 	if o.Variables == nil {
@@ -58,16 +44,19 @@ func (w *Workspace) PutOverride(o Override) error {
 	}
 	data, err := yaml.Marshal(&o)
 	if err != nil {
-		return err
+		return Override{}, err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
+		return Override{}, err
 	}
 	_ = os.Chmod(filepath.Dir(path), 0o700)
 	if err := os.WriteFile(path, data, 0o600); err != nil {
-		return err
+		return Override{}, err
 	}
-	return os.Chmod(path, 0o600)
+	if err := os.Chmod(path, 0o600); err != nil {
+		return Override{}, err
+	}
+	return o, nil
 }
 
 func (w *Workspace) ListOverrides() ([]Override, error) {
@@ -152,7 +141,6 @@ func (w *Workspace) RenameOverride(oldName, newName string) (Override, error) {
 	if err != nil {
 		return Override{}, err
 	}
-	perm := oldSt.Mode().Perm()
 	caseOnly := false
 	if newSt, err := os.Stat(newPath); err == nil {
 		if os.SameFile(oldSt, newSt) {
@@ -175,7 +163,7 @@ func (w *Workspace) RenameOverride(oldName, newName string) (Override, error) {
 		o.Variables = map[string]string{}
 	}
 	o.Name = newClean
-	out, err := yaml.Marshal(&o)
+	out, err := rewriteNameYAML(data, newClean)
 	if err != nil {
 		return Override{}, err
 	}
@@ -200,15 +188,16 @@ func (w *Workspace) RenameOverride(oldName, newName string) (Override, error) {
 	}
 	if caseOnly {
 		if err := os.Rename(writePath, newPath); err != nil {
-			_ = os.WriteFile(oldPath, data, perm)
+			_ = os.WriteFile(oldPath, data, 0o600)
 			_ = os.Remove(writePath)
 			return Override{}, err
 		}
 	}
 	rollback := func() error {
-		rerr := os.WriteFile(oldPath, data, perm)
-		_ = os.Remove(newPath)
-		if caseOnly {
+		rerr := os.WriteFile(oldPath, data, 0o600)
+		if !caseOnly {
+			_ = os.Remove(newPath)
+		} else {
 			_ = os.Remove(writePath)
 		}
 		return rerr

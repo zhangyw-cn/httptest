@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -14,6 +15,20 @@ type Workspace struct {
 
 func (w *Workspace) Workdir() string  { return w.workdir }
 func (w *Workspace) LocalDir() string { return w.localDir }
+
+func checkDir(path string) (bool, error) {
+	st, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if !st.IsDir() {
+		return false, fmt.Errorf("not a directory: %s", path)
+	}
+	return true, nil
+}
 
 func Init(workdir string) (*Workspace, error) {
 	abs, err := filepath.Abs(workdir)

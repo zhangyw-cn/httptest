@@ -13,15 +13,20 @@ func wrapRestore(err, restoreErr error) error {
 	return fmt.Errorf("%w (restore: %v)", err, restoreErr)
 }
 
-func rewriteEnvNameYAML(data []byte, newName string) ([]byte, error) {
+func rewriteNameYAML(data []byte, newName string) ([]byte, error) {
 	var doc yaml.Node
 	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return nil, err
 	}
 	if !setOrAddMapString(&doc, "name", newName) {
-		return nil, fmt.Errorf("invalid environment yaml")
+		return nil, fmt.Errorf("invalid yaml: missing name")
 	}
 	return yaml.Marshal(&doc)
+}
+
+// rewriteEnvNameYAML keeps the historical name used by environment rename tests.
+func rewriteEnvNameYAML(data []byte, newName string) ([]byte, error) {
+	return rewriteNameYAML(data, newName)
 }
 
 func setOrAddMapString(n *yaml.Node, key, value string) bool {

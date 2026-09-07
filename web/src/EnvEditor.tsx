@@ -10,6 +10,7 @@ interface Props {
   onSave: () => void;
   onRename: () => void;
   emptyTitle?: string;
+  maskValues?: boolean;
 }
 
 export default function EnvEditor({
@@ -22,6 +23,7 @@ export default function EnvEditor({
   onSave,
   onRename,
   emptyTitle = "在左侧选择一个环境，或新建",
+  maskValues = false,
 }: Props) {
   if (!name) {
     return (
@@ -83,7 +85,7 @@ export default function EnvEditor({
                 </td>
                 <td>
                   <input
-                    type="text"
+                    type={maskValues ? "password" : "text"}
                     value={p.value}
                     onChange={(e) =>
                       onPairsChange(

@@ -164,6 +164,18 @@ func TestExecuteMissingOverrideInvalid(t *testing.T) {
 	if res.ErrorClass != "invalid" || !strings.Contains(res.ErrorMessage, "missing") {
 		t.Fatalf("%+v", res)
 	}
+	if !strings.Contains(res.ErrorMessage, "覆盖") {
+		t.Fatalf("want Chinese message, got %+v", res)
+	}
+	var full struct {
+		Prepared workspace.Request `json:"prepared"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &full); err != nil {
+		t.Fatal(err)
+	}
+	if full.Prepared.Method != "GET" || full.Prepared.URL != "http://127.0.0.1/" {
+		t.Fatalf("prepared=%+v", full.Prepared)
+	}
 }
 
 func TestExecuteIllegalOverrideNameInvalid(t *testing.T) {
@@ -194,6 +206,9 @@ func TestExecuteIllegalOverrideNameInvalid(t *testing.T) {
 	}
 	if res.ErrorClass != "invalid" || !strings.Contains(res.ErrorMessage, "overrides/dev") {
 		t.Fatalf("%+v", res)
+	}
+	if !strings.Contains(res.ErrorMessage, "覆盖") {
+		t.Fatalf("want Chinese message, got %+v", res)
 	}
 }
 
