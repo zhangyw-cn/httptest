@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { varsJSON } from "./env";
 import { defaultDraft, normalizeRequest, parseHistoryResult } from "./request";
-import { secretsJSON } from "./secrets";
 import { buildRequestTree } from "./tree";
 
 describe("normalizeRequest", () => {
@@ -20,9 +20,9 @@ describe("parseHistoryResult", () => {
   });
 });
 
-describe("secretsJSON", () => {
+describe("varsJSON", () => {
   it("orders keys so Go map round-trips match", () => {
-    expect(secretsJSON({ z: "1", a: "2" })).toBe(secretsJSON({ a: "2", z: "1" }));
+    expect(varsJSON({ z: "1", a: "2" })).toBe(varsJSON({ a: "2", z: "1" }));
   });
 });
 

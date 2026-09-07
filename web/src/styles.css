@@ -247,18 +247,6 @@ button:focus-visible {
   gap: 0.25rem;
 }
 
-.secrets-panel {
-  position: absolute;
-  top: 40px;
-  right: 0.5rem;
-  z-index: 5;
-  width: min(420px, 92vw);
-  padding: 0.75rem;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
-}
-
 .banner {
   padding: 0.35rem 0.85rem;
   font-size: 0.85rem;

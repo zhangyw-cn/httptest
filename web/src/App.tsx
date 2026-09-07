@@ -780,7 +780,6 @@ export default function App() {
         onThemeChange={onThemeChange}
         onEnvChange={onEnvChange}
         onOverrideChange={onOverrideChange}
-        onSecretsChange={() => undefined}
       />
       {error && <div className="banner error">{error}</div>}
       {/* eslint-disable-next-line react/no-unknown-property */}

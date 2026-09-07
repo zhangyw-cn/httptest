@@ -1,5 +1,3 @@
-import { useRef, useState } from "react";
-import { secretsJSON } from "./secrets";
 import type { ThemePref } from "./theme";
 import type { Environment, LocalConfig, Override } from "./types";
 
@@ -12,7 +10,6 @@ interface Props {
   onThemeChange: (theme: ThemePref) => void;
   onEnvChange: (environment: string) => void;
   onOverrideChange: (override: string) => void;
-  onSecretsChange: (secrets: Record<string, string>) => void;
 }
 
 const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
@@ -20,35 +17,6 @@ const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
   { value: "dark", label: "深色" },
   { value: "system", label: "系统" },
 ];
-
-interface Pair {
-  id: number;
-  key: string;
-  value: string;
-}
-
-let pairSeq = 0;
-function nextPairId(): number {
-  pairSeq += 1;
-  return pairSeq;
-}
-
-function secretsToPairs(secrets: Record<string, string>): Pair[] {
-  const rows = Object.entries(secrets).map(([key, value]) => ({
-    id: nextPairId(),
-    key,
-    value,
-  }));
-  return rows.length > 0 ? rows : [{ id: nextPairId(), key: "", value: "" }];
-}
-
-function pairsToSecrets(pairs: Pair[]): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const p of pairs) {
-    if (p.key) out[p.key] = p.value;
-  }
-  return out;
-}
 
 export default function TopBar({
   workdir,
@@ -59,22 +27,7 @@ export default function TopBar({
   onThemeChange,
   onEnvChange,
   onOverrideChange,
-  onSecretsChange,
 }: Props) {
-  const [open, setOpen] = useState(false);
-  const [pairs, setPairs] = useState<Pair[]>(() => secretsToPairs({}));
-  const lastJSON = useRef(secretsJSON({}));
-  const pairsRef = useRef(pairs);
-  pairsRef.current = pairs;
-
-  function commit(next: Pair[]) {
-    setPairs(next);
-    pairsRef.current = next;
-    const secrets = pairsToSecrets(next);
-    lastJSON.current = secretsJSON(secrets);
-    onSecretsChange(secrets);
-  }
-
   return (
     <header className="topbar">
       <div className="topbar-left">
@@ -116,7 +69,7 @@ export default function TopBar({
             value={local?.override ?? ""}
             onChange={(e) => onOverrideChange(e.target.value)}
           >
-            <option value="">（未选择）</option>
+            <option value="">无</option>
             {overrides.map((override) => (
               <option key={override.name} value={override.name}>
                 {override.name}
@@ -124,79 +77,7 @@ export default function TopBar({
             ))}
           </select>
         </label>
-        <button
-          type="button"
-          className={open ? "btn btn-active" : "btn"}
-          onClick={() => setOpen((v) => !v)}
-        >
-          密钥
-        </button>
       </div>
-      {open && (
-        <div className="secrets-panel">
-          <table className="kv-table">
-            <thead>
-              <tr>
-                <th>键</th>
-                <th>值</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {pairs.map((p, i) => (
-                <tr key={p.id}>
-                  <td>
-                    <input
-                      value={p.key}
-                      onChange={(e) => {
-                        const next = pairs.map((row, j) =>
-                          j === i ? { ...row, key: e.target.value } : row,
-                        );
-                        setPairs(next);
-                      }}
-                      onBlur={() => commit(pairsRef.current)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="password"
-                      value={p.value}
-                      onChange={(e) => {
-                        const next = pairs.map((row, j) =>
-                          j === i ? { ...row, value: e.target.value } : row,
-                        );
-                        setPairs(next);
-                      }}
-                      onBlur={() => commit(pairsRef.current)}
-                    />
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn-icon"
-                      onClick={() => {
-                        const next = pairs.filter((_, j) => j !== i);
-                        commit(next.length ? next : [{ id: nextPairId(), key: "", value: "" }]);
-                      }}
-                    >
-                      ×
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button
-            type="button"
-            className="btn"
-            onClick={() =>
-              setPairs([...pairs, { id: nextPairId(), key: "", value: "" }])
-            }
-          >
-            添加密钥
-          </button>
-        </div>
-      )}
     </header>
   );
 }
