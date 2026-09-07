@@ -28,6 +28,10 @@ func New(ws *workspace.Workspace, ui fs.FS) http.Handler {
 	mux.HandleFunc("PUT /api/environments/{name}", s.handlePutEnvironment)
 	mux.HandleFunc("DELETE /api/environments/{name}", s.handleDeleteEnvironment)
 	mux.HandleFunc("POST /api/environments/{name}/rename", s.handleRenameEnvironment)
+	mux.HandleFunc("GET /api/overrides", s.handleListOverrides)
+	mux.HandleFunc("PUT /api/overrides/{name}", s.handlePutOverride)
+	mux.HandleFunc("DELETE /api/overrides/{name}", s.handleDeleteOverride)
+	mux.HandleFunc("POST /api/overrides/{name}/rename", s.handleRenameOverride)
 	mux.HandleFunc("GET /api/local", s.handleGetLocal)
 	mux.HandleFunc("PUT /api/local", s.handlePutLocal)
 	if ui != nil {

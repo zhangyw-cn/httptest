@@ -11,6 +11,15 @@ import (
 	"github.com/zhangyw-cn/httptest/internal/workspace"
 )
 
+func newTestHandler(t *testing.T) http.Handler {
+	t.Helper()
+	ws, err := workspace.Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return New(ws, nil)
+}
+
 func TestRequestCRUDAndTraversal(t *testing.T) {
 	ws, err := workspace.Init(t.TempDir())
 	if err != nil {
@@ -121,13 +130,18 @@ func TestLocalAndEnvAPI(t *testing.T) {
 		t.Fatalf("%d %s", rr.Code, rr.Body.Bytes())
 	}
 	rr = httptest.NewRecorder()
-	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"local","secrets":{"t":"1"}}`)))
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/overrides/default", []byte(`{"name":"default","variables":{"t":"1"}}`)))
+	if rr.Code != 200 {
+		t.Fatalf("%d %s", rr.Code, rr.Body.Bytes())
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"local","override":"default"}`)))
 	if rr.Code != 200 {
 		t.Fatalf("%d %s", rr.Code, rr.Body.Bytes())
 	}
 	rr = httptest.NewRecorder()
 	h.ServeHTTP(rr, apiReq(http.MethodGet, "/api/local", nil))
-	if rr.Code != 200 || !bytes.Contains(rr.Body.Bytes(), []byte(`"t":"1"`)) {
+	if rr.Code != 200 || !bytes.Contains(rr.Body.Bytes(), []byte(`"override":"default"`)) {
 		t.Fatalf("%s", rr.Body.Bytes())
 	}
 }
@@ -150,7 +164,7 @@ func TestEnvironmentDeleteAndRename(t *testing.T) {
 	put("prod", `{"name":"prod","variables":{}}`)
 
 	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"local","secrets":{"t":"1"}}`)))
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"local","override":"default"}`)))
 	if rr.Code != 200 {
 		t.Fatalf("local %d %s", rr.Code, rr.Body.Bytes())
 	}
@@ -230,5 +244,76 @@ func TestEnvironmentDeleteAndRename(t *testing.T) {
 	h.ServeHTTP(rr, apiReq(http.MethodDelete, "/api/environments/a/b", nil))
 	if rr.Code != 400 && rr.Code != 404 {
 		t.Fatalf("slash name %d", rr.Code)
+	}
+}
+
+func TestOverrideCRUDAndLocal(t *testing.T) {
+	h := newTestHandler(t)
+	putBody := []byte(`{"name":"default","variables":{"token":"s"}}`)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/overrides/default", putBody))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("put %d %s", rr.Code, rr.Body.Bytes())
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"","override":"default"}`)))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("local %d", rr.Code)
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodGet, "/api/overrides", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code)
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/overrides/default/rename", []byte(`{"name":"prod"}`)))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("rename %d %s", rr.Code, rr.Body.Bytes())
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodGet, "/api/local", nil))
+	var loc struct {
+		Environment string `json:"environment"`
+		Override    string `json:"override"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &loc); err != nil {
+		t.Fatal(err)
+	}
+	if loc.Override != "prod" {
+		t.Fatalf("%+v", loc)
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodDelete, "/api/overrides/prod", nil))
+	if rr.Code != http.StatusNoContent {
+		t.Fatal(rr.Code)
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodGet, "/api/local", nil))
+	if err := json.Unmarshal(rr.Body.Bytes(), &loc); err != nil {
+		t.Fatal(err)
+	}
+	if loc.Override != "" {
+		t.Fatalf("%+v", loc)
+	}
+}
+
+func TestOverrideRenameConflict(t *testing.T) {
+	h := newTestHandler(t)
+	for _, name := range []string{"a", "b"} {
+		body := []byte(`{"name":"` + name + `","variables":{}}`)
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/overrides/"+name, body))
+		if rr.Code != http.StatusOK {
+			t.Fatal(rr.Code)
+		}
+	}
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/overrides/a/rename", []byte(`{"name":"b"}`)))
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("got %d", rr.Code)
 	}
 }
