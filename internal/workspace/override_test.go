@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -251,5 +252,34 @@ func TestGetPutLocalOverrideField(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(ws.LocalDir(), "local", "secrets.yaml")); !os.IsNotExist(err) {
 		t.Fatalf("secrets.yaml should not be written: %v", err)
+	}
+}
+
+func TestPutLocalRejectsInvalidOverrideName(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ws.PutLocal(Local{Override: "overrides/dev"})
+	if err == nil || !strings.Contains(err.Error(), "invalid override name") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestResolvedVarsIllegalOverrideName(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	localDir := filepath.Join(ws.LocalDir(), "local")
+	if err := os.MkdirAll(localDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(localDir, "active.yaml"), []byte("override: overrides/dev\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err = ws.ResolvedVars()
+	if !errors.Is(err, ErrOverrideNotFound) {
+		t.Fatalf("got %v", err)
 	}
 }

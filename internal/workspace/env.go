@@ -94,6 +94,11 @@ func (w *Workspace) ListEnvironments() ([]Environment, error) {
 }
 
 func (w *Workspace) PutLocal(local Local) error {
+	if local.Override != "" {
+		if _, _, err := w.overridePath(local.Override); err != nil {
+			return err
+		}
+	}
 	localDir := filepath.Join(w.localDir, "local")
 	if err := os.MkdirAll(localDir, 0o700); err != nil {
 		return err
@@ -272,7 +277,8 @@ func (w *Workspace) ResolvedVars() (map[string]string, error) {
 	if local.Override != "" {
 		path, cleaned, err := w.overridePath(local.Override)
 		if err != nil {
-			return nil, err
+			// Hand-edited active.yaml may contain illegal names; treat like missing.
+			return nil, fmt.Errorf("%w: %q", ErrOverrideNotFound, local.Override)
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {

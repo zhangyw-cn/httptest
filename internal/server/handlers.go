@@ -203,7 +203,7 @@ func (s *server) handlePutLocal(w http.ResponseWriter, r *http.Request) {
 		Override:    body.Override,
 	}
 	if err := s.ws.PutLocal(local); err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		writePathErr(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, body)

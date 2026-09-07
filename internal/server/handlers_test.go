@@ -317,3 +317,12 @@ func TestOverrideRenameConflict(t *testing.T) {
 		t.Fatalf("got %d", rr.Code)
 	}
 }
+
+func TestPutLocalInvalidOverrideName(t *testing.T) {
+	h := newTestHandler(t)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"","override":"a/b"}`)))
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("got %d %s", rr.Code, rr.Body.Bytes())
+	}
+}
