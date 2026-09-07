@@ -179,6 +179,30 @@ func TestRenameOverrideUpdatesActive(t *testing.T) {
 	}
 }
 
+func TestRenameOverrideTightensPermissions(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutOverride(Override{Name: "old", Variables: map[string]string{"t": "1"}}); err != nil {
+		t.Fatal(err)
+	}
+	oldPath := filepath.Join(ws.LocalDir(), "local", "overrides", "old.yaml")
+	if err := os.Chmod(oldPath, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.RenameOverride("old", "new"); err != nil {
+		t.Fatal(err)
+	}
+	st, err := os.Stat(filepath.Join(ws.LocalDir(), "local", "overrides", "new.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.Mode().Perm() != 0o600 {
+		t.Fatalf("mode=%o want 0600", st.Mode().Perm())
+	}
+}
+
 func TestRenameOverrideConflict(t *testing.T) {
 	ws, err := Init(t.TempDir())
 	if err != nil {

@@ -126,7 +126,7 @@ override: dev
 
 替换顺序：环境模板 → 当前覆盖集（若顶栏未选覆盖则为空）。缺失任一 `{{var}}`，或 `active.yaml` 指向的覆盖集文件不存在时，分类为 `invalid`，列出变量名，**不发送**。覆盖集可在 UI 中编辑（本机工具，不上传）。
 
-这是破坏性变更：旧版 `.httptest/local/secrets.yaml` 不再读取。请自行迁移：将其 `variables` 拷到 `overrides/<name>.yaml`（例如 `overrides/default.yaml`），在 `active.yaml` 设 `override: <name>`，确认无误后可删 `secrets.yaml`。不会自动迁移。
+这是破坏性变更：旧版 `.httptest/local/secrets.yaml` 不再读取。请自行迁移：将其 `variables` 拷到 `overrides/<name>.yaml`（例如 `overrides/default.yaml`），执行 `chmod 600 .httptest/local/overrides/<name>.yaml`，在 `active.yaml` 设 `override: <name>`，确认无误后可删 `secrets.yaml`。不会自动迁移。
 
 ## v1 明确不做
 

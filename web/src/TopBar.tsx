@@ -28,6 +28,11 @@ export default function TopBar({
   onEnvChange,
   onOverrideChange,
 }: Props) {
+  const activeOverride = local?.override ?? "";
+  const missingOverride =
+    activeOverride !== "" &&
+    !overrides.some((override) => override.name === activeOverride);
+
   return (
     <header className="topbar">
       <div className="topbar-left">
@@ -66,10 +71,15 @@ export default function TopBar({
         <label className="env-label">
           覆盖
           <select
-            value={local?.override ?? ""}
+            value={activeOverride}
             onChange={(e) => onOverrideChange(e.target.value)}
           >
             <option value="">无</option>
+            {missingOverride && (
+              <option value={activeOverride}>
+                {activeOverride}（文件缺失）
+              </option>
+            )}
             {overrides.map((override) => (
               <option key={override.name} value={override.name}>
                 {override.name}

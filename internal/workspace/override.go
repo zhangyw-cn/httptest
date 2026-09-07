@@ -187,7 +187,11 @@ func (w *Workspace) RenameOverride(oldName, newName string) (Override, error) {
 	if caseOnly {
 		writePath = newPath + ".renaming"
 	}
-	if err := os.WriteFile(writePath, out, perm); err != nil {
+	if err := os.WriteFile(writePath, out, 0o600); err != nil {
+		return Override{}, err
+	}
+	if err := os.Chmod(writePath, 0o600); err != nil {
+		_ = os.Remove(writePath)
 		return Override{}, err
 	}
 	if err := os.Remove(oldPath); err != nil {
