@@ -9,6 +9,7 @@ interface Props {
   onPairsChange: (next: EnvPair[]) => void;
   onSave: () => void;
   onRename: () => void;
+  emptyTitle?: string;
 }
 
 export default function EnvEditor({
@@ -20,12 +21,13 @@ export default function EnvEditor({
   onPairsChange,
   onSave,
   onRename,
+  emptyTitle = "在左侧选择一个环境，或新建",
 }: Props) {
   if (!name) {
     return (
       <div className="env-editor">
         <div className="empty-state">
-          <p className="empty-title">在左侧选择一个环境，或新建</p>
+          <p className="empty-title">{emptyTitle}</p>
         </div>
       </div>
     );

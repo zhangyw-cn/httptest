@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { listHistory } from "./api";
 import { buildRequestTree, type TreeNode } from "./tree";
 import type { LeftView } from "./activity";
-import type { Environment, HistoryEntry, RequestMeta } from "./types";
+import type {
+  Environment,
+  HistoryEntry,
+  Override,
+  RequestMeta,
+} from "./types";
 
 interface Props {
   requests: RequestMeta[];
@@ -12,6 +17,9 @@ interface Props {
   envs: Environment[];
   editingEnv: string | null;
   activeEnv: string;
+  overrides: Override[];
+  editingOverride: string | null;
+  activeOverride: string;
   onSelectRequest: (path: string) => void;
   onNewRequest: () => void;
   onDeleteRequest: (path: string) => void;
@@ -19,7 +27,11 @@ interface Props {
   onSelectEnv: (name: string) => void;
   onNewEnv: () => void;
   onDeleteEnv: (name: string) => void;
+  onSelectOverride: (name: string) => void;
+  onNewOverride: () => void;
+  onDeleteOverride: (name: string) => void;
   envBusy?: boolean;
+  overrideBusy?: boolean;
 }
 
 function TreeItems({
@@ -88,6 +100,9 @@ export default function Sidebar({
   envs,
   editingEnv,
   activeEnv,
+  overrides,
+  editingOverride,
+  activeOverride,
   onSelectRequest,
   onNewRequest,
   onDeleteRequest,
@@ -95,7 +110,11 @@ export default function Sidebar({
   onSelectEnv,
   onNewEnv,
   onDeleteEnv,
+  onSelectOverride,
+  onNewOverride,
+  onDeleteOverride,
   envBusy = false,
+  overrideBusy = false,
 }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [histError, setHistError] = useState<string | null>(null);
@@ -213,6 +232,76 @@ export default function Sidebar({
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteEnv(env.name);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </aside>
+    );
+  }
+
+  if (view === "override") {
+    return (
+      <aside className="sidebar">
+        <div className="sidebar-head">
+          覆盖
+          <button
+            type="button"
+            className="btn-icon"
+            title="新建"
+            onClick={onNewOverride}
+            disabled={overrideBusy}
+          >
+            ＋
+          </button>
+        </div>
+        <div className="sidebar-body">
+          {overrides.length === 0 ? (
+            <div className="empty-state">
+              <p className="empty-title">还没有覆盖</p>
+              <p className="empty-hint">用标题栏 ＋ 或下方按钮创建</p>
+              <button
+                type="button"
+                className="btn"
+                onClick={onNewOverride}
+                disabled={overrideBusy}
+              >
+                新建覆盖
+              </button>
+            </div>
+          ) : (
+            <ul className="req-list">
+              {overrides.map((override) => (
+                <li key={override.name}>
+                  <div className="tree-row">
+                    <button
+                      type="button"
+                      className={
+                        editingOverride === override.name
+                          ? "req-item active"
+                          : "req-item"
+                      }
+                      onClick={() => onSelectOverride(override.name)}
+                    >
+                      <span className="req-path">{override.name}</span>
+                      {activeOverride === override.name ? (
+                        <span className="env-send-badge">发送</span>
+                      ) : null}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-icon"
+                      title="删除"
+                      disabled={overrideBusy}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteOverride(override.name);
                       }}
                     >
                       ×

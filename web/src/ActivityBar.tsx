@@ -62,6 +62,23 @@ export default function ActivityBar({ view, panelOpen, onClickIcon }: Props) {
           <path d="M4.8 12.8h14.4" />
         </svg>
       </button>
+      <button
+        type="button"
+        className={
+          view === "override" && panelOpen
+            ? "activity-btn active"
+            : "activity-btn"
+        }
+        title="覆盖"
+        aria-label="覆盖"
+        aria-pressed={view === "override" && panelOpen}
+        onClick={() => onClickIcon("override")}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 6.5h14v11H5z" />
+          <path d="M8 10h8M8 14h5" />
+        </svg>
+      </button>
     </nav>
   );
 }

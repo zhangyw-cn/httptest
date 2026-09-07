@@ -4,16 +4,20 @@ import {
   cancelExecute,
   createRequest,
   deleteEnvironment,
+  deleteOverride,
   deleteRequest,
   execute,
   getEnvironments,
   getLocal,
+  getOverrides,
   getRequest,
   getWorkspace,
   putEnvironment,
   putLocal,
+  putOverride,
   putRequest,
   renameEnvironment,
+  renameOverride,
 } from "./api";
 import {
   clickActivityIcon,
@@ -40,6 +44,7 @@ import {
   varsToPairs,
   type EnvPair,
 } from "./env";
+import { overrideAPIError, overrideNameError } from "./override";
 import { defaultDraft, normalizeRequest, parseHistoryResult } from "./request";
 import { shortcutFromEvent } from "./shortcut";
 import {
@@ -53,6 +58,7 @@ import type {
   HistoryEntry,
   HttpRequest,
   LocalConfig,
+  Override,
   Result,
   WorkspaceInfo,
 } from "./types";
@@ -66,6 +72,14 @@ export default function App() {
   const [envDirty, setEnvDirty] = useState(false);
   const [envSaving, setEnvSaving] = useState(false);
   const [envError, setEnvError] = useState<string | null>(null);
+  const [overrides, setOverrides] = useState<Override[]>([]);
+  const [editingOverride, setEditingOverride] = useState<string | null>(null);
+  const [overridePairs, setOverridePairs] = useState<EnvPair[]>(() =>
+    varsToPairs({}),
+  );
+  const [overrideDirty, setOverrideDirty] = useState(false);
+  const [overrideSaving, setOverrideSaving] = useState(false);
+  const [overrideError, setOverrideError] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [draft, setDraft] = useState<HttpRequest>(defaultDraft);
   const [dirty, setDirty] = useState(false);
@@ -104,6 +118,16 @@ export default function App() {
   leftRef.current = left;
   const envsRef = useRef(envs);
   envsRef.current = envs;
+  const editingOverrideRef = useRef(editingOverride);
+  editingOverrideRef.current = editingOverride;
+  const overrideSavingRef = useRef(overrideSaving);
+  overrideSavingRef.current = overrideSaving;
+  const overrideEpochRef = useRef(0);
+  const overrideSavedRef = useRef(varsJSON({}));
+  const overridePairsRef = useRef(overridePairs);
+  overridePairsRef.current = overridePairs;
+  const overridesRef = useRef(overrides);
+  overridesRef.current = overrides;
 
   const applyDraft = useCallback((next: HttpRequest, saved?: boolean) => {
     const n = normalizeRequest(next);
@@ -132,19 +156,30 @@ export default function App() {
     setEnvError(null);
   }, []);
 
+  const loadOverride = useCallback((override: Override) => {
+    overrideEpochRef.current += 1;
+    setEditingOverride(override.name);
+    setOverridePairs(varsToPairs(override.variables));
+    overrideSavedRef.current = varsJSON(override.variables);
+    setOverrideDirty(false);
+    setOverrideError(null);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [ws, loc, environments] = await Promise.all([
+        const [ws, loc, environments, overrideList] = await Promise.all([
           getWorkspace(),
           getLocal(),
           getEnvironments(),
+          getOverrides(),
         ]);
         if (cancelled) return;
         setWorkspace(ws);
         setLocal(loc);
         setEnvs(environments);
+        setOverrides(overrideList);
         setError(null);
       } catch (err) {
         if (!cancelled) {
@@ -164,9 +199,9 @@ export default function App() {
     setLocal(saved);
   }
 
-  async function onSecretsChange(secrets: Record<string, string>) {
-    if (!local) return;
-    const next = { ...local, secrets };
+  async function onOverrideChange(override: string) {
+    if (!local || local.override === override) return;
+    const next = { ...local, override };
     const saved = await putLocal(next);
     setLocal(saved);
   }
@@ -266,6 +301,63 @@ export default function App() {
     });
   }
 
+  function onSelectOverride(name: string) {
+    const override = overrides.find((item) => item.name === name);
+    if (!override) return;
+    loadOverride(override);
+  }
+
+  function onOverridePairsChange(next: EnvPair[]) {
+    overrideEpochRef.current += 1;
+    setOverridePairs(next);
+    setOverrideDirty(isEnvDirty(next, overrideSavedRef.current));
+  }
+
+  function openNewOverrideDialog() {
+    if (overrideSavingRef.current) return;
+    setDialogError(null);
+    setDialog({
+      kind: "path",
+      title: "覆盖名",
+      submitLabel: "创建",
+      error: null,
+      intent: "create-override",
+      hint: "文件名，例如 default，不能含 /",
+    });
+  }
+
+  function openDeleteOverrideDialog(name: string) {
+    if (overrideSavingRef.current) return;
+    const isActive = local?.override === name;
+    setDialogError(null);
+    setDialog({
+      kind: "confirm",
+      title: "删除覆盖",
+      body: isActive
+        ? `删除 ${name}？此操作会从磁盘去掉该文件。顶栏当前覆盖将变为未选择。`
+        : `删除 ${name}？此操作会从磁盘去掉该文件。`,
+      submitLabel: "删除",
+      error: null,
+      path: name,
+      subject: "override",
+    });
+  }
+
+  function openRenameOverrideDialog() {
+    if (overrideSavingRef.current) return;
+    const name = editingOverrideRef.current;
+    if (!name) return;
+    setDialogError(null);
+    setDialog({
+      kind: "path",
+      title: "重命名覆盖",
+      submitLabel: "重命名",
+      error: null,
+      intent: "rename-override",
+      hint: "文件名，例如 default，不能含 /",
+    });
+  }
+
   function onSelectHistory(entry: HistoryEntry) {
     applyDraft(entry.request);
     if (entry.requestPath) setCurrentPath(entry.requestPath);
@@ -345,6 +437,50 @@ export default function App() {
     }
   }, []);
 
+  const onSaveOverride = useCallback(async () => {
+    if (overrideSavingRef.current) return;
+    const name = editingOverrideRef.current;
+    if (!name) return;
+    if (
+      !isEnvDirty(overridePairsRef.current, overrideSavedRef.current)
+    ) {
+      return;
+    }
+    const variables = pairsToVars(overridePairsRef.current);
+    const epoch = overrideEpochRef.current;
+    overrideSavingRef.current = true;
+    setOverrideSaving(true);
+    setOverrideError(null);
+    try {
+      const saved = await putOverride(name, { name, variables });
+      const list = await getOverrides();
+      setOverrides(list);
+      const apply = applyEnvSaveResult({
+        savedName: name,
+        editingName: editingOverrideRef.current,
+        epochAtStart: epoch,
+        epochNow: overrideEpochRef.current,
+        currentPairs: overridePairsRef.current,
+        saved,
+      });
+      if (apply.action === "reload") {
+        setEditingOverride(apply.env.name);
+        overrideSavedRef.current = varsJSON(apply.env.variables);
+        setOverrideDirty(false);
+      } else if (apply.action === "keep") {
+        overrideSavedRef.current = apply.snapshot;
+        setOverrideDirty(apply.dirty);
+      }
+    } catch (err) {
+      setOverrideError(
+        overrideAPIError(err instanceof Error ? err.message : String(err)),
+      );
+    } finally {
+      overrideSavingRef.current = false;
+      setOverrideSaving(false);
+    }
+  }, []);
+
   const saveToPath = useCallback(async (path: string) => {
     setSaving(true);
     try {
@@ -386,6 +522,50 @@ export default function App() {
       if (current.kind === "path") {
         const p = path?.trim() ?? "";
         if (!p) return;
+        if (current.intent === "rename-override") {
+          if (overrideSavingRef.current) {
+            setDialogError("请等待覆盖保存完成");
+            return;
+          }
+          const oldName = editingOverrideRef.current;
+          if (!oldName) return;
+          if (p === oldName) {
+            setDialogError("不能改成当前名称");
+            return;
+          }
+          const others = overridesRef.current
+            .map((item) => item.name)
+            .filter((name) => name !== oldName);
+          const err = overrideNameError(p, others);
+          if (err) {
+            setDialogError(err);
+            return;
+          }
+          if (local?.override === oldName) {
+            setDialog({
+              kind: "confirm",
+              title: "重命名当前发送覆盖",
+              body: `将当前发送覆盖 ${oldName} 重命名为 ${p}？顶栏当前覆盖也会更新。`,
+              submitLabel: "重命名",
+              error: null,
+              path: oldName,
+              next: p,
+              subject: "override",
+            });
+            return;
+          }
+          const renamed = await renameOverride(oldName, p);
+          const [list, loc] = await Promise.all([
+            getOverrides(),
+            getLocal(),
+          ]);
+          setOverrides(list);
+          setLocal(loc);
+          loadOverride(renamed);
+          setDialog(null);
+          setDialogError(null);
+          return;
+        }
         if (current.intent === "rename-env") {
           if (envSavingRef.current) {
             setDialogError("请等待环境保存完成");
@@ -441,6 +621,27 @@ export default function App() {
           setDialogError(null);
           return;
         }
+        if (current.intent === "create-override") {
+          if (overrideSavingRef.current) {
+            setDialogError("请等待覆盖保存完成");
+            return;
+          }
+          const err = overrideNameError(
+            p,
+            overridesRef.current.map((item) => item.name),
+          );
+          if (err) {
+            setDialogError(err);
+            return;
+          }
+          await putOverride(p, { name: p, variables: {} });
+          const list = await getOverrides();
+          setOverrides(list);
+          loadOverride({ name: p, variables: {} });
+          setDialog(null);
+          setDialogError(null);
+          return;
+        }
         if (current.intent === "create") {
           const req = defaultDraft();
           const segs = p.split("/").filter(Boolean);
@@ -453,6 +654,39 @@ export default function App() {
           await saveToPath(p);
         }
       } else {
+        if (current.subject === "override") {
+          if (overrideSavingRef.current) {
+            setDialogError("请等待覆盖保存完成");
+            return;
+          }
+          if (current.next) {
+            const renamed = await renameOverride(current.path, current.next);
+            const [list, loc] = await Promise.all([
+              getOverrides(),
+              getLocal(),
+            ]);
+            setOverrides(list);
+            setLocal(loc);
+            loadOverride(renamed);
+          } else {
+            await deleteOverride(current.path);
+            const [list, loc] = await Promise.all([
+              getOverrides(),
+              getLocal(),
+            ]);
+            setOverrides(list);
+            setLocal(loc);
+            if (editingOverrideRef.current === current.path) {
+              overrideEpochRef.current += 1;
+              setEditingOverride(null);
+              setOverridePairs(varsToPairs({}));
+              setOverrideDirty(false);
+            }
+          }
+          setDialog(null);
+          setDialogError(null);
+          return;
+        }
         if (current.subject === "environment") {
           if (envSavingRef.current) {
             setDialogError("请等待环境保存完成");
@@ -492,7 +726,18 @@ export default function App() {
           (current.intent === "create-env" ||
             current.intent === "rename-env")) ||
         (current.kind === "confirm" && current.subject === "environment");
-      setDialogError(envOp ? environmentAPIError(message) : message);
+      const overrideOp =
+        (current.kind === "path" &&
+          (current.intent === "create-override" ||
+            current.intent === "rename-override")) ||
+        (current.kind === "confirm" && current.subject === "override");
+      setDialogError(
+        overrideOp
+          ? overrideAPIError(message)
+          : envOp
+            ? environmentAPIError(message)
+            : message,
+      );
     }
   }
 
@@ -507,11 +752,18 @@ export default function App() {
       }
       if (action === "send") {
         e.preventDefault();
-        if (leftRef.current.view === "environment") return;
+        if (
+          leftRef.current.view === "environment" ||
+          leftRef.current.view === "override"
+        ) {
+          return;
+        }
         if (!sendingRef.current) void onSend();
       } else if (action === "save") {
         if (leftRef.current.view === "environment") {
           void onSaveEnv();
+        } else if (leftRef.current.view === "override") {
+          void onSaveOverride();
         } else {
           void onSave();
         }
@@ -529,7 +781,7 @@ export default function App() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onSave, onSaveEnv, onSend, onStop]);
+  }, [onSave, onSaveEnv, onSaveOverride, onSend, onStop]);
 
   const dialogMode =
     dialog === null
@@ -541,11 +793,13 @@ export default function App() {
       <TopBar
         workdir={workspace?.workdir ?? ""}
         envs={envs}
+        overrides={overrides}
         local={local}
         theme={theme}
         onThemeChange={onThemeChange}
         onEnvChange={onEnvChange}
-        onSecretsChange={onSecretsChange}
+        onOverrideChange={onOverrideChange}
+        onSecretsChange={() => undefined}
       />
       {error && <div className="banner error">{error}</div>}
       {/* eslint-disable-next-line react/no-unknown-property */}
@@ -564,6 +818,9 @@ export default function App() {
             envs={envs}
             editingEnv={editingEnv}
             activeEnv={local?.environment ?? ""}
+            overrides={overrides}
+            editingOverride={editingOverride}
+            activeOverride={local?.override ?? ""}
             onSelectRequest={onSelectRequest}
             onNewRequest={openNewDialog}
             onDeleteRequest={openDeleteDialog}
@@ -571,7 +828,11 @@ export default function App() {
             onSelectEnv={onSelectEnv}
             onNewEnv={openNewEnvDialog}
             onDeleteEnv={openDeleteEnvDialog}
+            onSelectOverride={onSelectOverride}
+            onNewOverride={openNewOverrideDialog}
+            onDeleteOverride={openDeleteOverrideDialog}
             envBusy={envSaving}
+            overrideBusy={overrideSaving}
           />
         )}
         <div className="work">
@@ -585,6 +846,18 @@ export default function App() {
               onPairsChange={onEnvPairsChange}
               onSave={() => void onSaveEnv()}
               onRename={openRenameEnvDialog}
+            />
+          ) : left.view === "override" ? (
+            <EnvEditor
+              name={editingOverride}
+              pairs={overridePairs}
+              dirty={overrideDirty}
+              saving={overrideSaving}
+              error={overrideError}
+              emptyTitle="在左侧选择一套覆盖，或新建"
+              onPairsChange={onOverridePairsChange}
+              onSave={() => void onSaveOverride()}
+              onRename={openRenameOverrideDialog}
             />
           ) : (
             <>

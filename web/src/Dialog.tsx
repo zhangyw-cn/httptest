@@ -6,7 +6,13 @@ export type DialogMode =
       title: string;
       submitLabel: string;
       error: string | null;
-      intent: "create" | "save" | "create-env" | "rename-env";
+      intent:
+        | "create"
+        | "save"
+        | "create-env"
+        | "rename-env"
+        | "create-override"
+        | "rename-override";
       hint?: string;
     }
   | {
@@ -16,7 +22,8 @@ export type DialogMode =
       submitLabel: string;
       error: string | null;
       path: string;
-      subject?: "request" | "environment";
+      subject?: "request" | "environment" | "override";
+      next?: string;
     };
 
 interface Props {

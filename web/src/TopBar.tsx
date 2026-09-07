@@ -1,15 +1,17 @@
 import { useRef, useState } from "react";
 import { secretsJSON } from "./secrets";
 import type { ThemePref } from "./theme";
-import type { Environment, LocalConfig } from "./types";
+import type { Environment, LocalConfig, Override } from "./types";
 
 interface Props {
   workdir: string;
   envs: Environment[];
+  overrides: Override[];
   local: LocalConfig | null;
   theme: ThemePref;
   onThemeChange: (theme: ThemePref) => void;
   onEnvChange: (environment: string) => void;
+  onOverrideChange: (override: string) => void;
   onSecretsChange: (secrets: Record<string, string>) => void;
 }
 
@@ -51,10 +53,12 @@ function pairsToSecrets(pairs: Pair[]): Record<string, string> {
 export default function TopBar({
   workdir,
   envs,
+  overrides,
   local,
   theme,
   onThemeChange,
   onEnvChange,
+  onOverrideChange,
   onSecretsChange,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -102,6 +106,20 @@ export default function TopBar({
             {envs.map((env) => (
               <option key={env.name} value={env.name}>
                 {env.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="env-label">
+          覆盖
+          <select
+            value={local?.override ?? ""}
+            onChange={(e) => onOverrideChange(e.target.value)}
+          >
+            <option value="">（未选择）</option>
+            {overrides.map((override) => (
+              <option key={override.name} value={override.name}>
+                {override.name}
               </option>
             ))}
           </select>
