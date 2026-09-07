@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shortcutFromEvent } from "./shortcut";
+import { shortcutFromEvent, shouldSendOnEnter } from "./shortcut";
 
 function ev(
   key: string,
@@ -44,5 +44,14 @@ describe("shortcutFromEvent", () => {
       "block-browser-save",
     );
     expect(shortcutFromEvent(ev("Escape"), { dialogOpen: true })).toBe("escape");
+  });
+});
+
+describe("shouldSendOnEnter", () => {
+  it("sends from request views but not variable editor views", () => {
+    expect(shouldSendOnEnter("collection")).toBe(true);
+    expect(shouldSendOnEnter("history")).toBe(true);
+    expect(shouldSendOnEnter("environment")).toBe(false);
+    expect(shouldSendOnEnter("override")).toBe(false);
   });
 });

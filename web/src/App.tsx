@@ -44,9 +44,14 @@ import {
   varsToPairs,
   type EnvPair,
 } from "./env";
-import { overrideAPIError, overrideNameError } from "./override";
+import {
+  overrideAPIError,
+  overrideDeleteDialog,
+  overrideNameError,
+  overrideRenameConfirmDialog,
+} from "./override";
 import { defaultDraft, normalizeRequest, parseHistoryResult } from "./request";
-import { shortcutFromEvent } from "./shortcut";
+import { shortcutFromEvent, shouldSendOnEnter } from "./shortcut";
 import {
   applyTheme,
   readStoredTheme,
@@ -330,17 +335,7 @@ export default function App() {
     if (overrideSavingRef.current) return;
     const isActive = local?.override === name;
     setDialogError(null);
-    setDialog({
-      kind: "confirm",
-      title: "删除覆盖",
-      body: isActive
-        ? `删除 ${name}？此操作会从磁盘去掉该文件。顶栏当前覆盖将变为未选择。`
-        : `删除 ${name}？此操作会从磁盘去掉该文件。`,
-      submitLabel: "删除",
-      error: null,
-      path: name,
-      subject: "override",
-    });
+    setDialog(overrideDeleteDialog(name, isActive));
   }
 
   function openRenameOverrideDialog() {
@@ -542,16 +537,7 @@ export default function App() {
             return;
           }
           if (local?.override === oldName) {
-            setDialog({
-              kind: "confirm",
-              title: "重命名当前发送覆盖",
-              body: `将当前发送覆盖 ${oldName} 重命名为 ${p}？顶栏当前覆盖也会更新。`,
-              submitLabel: "重命名",
-              error: null,
-              path: oldName,
-              next: p,
-              subject: "override",
-            });
+            setDialog(overrideRenameConfirmDialog(oldName, p));
             return;
           }
           const renamed = await renameOverride(oldName, p);
@@ -752,12 +738,7 @@ export default function App() {
       }
       if (action === "send") {
         e.preventDefault();
-        if (
-          leftRef.current.view === "environment" ||
-          leftRef.current.view === "override"
-        ) {
-          return;
-        }
+        if (!shouldSendOnEnter(leftRef.current.view)) return;
         if (!sendingRef.current) void onSend();
       } else if (action === "save") {
         if (leftRef.current.view === "environment") {

@@ -1,3 +1,5 @@
+import type { LeftView } from "./activity";
+
 export type Shortcut =
   | "send"
   | "save"
@@ -23,4 +25,8 @@ export function shortcutFromEvent(
   if (mod && (key === "s" || key === "S")) return "save";
   if (mod && (key === "b" || key === "B")) return "toggle-panel";
   return null;
+}
+
+export function shouldSendOnEnter(view: LeftView): boolean {
+  return view !== "environment" && view !== "override";
 }
