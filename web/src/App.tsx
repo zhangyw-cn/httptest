@@ -746,6 +746,9 @@ export default function App() {
         if (!shouldSendOnEnter(leftRef.current.view)) return;
         if (!sendingRef.current) void onSend();
       } else if (action === "save") {
+        if (leftRef.current.view === "settings") {
+          return;
+        }
         if (leftRef.current.view === "environment") {
           void onSaveEnv();
         } else if (leftRef.current.view === "override") {

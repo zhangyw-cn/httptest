@@ -4,7 +4,6 @@ import ActivityBar from "./ActivityBar";
 import SettingsPane from "./SettingsPane";
 import SettingsSidebar from "./SettingsSidebar";
 import { SETTINGS_CATEGORIES } from "./settings";
-import type { ThemePref } from "./theme";
 
 describe("settings activity bar", () => {
   it("renders settings gear with aria-label 设置", () => {
@@ -43,15 +42,12 @@ describe("SettingsSidebar", () => {
 });
 
 describe("SettingsPane", () => {
-  it("renders theme switch for appearance and calls onThemeChange", () => {
-    const calls: ThemePref[] = [];
+  it("renders theme switch for appearance", () => {
     const markup = renderToStaticMarkup(
       <SettingsPane
         category="appearance"
         theme="dark"
-        onThemeChange={(t) => {
-          calls.push(t);
-        }}
+        onThemeChange={vi.fn()}
       />,
     );
     expect(markup).toContain("主题");

@@ -48,10 +48,11 @@ describe("shortcutFromEvent", () => {
 });
 
 describe("shouldSendOnEnter", () => {
-  it("sends from request views but not variable editor views", () => {
+  it("sends only from collection and history views", () => {
     expect(shouldSendOnEnter("collection")).toBe(true);
     expect(shouldSendOnEnter("history")).toBe(true);
     expect(shouldSendOnEnter("environment")).toBe(false);
     expect(shouldSendOnEnter("override")).toBe(false);
+    expect(shouldSendOnEnter("settings")).toBe(false);
   });
 });

@@ -28,5 +28,5 @@ export function shortcutFromEvent(
 }
 
 export function shouldSendOnEnter(view: LeftView): boolean {
-  return view !== "environment" && view !== "override";
+  return view === "collection" || view === "history";
 }

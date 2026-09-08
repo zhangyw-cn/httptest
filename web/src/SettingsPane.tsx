@@ -21,8 +21,8 @@ export default function SettingsPane({
     return (
       <div className="settings-pane">
         <div className="empty-state">
-          <h2>未知分类</h2>
-          <p>请从左侧选择一个设置分类。</p>
+          <p className="empty-title">未知分类</p>
+          <p className="empty-hint">请从左侧选择一个设置分类。</p>
         </div>
       </div>
     );
