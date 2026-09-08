@@ -17,6 +17,7 @@ const ACTIVITY_TITLE: Record<LeftView, string> = {
   history: "历史",
   environment: "环境",
   override: "覆盖",
+  settings: "设置",
 };
 
 const ACTIVITY_ICON: Record<LeftView, ReactElement> = {
@@ -46,6 +47,12 @@ const ACTIVITY_ICON: Record<LeftView, ReactElement> = {
       <path d="M8 10h8M8 14h5" />
     </svg>
   ),
+  settings: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3.5v2.2M12 18.3v2.2M4.9 6.9l1.6 1.6M17.5 15.5l1.6 1.6M3.5 12h2.2M18.3 12h2.2M4.9 17.1l1.6-1.6M17.5 8.5l1.6-1.6" />
+    </svg>
+  ),
 };
 
 export default function ActivityBar({ view, panelOpen, onClickIcon }: Props) {
@@ -68,6 +75,21 @@ export default function ActivityBar({ view, panelOpen, onClickIcon }: Props) {
           {ACTIVITY_ICON[item]}
         </button>
       ))}
+      <div className="activity-spacer" aria-hidden="true" />
+      <button
+        type="button"
+        className={
+          isActivityPressed(view, panelOpen, "settings")
+            ? "activity-btn active"
+            : "activity-btn"
+        }
+        title={ACTIVITY_TITLE.settings}
+        aria-label={ACTIVITY_LABEL.settings}
+        aria-pressed={isActivityPressed(view, panelOpen, "settings")}
+        onClick={() => onClickIcon("settings")}
+      >
+        {ACTIVITY_ICON.settings}
+      </button>
     </nav>
   );
 }

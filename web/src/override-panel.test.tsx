@@ -5,7 +5,7 @@ import { clickActivityIcon } from "./activity";
 import { overrideRowStates } from "./override";
 
 describe("override panel", () => {
-  it("renders all four activity buttons including 覆盖", () => {
+  it("renders top activity buttons and 设置", () => {
     const markup = renderToStaticMarkup(
       <ActivityBar
         view="override"
@@ -17,6 +17,7 @@ describe("override panel", () => {
     expect(markup).toContain('aria-label="历史"');
     expect(markup).toContain('aria-label="环境"');
     expect(markup).toContain('aria-label="覆盖"');
+    expect(markup).toContain('aria-label="设置"');
     expect(markup).toContain('aria-pressed="true"');
   });
 
