@@ -11,8 +11,6 @@ describe("TopBar", () => {
         envs={[]}
         overrides={[]}
         local={{ environment: "", override: "dev" }}
-        theme="system"
-        onThemeChange={vi.fn()}
         onEnvChange={vi.fn()}
         onOverrideChange={vi.fn()}
       />,
@@ -20,5 +18,6 @@ describe("TopBar", () => {
 
     expect(markup).toContain('value="dev"');
     expect(markup).toContain("dev（文件缺失）");
+    expect(markup).not.toContain("浅色");
   });
 });

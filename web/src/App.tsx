@@ -30,6 +30,9 @@ import EnvEditor from "./EnvEditor";
 import ErrorBoundary from "./ErrorBoundary";
 import RequestEditor from "./RequestEditor";
 import ResponsePane from "./ResponsePane";
+import SettingsPane from "./SettingsPane";
+import SettingsSidebar from "./SettingsSidebar";
+import type { SettingsCategory } from "./settings";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import UrlBar from "./UrlBar";
@@ -98,6 +101,8 @@ export default function App() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemePref>(() => readStoredTheme());
+  const [settingsCategory, setSettingsCategory] =
+    useState<SettingsCategory>("appearance");
   const [dialog, setDialog] = useState<DialogMode | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const savedRef = useRef(JSON.stringify(defaultDraft()));
@@ -776,8 +781,6 @@ export default function App() {
         envs={envs}
         overrides={overrides}
         local={local}
-        theme={theme}
-        onThemeChange={onThemeChange}
         onEnvChange={onEnvChange}
         onOverrideChange={onOverrideChange}
       />
@@ -789,34 +792,46 @@ export default function App() {
           panelOpen={left.panelOpen}
           onClickIcon={(icon) => setLeft((s) => clickActivityIcon(s, icon))}
         />
-        {left.panelOpen && (
-          <Sidebar
-            requests={workspace?.requests ?? []}
-            currentPath={currentPath}
-            view={left.view}
-            sending={sending}
-            envs={envs}
-            editingEnv={editingEnv}
-            activeEnv={local?.environment ?? ""}
-            overrides={overrides}
-            editingOverride={editingOverride}
-            activeOverride={local?.override ?? ""}
-            onSelectRequest={onSelectRequest}
-            onNewRequest={openNewDialog}
-            onDeleteRequest={openDeleteDialog}
-            onSelectHistory={onSelectHistory}
-            onSelectEnv={onSelectEnv}
-            onNewEnv={openNewEnvDialog}
-            onDeleteEnv={openDeleteEnvDialog}
-            onSelectOverride={onSelectOverride}
-            onNewOverride={openNewOverrideDialog}
-            onDeleteOverride={openDeleteOverrideDialog}
-            envBusy={envSaving}
-            overrideBusy={overrideSaving}
-          />
-        )}
+        {left.panelOpen &&
+          (left.view === "settings" ? (
+            <SettingsSidebar
+              category={settingsCategory}
+              onSelect={setSettingsCategory}
+            />
+          ) : (
+            <Sidebar
+              requests={workspace?.requests ?? []}
+              currentPath={currentPath}
+              view={left.view}
+              sending={sending}
+              envs={envs}
+              editingEnv={editingEnv}
+              activeEnv={local?.environment ?? ""}
+              overrides={overrides}
+              editingOverride={editingOverride}
+              activeOverride={local?.override ?? ""}
+              onSelectRequest={onSelectRequest}
+              onNewRequest={openNewDialog}
+              onDeleteRequest={openDeleteDialog}
+              onSelectHistory={onSelectHistory}
+              onSelectEnv={onSelectEnv}
+              onNewEnv={openNewEnvDialog}
+              onDeleteEnv={openDeleteEnvDialog}
+              onSelectOverride={onSelectOverride}
+              onNewOverride={openNewOverrideDialog}
+              onDeleteOverride={openDeleteOverrideDialog}
+              envBusy={envSaving}
+              overrideBusy={overrideSaving}
+            />
+          ))}
         <div className="work">
-          {left.view === "environment" ? (
+          {left.view === "settings" ? (
+            <SettingsPane
+              category={settingsCategory}
+              theme={theme}
+              onThemeChange={onThemeChange}
+            />
+          ) : left.view === "environment" ? (
             <EnvEditor
               name={editingEnv}
               pairs={envPairs}

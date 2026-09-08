@@ -1,4 +1,3 @@
-import type { ThemePref } from "./theme";
 import type { Environment, LocalConfig, Override } from "./types";
 
 interface Props {
@@ -6,25 +5,15 @@ interface Props {
   envs: Environment[];
   overrides: Override[];
   local: LocalConfig | null;
-  theme: ThemePref;
-  onThemeChange: (theme: ThemePref) => void;
   onEnvChange: (environment: string) => void;
   onOverrideChange: (override: string) => void;
 }
-
-const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
-  { value: "light", label: "浅色" },
-  { value: "dark", label: "深色" },
-  { value: "system", label: "系统" },
-];
 
 export default function TopBar({
   workdir,
   envs,
   overrides,
   local,
-  theme,
-  onThemeChange,
   onEnvChange,
   onOverrideChange,
 }: Props) {
@@ -42,18 +31,6 @@ export default function TopBar({
         </span>
       </div>
       <div className="topbar-right">
-        <div className="theme-switch" role="group" aria-label="主题">
-          {THEME_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              className={theme === opt.value ? "btn btn-active" : "btn"}
-              onClick={() => onThemeChange(opt.value)}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
         <label className="env-label">
           环境
           <select
