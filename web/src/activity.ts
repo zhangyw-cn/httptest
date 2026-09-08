@@ -1,4 +1,9 @@
-export type LeftView = "collection" | "history" | "environment" | "override";
+export type LeftView =
+  | "collection"
+  | "history"
+  | "environment"
+  | "override"
+  | "settings";
 
 export const ACTIVITY_VIEWS: readonly LeftView[] = [
   "collection",
@@ -12,6 +17,7 @@ export const ACTIVITY_LABEL: Record<LeftView, string> = {
   history: "历史",
   environment: "环境",
   override: "覆盖",
+  settings: "设置",
 };
 
 export interface LeftState {

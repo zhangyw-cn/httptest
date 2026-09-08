@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { clickActivityIcon, togglePanel, type LeftState } from "./activity";
+import {
+  ACTIVITY_LABEL,
+  ACTIVITY_VIEWS,
+  clickActivityIcon,
+  togglePanel,
+  type LeftState,
+} from "./activity";
 
 const openCollection: LeftState = { view: "collection", panelOpen: true };
 
@@ -51,6 +57,21 @@ describe("clickActivityIcon", () => {
       panelOpen: false,
     });
   });
+
+  it("opens settings from collection and collapses it on the next click", () => {
+    const opened = clickActivityIcon(openCollection, "settings");
+    expect(opened).toEqual({ view: "settings", panelOpen: true });
+    expect(clickActivityIcon(opened, "settings")).toEqual({
+      view: "settings",
+      panelOpen: false,
+    });
+  });
+
+  it("switches from settings to collection and opens", () => {
+    expect(
+      clickActivityIcon({ view: "settings", panelOpen: true }, "collection"),
+    ).toEqual({ view: "collection", panelOpen: true });
+  });
 });
 
 describe("togglePanel", () => {
@@ -69,5 +90,24 @@ describe("togglePanel", () => {
     expect(
       togglePanel({ view: "environment", panelOpen: true }),
     ).toEqual({ view: "environment", panelOpen: false });
+  });
+
+  it("toggles settings panel without changing view", () => {
+    expect(togglePanel({ view: "settings", panelOpen: true })).toEqual({
+      view: "settings",
+      panelOpen: false,
+    });
+  });
+});
+
+describe("ACTIVITY_VIEWS", () => {
+  it("lists only the top four icons, not settings", () => {
+    expect([...ACTIVITY_VIEWS]).toEqual([
+      "collection",
+      "history",
+      "environment",
+      "override",
+    ]);
+    expect(ACTIVITY_LABEL.settings).toBe("设置");
   });
 });
