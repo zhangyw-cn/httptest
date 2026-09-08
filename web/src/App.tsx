@@ -54,7 +54,11 @@ import {
   overrideRenameConfirmDialog,
 } from "./override";
 import { defaultDraft, normalizeRequest, parseHistoryResult } from "./request";
-import { shortcutFromEvent, shouldSendOnEnter } from "./shortcut";
+import {
+  shortcutFromEvent,
+  shouldSaveOnCtrlS,
+  shouldSendOnEnter,
+} from "./shortcut";
 import {
   applyTheme,
   readStoredTheme,
@@ -746,7 +750,7 @@ export default function App() {
         if (!shouldSendOnEnter(leftRef.current.view)) return;
         if (!sendingRef.current) void onSend();
       } else if (action === "save") {
-        if (leftRef.current.view === "settings") {
+        if (!shouldSaveOnCtrlS(leftRef.current.view)) {
           return;
         }
         if (leftRef.current.view === "environment") {

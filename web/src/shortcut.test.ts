@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { shortcutFromEvent, shouldSendOnEnter } from "./shortcut";
+import {
+  shortcutFromEvent,
+  shouldSaveOnCtrlS,
+  shouldSendOnEnter,
+} from "./shortcut";
 
 function ev(
   key: string,
@@ -54,5 +58,15 @@ describe("shouldSendOnEnter", () => {
     expect(shouldSendOnEnter("environment")).toBe(false);
     expect(shouldSendOnEnter("override")).toBe(false);
     expect(shouldSendOnEnter("settings")).toBe(false);
+  });
+});
+
+describe("shouldSaveOnCtrlS", () => {
+  it("saves from all views except settings", () => {
+    expect(shouldSaveOnCtrlS("collection")).toBe(true);
+    expect(shouldSaveOnCtrlS("history")).toBe(true);
+    expect(shouldSaveOnCtrlS("environment")).toBe(true);
+    expect(shouldSaveOnCtrlS("override")).toBe(true);
+    expect(shouldSaveOnCtrlS("settings")).toBe(false);
   });
 });

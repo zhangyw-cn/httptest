@@ -30,3 +30,13 @@ export function shortcutFromEvent(
 export function shouldSendOnEnter(view: LeftView): boolean {
   return view === "collection" || view === "history";
 }
+
+/** Whether Ctrl+S should run a save action for this left view. */
+export function shouldSaveOnCtrlS(view: LeftView): boolean {
+  return (
+    view === "collection" ||
+    view === "history" ||
+    view === "environment" ||
+    view === "override"
+  );
+}
