@@ -719,6 +719,10 @@ button:focus-visible {
   margin: 0.4rem 0.6rem 0;
 }
 
+.settings-pane:has(> .empty-state) {
+  display: flex;
+}
+
 .settings-pane {
   flex: 1;
   min-width: 0;
@@ -739,10 +743,15 @@ button:focus-visible {
   flex-direction: column;
   gap: 0.5rem;
   max-width: 28rem;
+  border: none;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
 }
 
 .settings-label {
   margin: 0;
+  padding: 0;
   font-size: 0.85rem;
   color: var(--muted);
   font-weight: 500;

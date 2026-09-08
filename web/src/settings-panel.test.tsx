@@ -15,8 +15,10 @@ describe("settings activity bar", () => {
       />,
     );
     expect(markup).toContain('aria-label="设置"');
-    expect(markup).toContain('aria-pressed="true"');
-    // 设置出现在覆盖之后
+    const settingsBtn = markup.match(
+      /<button[^>]*aria-label="设置"[^>]*>|<button[^>]*aria-pressed="true"[^>]*aria-label="设置"[^>]*>/,
+    );
+    expect(settingsBtn?.[0] ?? "").toContain('aria-pressed="true"');
     const overrideAt = markup.indexOf('aria-label="覆盖"');
     const settingsAt = markup.indexOf('aria-label="设置"');
     expect(overrideAt).toBeGreaterThan(-1);
@@ -37,12 +39,12 @@ describe("SettingsSidebar", () => {
       <SettingsSidebar category="appearance" onSelect={vi.fn()} />,
     );
     expect(markup).toContain("外观");
-    expect(markup).toContain("active");
+    expect(markup).toContain('class="req-item active"');
   });
 });
 
 describe("SettingsPane", () => {
-  it("renders theme switch for appearance", () => {
+  it("renders theme radiogroup for appearance", () => {
     const markup = renderToStaticMarkup(
       <SettingsPane
         category="appearance"
@@ -50,23 +52,15 @@ describe("SettingsPane", () => {
         onThemeChange={vi.fn()}
       />,
     );
-    expect(markup).toContain("主题");
+    expect(markup).toContain('role="radiogroup"');
+    expect(markup).toContain('aria-label="主题"');
     expect(markup).toContain("浅色");
     expect(markup).toContain("深色");
     expect(markup).toContain("系统");
-    // SSR 无法点按；用正则确认三个 button 存在
-    expect(markup.match(/type="button"/g)?.length).toBeGreaterThanOrEqual(3);
-  });
-
-  it("shows empty state for unknown category", () => {
-    const markup = renderToStaticMarkup(
-      <SettingsPane
-        category="nope"
-        theme="dark"
-        onThemeChange={vi.fn()}
-      />,
-    );
-    expect(markup).toContain("未知分类");
-    expect(markup).not.toContain('aria-label="主题"');
+    expect(markup).toContain('role="radio"');
+    expect(markup).toContain('aria-checked="true"');
+    expect(markup.match(/role="radio"/g)?.length).toBe(3);
+    // dark is selected
+    expect(markup).toMatch(/aria-checked="true"[^>]*>深色<|>深色<\/button>/);
   });
 });

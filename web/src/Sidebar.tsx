@@ -13,7 +13,7 @@ import type {
 interface Props {
   requests: RequestMeta[];
   currentPath: string | null;
-  view: LeftView;
+  view: Exclude<LeftView, "settings">;
   sending: boolean;
   envs: Environment[];
   editingEnv: string | null;

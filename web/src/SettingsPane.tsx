@@ -1,7 +1,8 @@
+import type { SettingsCategory } from "./settings";
 import type { ThemePref } from "./theme";
 
 interface Props {
-  category: string;
+  category: SettingsCategory;
   theme: ThemePref;
   onThemeChange: (theme: ThemePref) => void;
 }
@@ -17,35 +18,42 @@ export default function SettingsPane({
   theme,
   onThemeChange,
 }: Props) {
-  if (category !== "appearance") {
+  if (category === "appearance") {
     return (
       <div className="settings-pane">
-        <div className="empty-state">
-          <p className="empty-title">未知分类</p>
-          <p className="empty-hint">请从左侧选择一个设置分类。</p>
-        </div>
+        <p className="settings-title">外观</p>
+        <fieldset className="settings-section">
+          <legend className="settings-label">主题</legend>
+          <div className="theme-switch" role="radiogroup" aria-label="主题">
+            {THEME_OPTIONS.map((opt) => {
+              const checked = theme === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={checked}
+                  className={checked ? "btn btn-active" : "btn"}
+                  onClick={() => onThemeChange(opt.value)}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
       </div>
     );
   }
 
+  const _exhaustive: never = category;
+  void _exhaustive;
   return (
     <div className="settings-pane">
-      <h2 className="settings-title">外观</h2>
-      <section className="settings-section">
-        <h3 className="settings-label">主题</h3>
-        <div className="theme-switch" role="group" aria-label="主题">
-          {THEME_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              className={theme === opt.value ? "btn btn-active" : "btn"}
-              onClick={() => onThemeChange(opt.value)}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      </section>
+      <div className="empty-state">
+        <p className="empty-title">未知分类</p>
+        <p className="empty-hint">请从左侧选择一个设置分类。</p>
+      </div>
     </div>
   );
 }

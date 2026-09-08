@@ -23,6 +23,7 @@ import {
   clickActivityIcon,
   togglePanel,
   type LeftState,
+  type LeftView,
 } from "./activity";
 import ActivityBar from "./ActivityBar";
 import Dialog, { type DialogMode } from "./Dialog";
@@ -33,6 +34,7 @@ import ResponsePane from "./ResponsePane";
 import SettingsPane from "./SettingsPane";
 import SettingsSidebar from "./SettingsSidebar";
 import type { SettingsCategory } from "./settings";
+import { workMode } from "./work-layout";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
 import UrlBar from "./UrlBar";
@@ -781,6 +783,8 @@ export default function App() {
       ? null
       : { ...dialog, error: dialogError ?? dialog.error };
 
+  const mode = workMode(left.view);
+
   return (
     <div className="app">
       <TopBar
@@ -800,7 +804,7 @@ export default function App() {
           onClickIcon={(icon) => setLeft((s) => clickActivityIcon(s, icon))}
         />
         {left.panelOpen &&
-          (left.view === "settings" ? (
+          (mode === "settings" ? (
             <SettingsSidebar
               category={settingsCategory}
               onSelect={setSettingsCategory}
@@ -809,7 +813,7 @@ export default function App() {
             <Sidebar
               requests={workspace?.requests ?? []}
               currentPath={currentPath}
-              view={left.view}
+              view={left.view as Exclude<LeftView, "settings">}
               sending={sending}
               envs={envs}
               editingEnv={editingEnv}
@@ -832,13 +836,13 @@ export default function App() {
             />
           ))}
         <div className="work">
-          {left.view === "settings" ? (
+          {mode === "settings" ? (
             <SettingsPane
               category={settingsCategory}
               theme={theme}
               onThemeChange={onThemeChange}
             />
-          ) : left.view === "environment" ? (
+          ) : mode === "environment" ? (
             <EnvEditor
               name={editingEnv}
               pairs={envPairs}
@@ -849,7 +853,7 @@ export default function App() {
               onSave={() => void onSaveEnv()}
               onRename={openRenameEnvDialog}
             />
-          ) : left.view === "override" ? (
+          ) : mode === "override" ? (
             <EnvEditor
               name={editingOverride}
               pairs={overridePairs}
