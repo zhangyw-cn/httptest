@@ -103,6 +103,8 @@ describe("RequestResult", () => {
       <RequestResult
         prepared={samplePrepared()}
         requestSize={11}
+        tab="overview"
+        onTabChange={() => {}}
       />,
     );
     expect(markup).toContain("POST");
@@ -120,6 +122,8 @@ describe("RequestResult", () => {
       <RequestResult
         prepared={samplePrepared({ query: {} })}
         requestSize={0}
+        tab="overview"
+        onTabChange={() => {}}
       />,
     );
     expect(markup).toContain(">Query<");
@@ -130,7 +134,12 @@ describe("RequestResult", () => {
 describe("ResultPane raw dump", () => {
   it("exposes rawCombinedDump text when primary would be raw — test via helper already; assert RequestResult wired placeholder gone", () => {
     const markup = renderToStaticMarkup(
-      <RequestResult prepared={undefined} requestSize={0} />,
+      <RequestResult
+        prepared={undefined}
+        requestSize={0}
+        tab="overview"
+        onTabChange={() => {}}
+      />,
     );
     expect(markup).toContain("变量已展开");
     expect(markup).toContain("请求 0 B");
@@ -140,5 +149,26 @@ describe("ResultPane raw dump", () => {
 describe("Raw dump contract", () => {
   it("matches helper used by ResultPane", () => {
     expect(rawCombinedDump("A", "B")).toContain("----------");
+  });
+});
+
+describe("ResultPane non-http error", () => {
+  it("shows errorClass in meta and still renders primary Request / Response / Raw tabs", () => {
+    const markup = renderToStaticMarkup(
+      <ResultPane
+        result={sampleResult({
+          errorClass: "network",
+          errorMessage: "connection refused",
+          status: 0,
+          statusText: "",
+        })}
+      />,
+    );
+    expect(markup).toContain("response-error-state");
+    expect(markup).toContain("network");
+    expect(markup).toContain("connection refused");
+    expect(markup).toContain(">Request<");
+    expect(markup).toContain(">Response<");
+    expect(markup).toContain(">Raw<");
   });
 });

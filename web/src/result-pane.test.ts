@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  msLabel,
   normalizePrepared,
   prettyBody,
   rawCombinedDump,
@@ -64,5 +65,11 @@ describe("sizeLabel / prettyBody", () => {
   it("pretty-prints JSON and leaves plain text", () => {
     expect(prettyBody('{"a":1}')).toContain("\n");
     expect(prettyBody("not-json")).toBe("not-json");
+  });
+});
+
+describe("msLabel", () => {
+  it("keeps two decimals for sub-10 non-integers", () => {
+    expect(msLabel(1.5)).toBe("1.50");
   });
 });

@@ -49,11 +49,14 @@ function ReadonlyPairs({
 export function RequestResult({
   prepared,
   requestSize,
+  tab,
+  onTabChange,
 }: {
   prepared: HttpRequest | null | undefined;
   requestSize: number;
+  tab: RequestTab;
+  onTabChange: (tab: RequestTab) => void;
 }) {
-  const [tab, setTab] = useState<RequestTab>("overview");
   const req = normalizePrepared(prepared);
 
   return (
@@ -62,28 +65,28 @@ export function RequestResult({
         <button
           type="button"
           className={tab === "overview" ? "tab active" : "tab"}
-          onClick={() => setTab("overview")}
+          onClick={() => onTabChange("overview")}
         >
           Overview
         </button>
         <button
           type="button"
           className={tab === "query" ? "tab active" : "tab"}
-          onClick={() => setTab("query")}
+          onClick={() => onTabChange("query")}
         >
           Query
         </button>
         <button
           type="button"
           className={tab === "headers" ? "tab active" : "tab"}
-          onClick={() => setTab("headers")}
+          onClick={() => onTabChange("headers")}
         >
           Headers
         </button>
         <button
           type="button"
           className={tab === "body" ? "tab active" : "tab"}
-          onClick={() => setTab("body")}
+          onClick={() => onTabChange("body")}
         >
           Body
         </button>
@@ -147,6 +150,7 @@ export function RequestResult({
 export default function ResultPane({ result }: Props) {
   const [primary, setPrimary] = useState<PrimaryTab>("response");
   const [responseTab, setResponseTab] = useState<ResponseTab>("body");
+  const [requestTab, setRequestTab] = useState<RequestTab>("overview");
 
   if (!result) {
     return (
@@ -233,6 +237,8 @@ export default function ResultPane({ result }: Props) {
           <RequestResult
             prepared={result.prepared}
             requestSize={result.requestSize ?? 0}
+            tab={requestTab}
+            onTabChange={setRequestTab}
           />
         )}
 
