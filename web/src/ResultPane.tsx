@@ -1,21 +1,22 @@
 import { useState } from "react";
-import { methodClass } from "./UrlBar";
+import { methodClass } from "./method";
 import {
+  defaultResultTabs,
   msLabel,
   normalizePrepared,
   prettyBody,
   rawCombinedDump,
   sizeLabel,
+  type PrimaryTab,
+  type RequestTab,
+  type ResponseTab,
+  type ResultTabs,
 } from "./result-pane";
 import type { HttpRequest, Result } from "./types";
 
 interface Props {
   result: Result | null;
 }
-
-type PrimaryTab = "request" | "response" | "raw";
-type ResponseTab = "body" | "headers" | "timeline";
-type RequestTab = "overview" | "query" | "headers" | "body";
 
 function ReadonlyPairs({
   record,
@@ -35,8 +36,8 @@ function ReadonlyPairs({
         </tr>
       </thead>
       <tbody>
-        {entries.map(([key, value]) => (
-          <tr key={key}>
+        {entries.map(([key, value], i) => (
+          <tr key={`${i}:${key}`}>
             <td>{key}</td>
             <td>{value}</td>
           </tr>
@@ -95,9 +96,7 @@ export function RequestResult({
       {tab === "overview" && (
         <div className="request-overview">
           <div className="request-overview-line">
-            <span
-              className={`method method-${methodClass(req.method)}`}
-            >
+            <span className={`method method-${methodClass(req.method)}`}>
               {req.method || "—"}
             </span>{" "}
             <span className="request-overview-url">{req.url || "—"}</span>
@@ -113,9 +112,7 @@ export function RequestResult({
       {tab === "body" && (
         <div className="request-body-view">
           <p className="muted">类型：{req.body.type}</p>
-          {req.body.type === "none" && (
-            <p className="muted">无正文</p>
-          )}
+          {req.body.type === "none" && <p className="muted">无正文</p>}
           {req.body.type === "json" && (
             <pre className="dump">
               {prettyBody(
@@ -127,9 +124,7 @@ export function RequestResult({
           )}
           {req.body.type === "raw" && (
             <pre className="dump">
-              {typeof req.body.content === "string"
-                ? req.body.content
-                : ""}
+              {typeof req.body.content === "string" ? req.body.content : ""}
             </pre>
           )}
           {req.body.type === "form" && (
@@ -147,22 +142,21 @@ export function RequestResult({
   );
 }
 
-export default function ResultPane({ result }: Props) {
-  const [primary, setPrimary] = useState<PrimaryTab>("response");
-  const [responseTab, setResponseTab] = useState<ResponseTab>("body");
-  const [requestTab, setRequestTab] = useState<RequestTab>("overview");
-
-  if (!result) {
-    return (
-      <section className="response">
-        <div className="empty-state">
-          <p className="empty-title">还没有响应</p>
-          <p className="empty-hint">填 URL，按 Send 或 Ctrl+Enter</p>
-        </div>
-      </section>
-    );
-  }
-
+/** Presentational shell — tabs come from props so SSR tests can select Raw / Request. */
+export function ResultPaneContent({
+  result,
+  tabs,
+  onPrimary,
+  onRequestTab,
+  onResponseTab,
+}: {
+  result: Result;
+  tabs: ResultTabs;
+  onPrimary: (tab: PrimaryTab) => void;
+  onRequestTab: (tab: RequestTab) => void;
+  onResponseTab: (tab: ResponseTab) => void;
+}) {
+  const { primary, requestTab, responseTab } = tabs;
   const isHttp = result.errorClass === "http";
 
   return (
@@ -212,21 +206,21 @@ export default function ResultPane({ result }: Props) {
         <button
           type="button"
           className={primary === "request" ? "tab active" : "tab"}
-          onClick={() => setPrimary("request")}
+          onClick={() => onPrimary("request")}
         >
           Request
         </button>
         <button
           type="button"
           className={primary === "response" ? "tab active" : "tab"}
-          onClick={() => setPrimary("response")}
+          onClick={() => onPrimary("response")}
         >
           Response
         </button>
         <button
           type="button"
           className={primary === "raw" ? "tab active" : "tab"}
-          onClick={() => setPrimary("raw")}
+          onClick={() => onPrimary("raw")}
         >
           Raw
         </button>
@@ -238,7 +232,7 @@ export default function ResultPane({ result }: Props) {
             prepared={result.prepared}
             requestSize={result.requestSize ?? 0}
             tab={requestTab}
-            onTabChange={setRequestTab}
+            onTabChange={onRequestTab}
           />
         )}
 
@@ -248,7 +242,7 @@ export default function ResultPane({ result }: Props) {
               <button
                 type="button"
                 className={responseTab === "body" ? "tab active" : "tab"}
-                onClick={() => setResponseTab("body")}
+                onClick={() => onResponseTab("body")}
               >
                 Body
               </button>
@@ -257,7 +251,7 @@ export default function ResultPane({ result }: Props) {
                 className={
                   responseTab === "headers" ? "tab active" : "tab"
                 }
-                onClick={() => setResponseTab("headers")}
+                onClick={() => onResponseTab("headers")}
               >
                 Headers
               </button>
@@ -266,7 +260,7 @@ export default function ResultPane({ result }: Props) {
                 className={
                   responseTab === "timeline" ? "tab active" : "tab"
                 }
-                onClick={() => setResponseTab("timeline")}
+                onClick={() => onResponseTab("timeline")}
               >
                 Timeline
               </button>
@@ -319,5 +313,30 @@ export default function ResultPane({ result }: Props) {
         )}
       </div>
     </section>
+  );
+}
+
+export default function ResultPane({ result }: Props) {
+  const [tabs, setTabs] = useState<ResultTabs>(defaultResultTabs);
+
+  if (!result) {
+    return (
+      <section className="response">
+        <div className="empty-state">
+          <p className="empty-title">还没有响应</p>
+          <p className="empty-hint">填 URL，按 Send 或 Ctrl+Enter</p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <ResultPaneContent
+      result={result}
+      tabs={tabs}
+      onPrimary={(primary) => setTabs((t) => ({ ...t, primary }))}
+      onRequestTab={(requestTab) => setTabs((t) => ({ ...t, requestTab }))}
+      onResponseTab={(responseTab) => setTabs((t) => ({ ...t, responseTab }))}
+    />
   );
 }

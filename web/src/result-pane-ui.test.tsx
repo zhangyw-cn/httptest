@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import ResultPane, { RequestResult } from "./ResultPane";
-import { rawCombinedDump } from "./result-pane";
+import ResultPane, { RequestResult, ResultPaneContent } from "./ResultPane";
+import { defaultResultTabs, rawCombinedDump } from "./result-pane";
 import type { HttpRequest, Result } from "./types";
 
 function samplePrepared(over: Partial<HttpRequest> = {}): HttpRequest {
@@ -41,6 +41,8 @@ function sampleResult(over: Partial<Result> = {}): Result {
     ...over,
   };
 }
+
+const noop = () => {};
 
 describe("ResultPane empty", () => {
   it("shows empty state without primary tabs", () => {
@@ -89,11 +91,45 @@ describe("ResultPane http result", () => {
     expect(markup).toContain(">Body<");
     expect(markup).toContain(">Headers<");
     expect(markup).toContain(">Timeline<");
-    // 默认 Response → Body 内容
     expect(markup).toContain("&quot;ok&quot;: true");
-    // 一级有且仅有一处 Raw 按钮文案；二级不应再出现独立 Raw 页签——
-    // 用「按钮序列」粗检：Body 与 Headers 之间不应插入 Raw
     expect(markup).not.toMatch(/>Body<\/button><button[^>]*>Raw</);
+  });
+});
+
+describe("ResultPaneContent Raw", () => {
+  it("renders request and response dumps with separator", () => {
+    const result = sampleResult({
+      requestDump: "POST /login HTTP/1.1",
+      responseDump: "HTTP/1.1 200 OK",
+    });
+    const markup = renderToStaticMarkup(
+      <ResultPaneContent
+        result={result}
+        tabs={{ ...defaultResultTabs(), primary: "raw" }}
+        onPrimary={noop}
+        onRequestTab={noop}
+        onResponseTab={noop}
+      />,
+    );
+    expect(markup).toContain("POST /login HTTP/1.1");
+    expect(markup).toContain("HTTP/1.1 200 OK");
+    expect(markup).toContain("----------");
+    expect(markup).toContain(
+      rawCombinedDump(result.requestDump, result.responseDump),
+    );
+  });
+
+  it("renders 无 for empty dump sides", () => {
+    const markup = renderToStaticMarkup(
+      <ResultPaneContent
+        result={sampleResult({ requestDump: "", responseDump: "" })}
+        tabs={{ ...defaultResultTabs(), primary: "raw" }}
+        onPrimary={noop}
+        onRequestTab={noop}
+        onResponseTab={noop}
+      />,
+    );
+    expect(markup).toContain("无\n\n----------\n\n无");
   });
 });
 
@@ -104,7 +140,7 @@ describe("RequestResult", () => {
         prepared={samplePrepared()}
         requestSize={11}
         tab="overview"
-        onTabChange={() => {}}
+        onTabChange={noop}
       />,
     );
     expect(markup).toContain("POST");
@@ -117,28 +153,82 @@ describe("RequestResult", () => {
     expect(markup).toContain(">Body<");
   });
 
-  it("shows 无 for empty query on Query tab default is overview — export still lists Query button", () => {
+  it("shows 无 on Query tab when query is empty", () => {
     const markup = renderToStaticMarkup(
       <RequestResult
         prepared={samplePrepared({ query: {} })}
         requestSize={0}
-        tab="overview"
-        onTabChange={() => {}}
+        tab="query"
+        onTabChange={noop}
       />,
     );
+    expect(markup).toContain('class="tab active"');
     expect(markup).toContain(">Query<");
-    expect(markup).toContain("请求 0 B");
+    expect(markup).toContain('class="muted">无</p>');
   });
-});
 
-describe("ResultPane raw dump", () => {
-  it("exposes rawCombinedDump text when primary would be raw — test via helper already; assert RequestResult wired placeholder gone", () => {
+  it("shows headers table on Headers tab", () => {
+    const markup = renderToStaticMarkup(
+      <RequestResult
+        prepared={samplePrepared()}
+        requestSize={11}
+        tab="headers"
+        onTabChange={noop}
+      />,
+    );
+    expect(markup).toContain("Content-Type");
+    expect(markup).toContain("application/json");
+  });
+
+  it("pretty-prints json body on Body tab", () => {
+    const markup = renderToStaticMarkup(
+      <RequestResult
+        prepared={samplePrepared()}
+        requestSize={11}
+        tab="body"
+        onTabChange={noop}
+      />,
+    );
+    expect(markup).toContain("类型：json");
+    expect(markup).toContain("&quot;a&quot;: 1");
+  });
+
+  it("shows form pairs on Body tab for form type", () => {
+    const markup = renderToStaticMarkup(
+      <RequestResult
+        prepared={samplePrepared({
+          body: { type: "form", content: { a: "1", b: "2" } },
+        })}
+        requestSize={0}
+        tab="body"
+        onTabChange={noop}
+      />,
+    );
+    expect(markup).toContain("类型：form");
+    expect(markup).toContain(">a</td>");
+    expect(markup).toContain(">1</td>");
+    expect(markup).toContain(">b</td>");
+  });
+
+  it("shows 无正文 for none body", () => {
+    const markup = renderToStaticMarkup(
+      <RequestResult
+        prepared={samplePrepared({ body: { type: "none" } })}
+        requestSize={0}
+        tab="body"
+        onTabChange={noop}
+      />,
+    );
+    expect(markup).toContain("无正文");
+  });
+
+  it("tolerates missing prepared", () => {
     const markup = renderToStaticMarkup(
       <RequestResult
         prepared={undefined}
         requestSize={0}
         tab="overview"
-        onTabChange={() => {}}
+        onTabChange={noop}
       />,
     );
     expect(markup).toContain("变量已展开");
@@ -146,9 +236,37 @@ describe("ResultPane raw dump", () => {
   });
 });
 
-describe("Raw dump contract", () => {
-  it("matches helper used by ResultPane", () => {
-    expect(rawCombinedDump("A", "B")).toContain("----------");
+describe("ResultPaneContent request primary", () => {
+  it("keeps selected requestTab when rendering a different result", () => {
+    const tabs = {
+      primary: "request" as const,
+      requestTab: "query" as const,
+      responseTab: "timeline" as const,
+    };
+    const first = renderToStaticMarkup(
+      <ResultPaneContent
+        result={sampleResult()}
+        tabs={tabs}
+        onPrimary={noop}
+        onRequestTab={noop}
+        onResponseTab={noop}
+      />,
+    );
+    const second = renderToStaticMarkup(
+      <ResultPaneContent
+        result={sampleResult({ status: 404, statusText: "Not Found" })}
+        tabs={tabs}
+        onPrimary={noop}
+        onRequestTab={noop}
+        onResponseTab={noop}
+      />,
+    );
+    // same tabs → still Query content for sample with q=1
+    expect(first).toContain(">q</td>");
+    expect(first).toContain('class="tab active">Query</button>');
+    expect(second).toContain(">q</td>");
+    expect(second).toContain('class="tab active">Query</button>');
+    expect(second).toContain("404 Not Found");
   });
 });
 
@@ -157,7 +275,7 @@ describe("ResultPane non-http error", () => {
     const markup = renderToStaticMarkup(
       <ResultPane
         result={sampleResult({
-          errorClass: "network",
+          errorClass: "dns",
           errorMessage: "connection refused",
           status: 0,
           statusText: "",
@@ -165,10 +283,11 @@ describe("ResultPane non-http error", () => {
       />,
     );
     expect(markup).toContain("response-error-state");
-    expect(markup).toContain("network");
+    expect(markup).toContain("dns");
     expect(markup).toContain("connection refused");
     expect(markup).toContain(">Request<");
     expect(markup).toContain(">Response<");
     expect(markup).toContain(">Raw<");
+    expect(markup).not.toContain("status-0xx");
   });
 });

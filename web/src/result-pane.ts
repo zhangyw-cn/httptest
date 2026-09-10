@@ -51,3 +51,29 @@ export function prettyBody(body: string): string {
     return body;
   }
 }
+
+export type PrimaryTab = "request" | "response" | "raw";
+export type ResponseTab = "body" | "headers" | "timeline";
+export type RequestTab = "overview" | "query" | "headers" | "body";
+
+export interface ResultTabs {
+  primary: PrimaryTab;
+  requestTab: RequestTab;
+  responseTab: ResponseTab;
+}
+
+export function defaultResultTabs(): ResultTabs {
+  return {
+    primary: "response",
+    requestTab: "overview",
+    responseTab: "body",
+  };
+}
+
+/** Spec §3.2: new result / history switch must not reset tab selection. */
+export function tabsAfterResultChange(
+  prev: ResultTabs,
+  _nextResult: unknown,
+): ResultTabs {
+  return prev;
+}

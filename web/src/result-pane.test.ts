@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { methodClass } from "./method";
 import {
+  defaultResultTabs,
   msLabel,
   normalizePrepared,
   prettyBody,
   rawCombinedDump,
   sizeLabel,
+  tabsAfterResultChange,
 } from "./result-pane";
 
 describe("normalizePrepared", () => {
@@ -71,5 +74,32 @@ describe("sizeLabel / prettyBody", () => {
 describe("msLabel", () => {
   it("keeps two decimals for sub-10 non-integers", () => {
     expect(msLabel(1.5)).toBe("1.50");
+  });
+});
+
+describe("tabsAfterResultChange", () => {
+  it("keeps previous tabs when result changes", () => {
+    const prev = {
+      primary: "request" as const,
+      requestTab: "query" as const,
+      responseTab: "headers" as const,
+    };
+    expect(tabsAfterResultChange(prev, { status: 500 })).toEqual(prev);
+    expect(tabsAfterResultChange(prev, null)).toEqual(prev);
+  });
+
+  it("defaultResultTabs match first-result defaults", () => {
+    expect(defaultResultTabs()).toEqual({
+      primary: "response",
+      requestTab: "overview",
+      responseTab: "body",
+    });
+  });
+});
+
+describe("methodClass", () => {
+  it("maps known methods and falls back to muted", () => {
+    expect(methodClass("POST")).toBe("post");
+    expect(methodClass("")).toBe("muted");
   });
 });

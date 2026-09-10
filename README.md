@@ -44,7 +44,7 @@ httptest [DIR] [--listen 127.0.0.1:1370] [--open]
 
 ## 界面
 
-顶栏是产品名、工作区路径、环境选择器与覆盖选择器（覆盖可选「无」），不含主题切换。左侧活动栏上方切换集合、历史、环境与覆盖，底部为设置；再点当前图标收起树（`Ctrl+B`）。树展开时宽 220px。设置视图下左侧为分类树（外观），中间为主题浅色/深色/系统三档，不显示 UrlBar、请求编辑器与响应区。集合/历史视图下 Method、URL、Send、Stop、Save 横跨中间请求栏和右侧响应栏（`Ctrl+Enter` 发送，`Ctrl+S` 保存请求）。环境视图左侧列环境名，中间编辑模板变量（`Ctrl+S` 保存环境，`Ctrl+Enter` 不发送）；覆盖视图同理编辑本机覆盖集，树选中只打开编辑，顶栏选择器才是发送用的当前环境与覆盖。新建/改名/删除在应用内对话框完成，不使用浏览器原生弹窗。请求栏为 `Query | Headers | Body`；右侧结果栏 meta 为状态码、总耗时、响应体积，一级页签为 `Request | Response | Raw`。Request 二级为 `Overview | Query | Headers | Body`（只读变量展开后的请求，Overview 含请求体积）；Response 二级为 `Body | Headers | Timeline`；Raw 为请求 dump 与响应 dump。
+顶栏是产品名、工作区路径、环境选择器与覆盖选择器（覆盖可选「无」），不含主题切换。左侧活动栏上方切换集合、历史、环境与覆盖，底部为设置；再点当前图标收起树（`Ctrl+B`）。树展开时宽 220px。设置视图下左侧为分类树（外观），中间为主题浅色/深色/系统三档，不显示 UrlBar、请求编辑器与响应区。集合/历史视图下 Method、URL、Send、Stop、Save 横跨中间请求栏和右侧结果栏（`Ctrl+Enter` 发送，`Ctrl+S` 保存请求）。环境视图左侧列环境名，中间编辑模板变量（`Ctrl+S` 保存环境，`Ctrl+Enter` 不发送）；覆盖视图同理编辑本机覆盖集，树选中只打开编辑，顶栏选择器才是发送用的当前环境与覆盖。新建/改名/删除在应用内对话框完成，不使用浏览器原生弹窗。请求栏为 `Query | Headers | Body`；右侧结果栏 meta 为状态码、总耗时、响应体积，一级页签为 `Request | Response | Raw`。Request 二级为 `Overview | Query | Headers | Body`（只读变量展开后的请求，Overview 含请求体积）；Response 二级为 `Body | Headers | Timeline`；Raw 为请求 dump 与响应 dump。
 
 ## 工作区
 
