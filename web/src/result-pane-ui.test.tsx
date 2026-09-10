@@ -62,6 +62,16 @@ describe("ResultPane http result", () => {
     expect(markup).not.toMatch(/请求\s+11\s+B/);
   });
 
+  it("shows body size in meta when empty body differs from responseSize", () => {
+    const markup = renderToStaticMarkup(
+      <ResultPane
+        result={sampleResult({ body: "", responseSize: 11 })}
+      />,
+    );
+    expect(markup).toContain("响应 11 B");
+    expect(markup).toContain("正文 0 B");
+  });
+
   it("renders primary Request / Response / Raw tabs", () => {
     const markup = renderToStaticMarkup(
       <ResultPane result={sampleResult()} />,

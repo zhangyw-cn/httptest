@@ -46,8 +46,7 @@ export default function ResultPane({ result }: Props) {
             <span>{msLabel(result.timings.totalMs)} ms</span>
             <span title="响应线上字节（解压前）">
               响应 {sizeLabel(result.responseSize)}
-              {result.body &&
-              result.body.length !== result.responseSize
+              {result.body.length !== result.responseSize
                 ? ` · 正文 ${sizeLabel(result.body.length)}`
                 : ""}
               {result.truncated ? "（截断）" : ""}
