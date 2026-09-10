@@ -1,11 +1,13 @@
 import { useState } from "react";
+import { methodClass } from "./UrlBar";
 import {
   msLabel,
+  normalizePrepared,
   prettyBody,
   rawCombinedDump,
   sizeLabel,
 } from "./result-pane";
-import type { Result } from "./types";
+import type { HttpRequest, Result } from "./types";
 
 interface Props {
   result: Result | null;
@@ -13,6 +15,134 @@ interface Props {
 
 type PrimaryTab = "request" | "response" | "raw";
 type ResponseTab = "body" | "headers" | "timeline";
+type RequestTab = "overview" | "query" | "headers" | "body";
+
+function ReadonlyPairs({
+  record,
+}: {
+  record: Record<string, string>;
+}) {
+  const entries = Object.entries(record);
+  if (entries.length === 0) {
+    return <p className="muted">无</p>;
+  }
+  return (
+    <table className="kv-table">
+      <thead>
+        <tr>
+          <th>键</th>
+          <th>值</th>
+        </tr>
+      </thead>
+      <tbody>
+        {entries.map(([key, value]) => (
+          <tr key={key}>
+            <td>{key}</td>
+            <td>{value}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+export function RequestResult({
+  prepared,
+  requestSize,
+}: {
+  prepared: HttpRequest | null | undefined;
+  requestSize: number;
+}) {
+  const [tab, setTab] = useState<RequestTab>("overview");
+  const req = normalizePrepared(prepared);
+
+  return (
+    <div className="request-result">
+      <div className="tabs tabs-secondary">
+        <button
+          type="button"
+          className={tab === "overview" ? "tab active" : "tab"}
+          onClick={() => setTab("overview")}
+        >
+          Overview
+        </button>
+        <button
+          type="button"
+          className={tab === "query" ? "tab active" : "tab"}
+          onClick={() => setTab("query")}
+        >
+          Query
+        </button>
+        <button
+          type="button"
+          className={tab === "headers" ? "tab active" : "tab"}
+          onClick={() => setTab("headers")}
+        >
+          Headers
+        </button>
+        <button
+          type="button"
+          className={tab === "body" ? "tab active" : "tab"}
+          onClick={() => setTab("body")}
+        >
+          Body
+        </button>
+      </div>
+
+      {tab === "overview" && (
+        <div className="request-overview">
+          <div className="request-overview-line">
+            <span
+              className={`method method-${methodClass(req.method)}`}
+            >
+              {req.method || "—"}
+            </span>{" "}
+            <span className="request-overview-url">{req.url || "—"}</span>
+          </div>
+          <div>请求 {sizeLabel(requestSize)}</div>
+          <p className="muted">变量已展开</p>
+        </div>
+      )}
+
+      {tab === "query" && <ReadonlyPairs record={req.query} />}
+      {tab === "headers" && <ReadonlyPairs record={req.headers} />}
+
+      {tab === "body" && (
+        <div className="request-body-view">
+          <p className="muted">类型：{req.body.type}</p>
+          {req.body.type === "none" && (
+            <p className="muted">无正文</p>
+          )}
+          {req.body.type === "json" && (
+            <pre className="dump">
+              {prettyBody(
+                typeof req.body.content === "string"
+                  ? req.body.content
+                  : JSON.stringify(req.body.content ?? {}),
+              )}
+            </pre>
+          )}
+          {req.body.type === "raw" && (
+            <pre className="dump">
+              {typeof req.body.content === "string"
+                ? req.body.content
+                : ""}
+            </pre>
+          )}
+          {req.body.type === "form" && (
+            <ReadonlyPairs
+              record={
+                req.body.content && typeof req.body.content === "object"
+                  ? req.body.content
+                  : {}
+              }
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ResultPane({ result }: Props) {
   const [primary, setPrimary] = useState<PrimaryTab>("response");
@@ -100,7 +230,10 @@ export default function ResultPane({ result }: Props) {
 
       <div className="response-body">
         {primary === "request" && (
-          <p className="muted">Request 内容见后续任务</p>
+          <RequestResult
+            prepared={result.prepared}
+            requestSize={result.requestSize ?? 0}
+          />
         )}
 
         {primary === "response" && (

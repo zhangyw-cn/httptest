@@ -767,3 +767,27 @@ button:focus-visible {
   color: var(--muted);
   font-weight: 500;
 }
+
+.request-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.request-overview-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.request-overview-url {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  word-break: break-all;
+}
+
+.request-overview .method {
+  font-weight: 700;
+  font-size: 0.82rem;
+}

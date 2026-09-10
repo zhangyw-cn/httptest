@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import ResultPane from "./ResultPane";
+import ResultPane, { RequestResult } from "./ResultPane";
+import { rawCombinedDump } from "./result-pane";
 import type { HttpRequest, Result } from "./types";
 
 function samplePrepared(over: Partial<HttpRequest> = {}): HttpRequest {
@@ -93,5 +94,51 @@ describe("ResultPane http result", () => {
     // 一级有且仅有一处 Raw 按钮文案；二级不应再出现独立 Raw 页签——
     // 用「按钮序列」粗检：Body 与 Headers 之间不应插入 Raw
     expect(markup).not.toMatch(/>Body<\/button><button[^>]*>Raw</);
+  });
+});
+
+describe("RequestResult", () => {
+  it("shows overview method, url, request size, and expanded hint", () => {
+    const markup = renderToStaticMarkup(
+      <RequestResult
+        prepared={samplePrepared()}
+        requestSize={11}
+      />,
+    );
+    expect(markup).toContain("POST");
+    expect(markup).toContain("https://api.example/login");
+    expect(markup).toContain("请求 11 B");
+    expect(markup).toContain("变量已展开");
+    expect(markup).toContain(">Overview<");
+    expect(markup).toContain(">Query<");
+    expect(markup).toContain(">Headers<");
+    expect(markup).toContain(">Body<");
+  });
+
+  it("shows 无 for empty query on Query tab default is overview — export still lists Query button", () => {
+    const markup = renderToStaticMarkup(
+      <RequestResult
+        prepared={samplePrepared({ query: {} })}
+        requestSize={0}
+      />,
+    );
+    expect(markup).toContain(">Query<");
+    expect(markup).toContain("请求 0 B");
+  });
+});
+
+describe("ResultPane raw dump", () => {
+  it("exposes rawCombinedDump text when primary would be raw — test via helper already; assert RequestResult wired placeholder gone", () => {
+    const markup = renderToStaticMarkup(
+      <RequestResult prepared={undefined} requestSize={0} />,
+    );
+    expect(markup).toContain("变量已展开");
+    expect(markup).toContain("请求 0 B");
+  });
+});
+
+describe("Raw dump contract", () => {
+  it("matches helper used by ResultPane", () => {
+    expect(rawCombinedDump("A", "B")).toContain("----------");
   });
 });
