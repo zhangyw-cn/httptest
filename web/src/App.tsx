@@ -30,7 +30,7 @@ import Dialog, { type DialogMode } from "./Dialog";
 import EnvEditor from "./EnvEditor";
 import ErrorBoundary from "./ErrorBoundary";
 import RequestEditor from "./RequestEditor";
-import ResponsePane from "./ResponsePane";
+import ResultPane from "./ResultPane";
 import SettingsPane from "./SettingsPane";
 import SettingsSidebar from "./SettingsSidebar";
 import type { SettingsCategory } from "./settings";
@@ -884,7 +884,7 @@ export default function App() {
                   onChange={(next) => applyDraft(next)}
                 />
                 <ErrorBoundary>
-                  <ResponsePane result={result} />
+                  <ResultPane result={result} />
                 </ErrorBoundary>
               </div>
             </>

@@ -405,6 +405,17 @@ button:focus-visible {
   font-weight: 600;
 }
 
+.tabs-secondary {
+  margin: -0.6rem -0.6rem 0.6rem;
+  padding: 0 0.6rem;
+}
+
+.tabs-secondary .tab {
+  flex: 0 1 auto;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.82rem;
+}
+
 .tab:hover:not(.active) {
   background: var(--hover);
 }
