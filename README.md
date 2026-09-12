@@ -7,7 +7,7 @@
 - 一条命令启动；默认监听 `127.0.0.1:1370`，仅本机可访问
 - 编辑并发送 GET、POST、PUT、PATCH、DELETE、HEAD、OPTIONS；未保存草稿也能发
 - 响应区：状态码、头、格式化 Body、原始报文、体积、重定向链、分阶段耗时
-- 集合与环境模板可随项目 git 共享（工作目录下的 `collections/`、`environments/`）；历史、覆盖在 `.httptest/`，不进 git
+- 集合、环境模板与 hosts 配置可随项目 git 共享（工作目录下的 `collections/`、`environments/`、`hosts/`）；历史、覆盖在 `.httptest/`，不进 git
 
 ## 快速开始
 
@@ -29,7 +29,7 @@ go build -o httptest ./cmd/httptest
 
 `net.Listen` 成功之后才会在 stdout 打印实际 URL（例如 `http://127.0.0.1:1370`）。`--open` 会尽力打开系统浏览器；失败则忽略，请手动打开打印出的地址。
 
-浏览器打开后：选环境（可选覆盖，可留「无」）→ 填 Method/URL → Send。
+浏览器打开后：选环境（可选覆盖与 Hosts，均可留「无」）→ 填 Method/URL → Send。
 
 ## 命令行
 
@@ -44,7 +44,7 @@ httptest [DIR] [--listen 127.0.0.1:1370] [--open]
 
 ## 界面
 
-顶栏是产品名、工作区路径、环境选择器与覆盖选择器（覆盖可选「无」），不含主题切换。左侧活动栏上方切换集合、历史、环境与覆盖，底部为设置；再点当前图标收起树（`Ctrl+B`）。树展开时宽 220px。设置视图下左侧为分类树（外观），中间为主题浅色/深色/系统三档，不显示 UrlBar、请求编辑器与响应区。集合/历史视图下 Method、URL、Send、Stop、Save 横跨中间请求栏和右侧结果栏（`Ctrl+Enter` 发送，`Ctrl+S` 保存请求）。环境视图左侧列环境名，中间编辑模板变量（`Ctrl+S` 保存环境，`Ctrl+Enter` 不发送）；覆盖视图同理编辑本机覆盖集，树选中只打开编辑，顶栏选择器才是发送用的当前环境与覆盖。新建/改名/删除在应用内对话框完成，不使用浏览器原生弹窗。请求栏为 `Query | Headers | Body`；右侧结果栏 meta 为状态码、总耗时、响应体积，一级页签为 `Request | Response | Raw`。Request 二级为 `Overview | Query | Headers | Body`（只读变量展开后的请求，Overview 含请求体积）；Response 二级为 `Body | Headers | Timeline`；Raw 为请求 dump 与响应 dump。
+顶栏是产品名、工作区路径、环境选择器、覆盖选择器（覆盖可选「无」）与 Hosts 选择器（可选「无」），不含主题切换。左侧活动栏上方切换集合、历史、环境、覆盖与 Hosts，底部为设置；再点当前图标收起树（`Ctrl+B`）。树展开时宽 220px。Hosts 与环境、覆盖相互独立：切换环境不改 Hosts，切换 Hosts 不改环境。设置视图下左侧为分类树（外观），中间为主题浅色/深色/系统三档，不显示 UrlBar、请求编辑器与响应区。集合/历史视图下 Method、URL、Send、Stop、Save 横跨中间请求栏和右侧结果栏（`Ctrl+Enter` 发送，`Ctrl+S` 保存请求）。环境视图左侧列环境名，中间编辑模板变量（`Ctrl+S` 保存环境，`Ctrl+Enter` 不发送）；覆盖视图同理编辑本机覆盖集；Hosts 视图左侧列配置名，中间编辑 hostname → IP 映射（`Ctrl+S` 保存，`Ctrl+Enter` 不发送）。树选中只打开编辑，顶栏选择器才是发送用的当前环境、覆盖与 Hosts。新建/改名/删除在应用内对话框完成，不使用浏览器原生弹窗。请求栏为 `Query | Headers | Body`；右侧结果栏 meta 为状态码、总耗时、响应体积，一级页签为 `Request | Response | Raw`。Request 二级为 `Overview | Query | Headers | Body`（只读变量展开后的请求，Overview 含请求体积；命中 Hosts 映射时显示拨号 IP `resolvedIP`）；Response 二级为 `Body | Headers | Timeline`；Raw 为请求 dump 与响应 dump。
 
 ## 工作区
 
@@ -54,17 +54,18 @@ httptest [DIR] [--listen 127.0.0.1:1370] [--open]
 *
 ```
 
-`collections/`、`environments/` 在第一次保存请求或环境时才创建。
+`collections/`、`environments/` 在第一次保存请求或环境时才创建；`hosts/` 在第一次保存 hosts 配置时才创建。
 
 ```
 <workdir>/
   collections/      # 请求，可提交
   environments/     # 环境模板，可提交
+  hosts/            # 域名→IP 映射，可提交
   .httptest/
     .gitignore
     local/
       overrides/    # 覆盖集，不提交
-      active.yaml   # 当前环境与覆盖，不提交
+      active.yaml   # 当前环境、覆盖与 Hosts，不提交
     history/        # 按日 jsonl，不提交
 ```
 
@@ -117,16 +118,40 @@ variables:
   apiKey: sk-local-only
 ```
 
-`.httptest/local/active.yaml` 记录当前环境与覆盖：
+`.httptest/local/active.yaml` 记录当前环境、覆盖与 Hosts：
 
 ```yaml
 environment: local
 override: dev
+hosts: lan
 ```
 
 替换顺序：环境模板 → 当前覆盖集（若顶栏未选覆盖则为空）。缺失任一 `{{var}}`，或 `active.yaml` 指向的覆盖集文件不存在时，分类为 `invalid`，列出变量名，**不发送**。覆盖集可在 UI 中编辑（本机工具，不上传）。
 
 这是破坏性变更：旧版 `.httptest/local/secrets.yaml` 不再读取。请自行迁移：将其 `variables` 拷到 `overrides/<name>.yaml`（例如 `overrides/default.yaml`），执行 `chmod 600 .httptest/local/overrides/<name>.yaml`，在 `active.yaml` 设 `override: <name>`，确认无误后可删 `secrets.yaml`。不会自动迁移。
+
+## Hosts
+
+路径：`hosts/<name>.yaml`，可随项目提交共享。顶栏 Hosts 选择器（含「无」）决定发送时是否应用映射；与环境、覆盖相互独立。
+
+```yaml
+# hosts/lan.yaml
+name: lan
+mappings:
+  api.example.com: "10.0.0.5"
+```
+
+```yaml
+# .httptest/local/active.yaml
+environment: local
+override: dev
+hosts: lan
+```
+
+- 精确 hostname 匹配（小写）；不改系统 `/etc/hosts`。
+- 出站 `DialContext` 拨到映射 IP，`Host` 头与 TLS SNI 仍用原域名。
+- `active.yaml` 中 `hosts` 为空或缺字段表示「无」（系统 DNS）。
+- 若 `active.hosts` 指向的文件已不存在，发送时降级为「无」，不阻断请求。
 
 ## v1 明确不做
 
@@ -159,4 +184,4 @@ web/
 
 ## 相关文档
 
-实现与文件格式细节见 [docs/superpowers/specs/2026-09-01-httptest-design.md](docs/superpowers/specs/2026-09-01-httptest-design.md)。工作目录布局见 [docs/superpowers/specs/2026-09-05-workdir-design.md](docs/superpowers/specs/2026-09-05-workdir-design.md)。
+实现与文件格式细节见 [docs/superpowers/specs/2026-09-01-httptest-design.md](docs/superpowers/specs/2026-09-01-httptest-design.md)。工作目录布局见 [docs/superpowers/specs/2026-09-05-workdir-design.md](docs/superpowers/specs/2026-09-05-workdir-design.md)。Hosts 解析见 [docs/superpowers/specs/2026-09-12-hosts-resolution-design.md](docs/superpowers/specs/2026-09-12-hosts-resolution-design.md)。
