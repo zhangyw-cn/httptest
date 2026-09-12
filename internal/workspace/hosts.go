@@ -147,3 +147,119 @@ func (w *Workspace) ActiveHostsMappings() (map[string]string, error) {
 	}
 	return normalizeAndValidateMappings(h.Mappings)
 }
+
+func (w *Workspace) DeleteHosts(name string) error {
+	path, cleaned, err := w.hostsPath(name)
+	if err != nil {
+		return err
+	}
+	local, err := w.GetLocal()
+	if err != nil {
+		return err
+	}
+	st, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	perm := st.Mode().Perm()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil {
+		return err
+	}
+	if local.Hosts != cleaned {
+		return nil
+	}
+	if err := w.writeActive(local.Environment, local.Override, ""); err != nil {
+		return wrapRestore(err, os.WriteFile(path, data, perm))
+	}
+	return nil
+}
+
+func (w *Workspace) RenameHosts(oldName, newName string) (HostsFile, error) {
+	oldPath, oldClean, err := w.hostsPath(oldName)
+	if err != nil {
+		return HostsFile{}, err
+	}
+	newPath, newClean, err := w.hostsPath(newName)
+	if err != nil {
+		return HostsFile{}, err
+	}
+	if oldClean == newClean {
+		return HostsFile{}, ErrSameHostsName
+	}
+	oldSt, err := os.Stat(oldPath)
+	if err != nil {
+		return HostsFile{}, err
+	}
+	perm := oldSt.Mode().Perm()
+	caseOnly := false
+	if newSt, err := os.Stat(newPath); err == nil {
+		if os.SameFile(oldSt, newSt) {
+			caseOnly = true
+		} else {
+			return HostsFile{}, ErrHostsExists
+		}
+	} else if !os.IsNotExist(err) {
+		return HostsFile{}, err
+	}
+	data, err := os.ReadFile(oldPath)
+	if err != nil {
+		return HostsFile{}, err
+	}
+	var h HostsFile
+	if err := yaml.Unmarshal(data, &h); err != nil {
+		return HostsFile{}, err
+	}
+	if h.Mappings == nil {
+		h.Mappings = map[string]string{}
+	}
+	h.Name = newClean
+	out, err := rewriteNameYAML(data, newClean)
+	if err != nil {
+		return HostsFile{}, err
+	}
+	if err := os.MkdirAll(filepath.Dir(newPath), 0o755); err != nil {
+		return HostsFile{}, err
+	}
+	writePath := newPath
+	if caseOnly {
+		writePath = newPath + ".renaming"
+	}
+	if err := os.WriteFile(writePath, out, perm); err != nil {
+		return HostsFile{}, err
+	}
+	if err := os.Remove(oldPath); err != nil {
+		_ = os.Remove(writePath)
+		return HostsFile{}, err
+	}
+	if caseOnly {
+		if err := os.Rename(writePath, newPath); err != nil {
+			_ = os.WriteFile(oldPath, data, perm)
+			_ = os.Remove(writePath)
+			return HostsFile{}, err
+		}
+	}
+	rollback := func() error {
+		rerr := os.WriteFile(oldPath, data, perm)
+		if !caseOnly {
+			_ = os.Remove(newPath)
+		} else {
+			_ = os.Remove(writePath)
+		}
+		return rerr
+	}
+	local, err := w.GetLocal()
+	if err != nil {
+		return HostsFile{}, wrapRestore(err, rollback())
+	}
+	if local.Hosts != oldClean {
+		return h, nil
+	}
+	if err := w.writeActive(local.Environment, local.Override, newClean); err != nil {
+		return HostsFile{}, wrapRestore(err, rollback())
+	}
+	return h, nil
+}

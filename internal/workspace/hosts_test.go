@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -94,5 +95,67 @@ func TestActiveHostsMappings(t *testing.T) {
 	m, err = ws.ActiveHostsMappings()
 	if err != nil || m != nil {
 		t.Fatalf("missing file should degrade: %v %v", m, err)
+	}
+}
+
+func TestDeleteHostsClearsActive(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.PutHosts(HostsFile{Name: "lan", Mappings: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.PutLocal(Local{Environment: "e", Override: "o", Hosts: "lan"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.DeleteHosts("lan"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ws.GetLocal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Hosts != "" || got.Environment != "e" || got.Override != "o" {
+		t.Fatalf("%+v", got)
+	}
+}
+
+func TestRenameHostsUpdatesActive(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.PutHosts(HostsFile{Name: "old", Mappings: map[string]string{"a.com": "1.1.1.1"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.PutLocal(Local{Hosts: "old"}); err != nil {
+		t.Fatal(err)
+	}
+	h, err := ws.RenameHosts("old", "new")
+	if err != nil || h.Name != "new" {
+		t.Fatalf("%v %v", h, err)
+	}
+	got, err := ws.GetLocal()
+	if err != nil || got.Hosts != "new" {
+		t.Fatalf("%+v %v", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(ws.Workdir(), "hosts", "new.yaml")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRenameHostsConflict(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"a", "b"} {
+		if _, err := ws.PutHosts(HostsFile{Name: n, Mappings: map[string]string{}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := ws.RenameHosts("a", "b"); !errors.Is(err, ErrHostsExists) {
+		t.Fatalf("%v", err)
 	}
 }
