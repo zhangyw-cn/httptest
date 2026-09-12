@@ -108,12 +108,9 @@ func (w *Workspace) PutLocal(local Local) (Local, error) {
 		local.Override = cleaned
 	}
 	if local.Hosts != "" {
-		cleaned, err := CleanRel(local.Hosts)
+		_, cleaned, err := w.hostsPath(local.Hosts)
 		if err != nil {
 			return Local{}, err
-		}
-		if strings.Contains(cleaned, "/") {
-			return Local{}, fmt.Errorf("invalid hosts name %q", local.Hosts)
 		}
 		local.Hosts = cleaned
 	}
