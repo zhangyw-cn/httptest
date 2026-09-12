@@ -295,6 +295,29 @@ func TestPutLocalRejectsInvalidOverrideName(t *testing.T) {
 	}
 }
 
+func TestDeleteOverridePreservesHosts(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.PutOverride(Override{Name: "dev", Variables: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.PutLocal(Local{Environment: "local", Override: "dev", Hosts: "lan"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.DeleteOverride("dev"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ws.GetLocal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Override != "" || got.Hosts != "lan" || got.Environment != "local" {
+		t.Fatalf("%+v", got)
+	}
+}
+
 func TestResolvedVarsIllegalOverrideName(t *testing.T) {
 	ws, err := Init(t.TempDir())
 	if err != nil {

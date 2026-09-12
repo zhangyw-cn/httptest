@@ -119,7 +119,7 @@ func (w *Workspace) DeleteOverride(name string) error {
 	if local.Override != cleaned {
 		return nil
 	}
-	if err := w.writeActive(local.Environment, ""); err != nil {
+	if err := w.writeActive(local.Environment, "", local.Hosts); err != nil {
 		return wrapRestore(err, os.WriteFile(path, data, perm))
 	}
 	return nil
@@ -209,7 +209,7 @@ func (w *Workspace) RenameOverride(oldName, newName string) (Override, error) {
 	if local.Override != oldClean {
 		return o, nil
 	}
-	if err := w.writeActive(local.Environment, newClean); err != nil {
+	if err := w.writeActive(local.Environment, newClean, local.Hosts); err != nil {
 		return Override{}, wrapRestore(err, rollback())
 	}
 	return o, nil

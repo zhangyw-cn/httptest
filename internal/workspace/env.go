@@ -24,11 +24,13 @@ type Environment struct {
 type Local struct {
 	Environment string `json:"environment"`
 	Override    string `json:"override"`
+	Hosts       string `json:"hosts"`
 }
 
 type activeFile struct {
 	Environment string `yaml:"environment"`
 	Override    string `yaml:"override"`
+	Hosts       string `yaml:"hosts"`
 }
 
 func (w *Workspace) envPath(name string) (string, string, error) {
@@ -105,24 +107,34 @@ func (w *Workspace) PutLocal(local Local) (Local, error) {
 		}
 		local.Override = cleaned
 	}
+	if local.Hosts != "" {
+		cleaned, err := CleanRel(local.Hosts)
+		if err != nil {
+			return Local{}, err
+		}
+		if strings.Contains(cleaned, "/") {
+			return Local{}, fmt.Errorf("invalid hosts name %q", local.Hosts)
+		}
+		local.Hosts = cleaned
+	}
 	localDir := filepath.Join(w.localDir, "local")
 	if err := os.MkdirAll(localDir, 0o700); err != nil {
 		return Local{}, err
 	}
 	_ = os.Chmod(localDir, 0o700)
-	if err := w.writeActive(local.Environment, local.Override); err != nil {
+	if err := w.writeActive(local.Environment, local.Override, local.Hosts); err != nil {
 		return Local{}, err
 	}
 	return local, nil
 }
 
-func (w *Workspace) writeActive(environment, override string) error {
+func (w *Workspace) writeActive(environment, override, hosts string) error {
 	localDir := filepath.Join(w.localDir, "local")
 	if err := os.MkdirAll(localDir, 0o700); err != nil {
 		return err
 	}
 	_ = os.Chmod(localDir, 0o700)
-	adata, err := yaml.Marshal(&activeFile{Environment: environment, Override: override})
+	adata, err := yaml.Marshal(&activeFile{Environment: environment, Override: override, Hosts: hosts})
 	if err != nil {
 		return err
 	}
@@ -153,7 +165,7 @@ func (w *Workspace) DeleteEnvironment(name string) error {
 	if local.Environment != cleaned {
 		return nil
 	}
-	if err := w.writeActive("", local.Override); err != nil {
+	if err := w.writeActive("", local.Override, local.Hosts); err != nil {
 		return wrapRestore(err, os.WriteFile(path, data, perm))
 	}
 	return nil
@@ -239,7 +251,7 @@ func (w *Workspace) RenameEnvironment(oldName, newName string) (Environment, err
 	if local.Environment != oldClean {
 		return env, nil
 	}
-	if err := w.writeActive(newClean, local.Override); err != nil {
+	if err := w.writeActive(newClean, local.Override, local.Hosts); err != nil {
 		return Environment{}, wrapRestore(err, rollback())
 	}
 	return env, nil
@@ -255,6 +267,7 @@ func (w *Workspace) GetLocal() (Local, error) {
 		}
 		out.Environment = active.Environment
 		out.Override = active.Override
+		out.Hosts = active.Hosts
 	} else if !os.IsNotExist(err) {
 		return Local{}, err
 	}

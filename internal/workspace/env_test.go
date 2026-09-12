@@ -329,6 +329,46 @@ func TestRenameEnvironmentPreservesComments(t *testing.T) {
 	}
 }
 
+func TestGetPutLocalHostsField(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.PutLocal(Local{Environment: "local", Override: "dev", Hosts: "lan"}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ws.GetLocal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Environment != "local" || got.Override != "dev" || got.Hosts != "lan" {
+		t.Fatalf("%+v", got)
+	}
+}
+
+func TestDeleteEnvironmentPreservesHosts(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.PutEnvironment(Environment{Name: "local", Variables: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.PutLocal(Local{Environment: "local", Override: "keep", Hosts: "lan"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ws.DeleteEnvironment("local"); err != nil {
+		t.Fatal(err)
+	}
+	got, err := ws.GetLocal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Environment != "" || got.Override != "keep" || got.Hosts != "lan" {
+		t.Fatalf("%+v", got)
+	}
+}
+
 func TestRenameEnvironmentSameFileUsesTemp(t *testing.T) {
 	ws, err := Init(t.TempDir())
 	if err != nil {
