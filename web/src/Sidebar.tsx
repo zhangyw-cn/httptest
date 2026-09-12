@@ -176,7 +176,7 @@ export default function Sidebar({
           {requests.length === 0 ? (
             <div className="empty-state">
               <p className="empty-title">还没有请求</p>
-              <p className="empty-hint">用标题栏 ＋ 或下方按钮创建</p>
+              <p className="empty-hint">用侧栏 ＋ 或下方按钮创建</p>
               <button type="button" className="btn" onClick={onNewRequest}>
                 新建请求
               </button>
@@ -214,7 +214,7 @@ export default function Sidebar({
           {envs.length === 0 ? (
             <div className="empty-state">
               <p className="empty-title">还没有环境</p>
-              <p className="empty-hint">用标题栏 ＋ 或下方按钮创建</p>
+              <p className="empty-hint">用侧栏 ＋ 或下方按钮创建</p>
               <button
                 type="button"
                 className="btn"
@@ -282,7 +282,7 @@ export default function Sidebar({
           {hostsList.length === 0 ? (
             <div className="empty-state">
               <p className="empty-title">还没有 Hosts</p>
-              <p className="empty-hint">用标题栏 ＋ 或下方按钮创建</p>
+              <p className="empty-hint">用侧栏 ＋ 或下方按钮创建</p>
               <button
                 type="button"
                 className="btn"
@@ -352,7 +352,7 @@ export default function Sidebar({
           {overrides.length === 0 ? (
             <div className="empty-state">
               <p className="empty-title">还没有覆盖</p>
-              <p className="empty-hint">用标题栏 ＋ 或下方按钮创建</p>
+              <p className="empty-hint">用侧栏 ＋ 或下方按钮创建</p>
               <button
                 type="button"
                 className="btn"

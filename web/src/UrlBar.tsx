@@ -66,7 +66,7 @@ export default function UrlBar({
         Stop
       </button>
       <button type="button" className="btn" onClick={onSave} disabled={saving}>
-        Save
+        保存
       </button>
     </div>
   );

@@ -59,7 +59,7 @@ export default function EnvEditor({
           onClick={onSave}
           disabled={saving || !dirty}
         >
-          Save
+          保存
         </button>
       </div>
       {error ? <p className="error env-editor-error">{error}</p> : null}

@@ -4,7 +4,15 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"io"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -254,6 +262,9 @@ func TestExecuteHostsRedirectSecondHop(t *testing.T) {
 	if len(res.Redirects) < 1 {
 		t.Fatalf("redirects=%v", res.Redirects)
 	}
+	if res.ResolvedIP != "127.0.0.1" {
+		t.Fatalf("final hop should keep mapped resolvedIP, got %q", res.ResolvedIP)
+	}
 }
 
 func TestExecuteHostsResolvedIPClearsOnUnmappedHop(t *testing.T) {
@@ -281,5 +292,82 @@ func TestExecuteHostsResolvedIPClearsOnUnmappedHop(t *testing.T) {
 	}
 	if res.ResolvedIP != "" {
 		t.Fatalf("final hop is IP literal; resolvedIP should clear, got %q", res.ResolvedIP)
+	}
+}
+
+func TestExecuteHostsMappingKeepsSNI(t *testing.T) {
+	var sawSNI string
+
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "api.example.com"},
+		DNSNames:     []string{"api.example.com"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(24 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &priv.PublicKey, priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	keyDER, err := x509.MarshalECPrivateKey(priv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
+	tlsCert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(certPEM) {
+		t.Fatal("append root")
+	}
+
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	srv.TLS = &tls.Config{
+		Certificates: []tls.Certificate{tlsCert},
+		GetConfigForClient: func(chi *tls.ClientHelloInfo) (*tls.Config, error) {
+			sawSNI = chi.ServerName
+			return nil, nil
+		},
+	}
+	srv.StartTLS()
+	defer srv.Close()
+
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	port := u.Port()
+
+	base := http.DefaultTransport.(*http.Transport)
+	prevTLS := base.TLSClientConfig
+	base.TLSClientConfig = &tls.Config{RootCAs: roots}
+	defer func() { base.TLSClientConfig = prevTLS }()
+
+	res := Execute(context.Background(), workspace.Request{
+		Method: "GET",
+		URL:    "https://api.example.com:" + port + "/x",
+	}, nil, map[string]string{
+		"api.example.com": "127.0.0.1",
+	})
+	if res.ErrorClass != ClassHTTP || res.Status != 200 || res.Body != "ok" {
+		t.Fatalf("%+v", res)
+	}
+	if sawSNI != "api.example.com" {
+		t.Fatalf("sni=%q want api.example.com", sawSNI)
+	}
+	if res.ResolvedIP != "127.0.0.1" {
+		t.Fatalf("resolvedIP=%q", res.ResolvedIP)
 	}
 }

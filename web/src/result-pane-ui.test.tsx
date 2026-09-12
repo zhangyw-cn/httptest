@@ -262,6 +262,35 @@ describe("RequestResult", () => {
   });
 });
 
+describe("ResultPaneContent resolvedIP wiring", () => {
+  it("passes result.resolvedIP into Request overview", () => {
+    const markup = renderToStaticMarkup(
+      <ResultPaneContent
+        result={sampleResult({ resolvedIP: "10.0.0.5" })}
+        tabs={{ ...defaultResultTabs(), primary: "request", requestTab: "overview" }}
+        onPrimary={noop}
+        onRequestTab={noop}
+        onResponseTab={noop}
+      />,
+    );
+    expect(markup).toContain("拨号 IP");
+    expect(markup).toContain("10.0.0.5");
+  });
+
+  it("omits dial IP row when resolvedIP is absent", () => {
+    const markup = renderToStaticMarkup(
+      <ResultPaneContent
+        result={sampleResult()}
+        tabs={{ ...defaultResultTabs(), primary: "request", requestTab: "overview" }}
+        onPrimary={noop}
+        onRequestTab={noop}
+        onResponseTab={noop}
+      />,
+    );
+    expect(markup).not.toContain("拨号 IP");
+  });
+});
+
 describe("ResultPaneContent request primary", () => {
   it("keeps selected requestTab when rendering a different result", () => {
     const tabs = {

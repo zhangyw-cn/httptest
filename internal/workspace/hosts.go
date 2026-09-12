@@ -112,9 +112,12 @@ func (w *Workspace) ListHosts() ([]HostsFile, error) {
 		if h.Mappings == nil {
 			h.Mappings = map[string]string{}
 		}
-		if norm, err := normalizeAndValidateMappings(h.Mappings); err == nil {
-			h.Mappings = norm
+		norm, err := normalizeAndValidateMappings(h.Mappings)
+		if err != nil {
+			// Skip corrupt/invalid files rather than showing unvalidated mappings.
+			continue
 		}
+		h.Mappings = norm
 		h.Name = strings.TrimSuffix(e.Name(), ".yaml")
 		list = append(list, h)
 	}

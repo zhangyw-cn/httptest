@@ -40,6 +40,27 @@ func TestPutListHostsNormalizesKeys(t *testing.T) {
 	}
 }
 
+func TestListHostsSkipsInvalidMappings(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.PutHosts(HostsFile{Name: "ok", Mappings: map[string]string{"a.com": "1.1.1.1"}}); err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(ws.Workdir(), "hosts")
+	if err := os.WriteFile(filepath.Join(root, "bad.yaml"), []byte("name: bad\nmappings:\n  a/b: \"1.1.1.1\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	list, err := ws.ListHosts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) != 1 || list[0].Name != "ok" {
+		t.Fatalf("want only ok entry, got %+v", list)
+	}
+}
+
 func TestPutHostsRejectsBadMapping(t *testing.T) {
 	ws, err := Init(t.TempDir())
 	if err != nil {
