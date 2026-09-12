@@ -50,11 +50,13 @@ function ReadonlyPairs({
 export function RequestResult({
   prepared,
   requestSize,
+  resolvedIP,
   tab,
   onTabChange,
 }: {
   prepared: HttpRequest | null | undefined;
   requestSize: number;
+  resolvedIP?: string;
   tab: RequestTab;
   onTabChange: (tab: RequestTab) => void;
 }) {
@@ -102,6 +104,7 @@ export function RequestResult({
             <span className="request-overview-url">{req.url || "—"}</span>
           </div>
           <div>请求 {sizeLabel(requestSize)}</div>
+          {resolvedIP ? <div>拨号 IP {resolvedIP}</div> : null}
           <p className="muted">变量已展开</p>
         </div>
       )}
@@ -231,6 +234,7 @@ export function ResultPaneContent({
           <RequestResult
             prepared={result.prepared}
             requestSize={result.requestSize ?? 0}
+            resolvedIP={result.resolvedIP}
             tab={requestTab}
             onTabChange={onRequestTab}
           />

@@ -234,6 +234,32 @@ describe("RequestResult", () => {
     expect(markup).toContain("变量已展开");
     expect(markup).toContain("请求 0 B");
   });
+
+  it("shows resolvedIP on request overview when present", () => {
+    const markup = renderToStaticMarkup(
+      <RequestResult
+        prepared={samplePrepared()}
+        requestSize={0}
+        resolvedIP="10.0.0.5"
+        tab="overview"
+        onTabChange={noop}
+      />,
+    );
+    expect(markup).toContain("10.0.0.5");
+    expect(markup).toContain("拨号 IP");
+  });
+
+  it("hides resolvedIP row when absent", () => {
+    const markup = renderToStaticMarkup(
+      <RequestResult
+        prepared={samplePrepared()}
+        requestSize={0}
+        tab="overview"
+        onTabChange={noop}
+      />,
+    );
+    expect(markup).not.toContain("拨号 IP");
+  });
 });
 
 describe("ResultPaneContent request primary", () => {
