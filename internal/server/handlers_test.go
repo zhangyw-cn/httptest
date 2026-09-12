@@ -387,3 +387,76 @@ func TestPutOverrideInvalidPathSegment(t *testing.T) {
 		t.Fatalf("got %d %s", rr.Code, rr.Body.Bytes())
 	}
 }
+
+func TestHostsCRUDAndLocal(t *testing.T) {
+	h := newTestHandler(t)
+	putBody := []byte(`{"name":"lan","mappings":{"api.example.com":"10.0.0.5"}}`)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/lan", putBody))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("put %d %s", rr.Code, rr.Body.Bytes())
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"","override":"","hosts":"lan"}`)))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("local %d %s", rr.Code, rr.Body.Bytes())
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/hosts/lan/rename", []byte(`{"name":"lab"}`)))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("rename %d %s", rr.Code, rr.Body.Bytes())
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodGet, "/api/local", nil))
+	var loc struct {
+		Hosts string `json:"hosts"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &loc); err != nil {
+		t.Fatal(err)
+	}
+	if loc.Hosts != "lab" {
+		t.Fatalf("%+v", loc)
+	}
+
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodDelete, "/api/hosts/lab", nil))
+	if rr.Code != http.StatusNoContent {
+		t.Fatal(rr.Code)
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodGet, "/api/local", nil))
+	if err := json.Unmarshal(rr.Body.Bytes(), &loc); err != nil {
+		t.Fatal(err)
+	}
+	if loc.Hosts != "" {
+		t.Fatalf("%+v", loc)
+	}
+}
+
+func TestHostsPutInvalidMapping(t *testing.T) {
+	h := newTestHandler(t)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/lan", []byte(`{"name":"lan","mappings":{"a/b":"1.1.1.1"}}`)))
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("got %d", rr.Code)
+	}
+}
+
+func TestHostsRenameConflict(t *testing.T) {
+	h := newTestHandler(t)
+	for _, name := range []string{"a", "b"} {
+		body := []byte(`{"name":"` + name + `","mappings":{}}`)
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/"+name, body))
+		if rr.Code != http.StatusOK {
+			t.Fatal(rr.Code)
+		}
+	}
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/hosts/a/rename", []byte(`{"name":"b"}`)))
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("got %d", rr.Code)
+	}
+}

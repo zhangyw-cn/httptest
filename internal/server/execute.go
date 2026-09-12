@@ -52,7 +52,12 @@ func (s *server) handleExecute(w http.ResponseWriter, r *http.Request) {
 		cancel()
 	}()
 
-	result := executor.Execute(ctx, body.Request, vars, nil)
+	mappings, err := s.ws.ActiveHostsMappings()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	result := executor.Execute(ctx, body.Request, vars, mappings)
 
 	raw, err := json.Marshal(result)
 	if err != nil {

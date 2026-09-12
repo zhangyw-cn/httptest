@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -209,6 +210,70 @@ func TestExecuteIllegalOverrideNameInvalid(t *testing.T) {
 	}
 	if !strings.Contains(res.ErrorMessage, "覆盖") {
 		t.Fatalf("want Chinese message, got %+v", res)
+	}
+}
+
+func TestExecuteMissingHostsFileDegrades(t *testing.T) {
+	h := newTestHandler(t)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"","override":"","hosts":"gone"}`)))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+	body := []byte(`{"id":"1","request":{"name":"t","method":"GET","url":"` + srv.URL + `","query":{},"headers":{},"body":{"type":"none"}}}`)
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/execute", body))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("%d %s", rr.Code, rr.Body.Bytes())
+	}
+}
+
+func TestExecuteUsesActiveHosts(t *testing.T) {
+	h := newTestHandler(t)
+	var sawHost string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawHost = r.Host
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+	u, _ := url.Parse(srv.URL)
+	port := u.Port()
+	put := []byte(`{"name":"lan","mappings":{"api.example.com":"127.0.0.1"}}`)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/lan", put))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code)
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"","override":"","hosts":"lan"}`)))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code)
+	}
+	reqURL := "http://api.example.com:" + port + "/x"
+	body := []byte(`{"id":"2","request":{"name":"t","method":"GET","url":"` + reqURL + `","query":{},"headers":{},"body":{"type":"none"}}}`)
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/execute", body))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("%d %s", rr.Code, rr.Body.Bytes())
+	}
+	var res struct {
+		Status     int    `json:"status"`
+		ResolvedIP string `json:"resolvedIP"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != 200 || res.ResolvedIP != "127.0.0.1" {
+		t.Fatalf("%+v", res)
+	}
+	if sawHost != "api.example.com:"+port {
+		t.Fatalf("host=%q", sawHost)
 	}
 }
 

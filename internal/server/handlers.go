@@ -181,6 +181,60 @@ func (s *server) handleRenameOverride(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, override)
 }
 
+func (s *server) handleListHosts(w http.ResponseWriter, r *http.Request) {
+	list, err := s.ws.ListHosts()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	if list == nil {
+		list = []workspace.HostsFile{}
+	}
+	writeJSON(w, http.StatusOK, list)
+}
+
+func (s *server) handlePutHosts(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	var h workspace.HostsFile
+	if err := json.NewDecoder(r.Body).Decode(&h); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	h.Name = name
+	saved, err := s.ws.PutHosts(h)
+	if err != nil {
+		writeHostsErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, saved)
+}
+
+func (s *server) handleDeleteHosts(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if err := s.ws.DeleteHosts(name); err != nil {
+		writeHostsErr(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *server) handleRenameHosts(w http.ResponseWriter, r *http.Request) {
+	oldName := r.PathValue("name")
+	var body struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	h, err := s.ws.RenameHosts(oldName, body.Name)
+	if err != nil {
+		writeHostsErr(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, h)
+}
+
 func (s *server) handleGetLocal(w http.ResponseWriter, r *http.Request) {
 	local, err := s.ws.GetLocal()
 	if err != nil {
@@ -190,6 +244,7 @@ func (s *server) handleGetLocal(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, localJSON{
 		Environment: local.Environment,
 		Override:    local.Override,
+		Hosts:       local.Hosts,
 	})
 }
 
@@ -202,6 +257,7 @@ func (s *server) handlePutLocal(w http.ResponseWriter, r *http.Request) {
 	local := workspace.Local{
 		Environment: body.Environment,
 		Override:    body.Override,
+		Hosts:       body.Hosts,
 	}
 	saved, err := s.ws.PutLocal(local)
 	if err != nil {
@@ -211,12 +267,14 @@ func (s *server) handlePutLocal(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, localJSON{
 		Environment: saved.Environment,
 		Override:    saved.Override,
+		Hosts:       saved.Hosts,
 	})
 }
 
 type localJSON struct {
 	Environment string `json:"environment"`
 	Override    string `json:"override"`
+	Hosts       string `json:"hosts"`
 }
 
 func writeEnvErr(w http.ResponseWriter, err error) {
@@ -243,6 +301,22 @@ func writeOverrideErr(w http.ResponseWriter, err error) {
 	writePathErr(w, err)
 }
 
+func writeHostsErr(w http.ResponseWriter, err error) {
+	if errors.Is(err, workspace.ErrHostsExists) {
+		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+		return
+	}
+	if errors.Is(err, workspace.ErrSameHostsName) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	if errors.Is(err, workspace.ErrInvalidHostsMapping) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	writePathErr(w, err)
+}
+
 func writePathErr(w http.ResponseWriter, err error) {
 	if isInvalidPath(err) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -262,5 +336,6 @@ func isInvalidPath(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "invalid path") ||
 		strings.Contains(msg, "invalid environment name") ||
-		strings.Contains(msg, "invalid override name")
+		strings.Contains(msg, "invalid override name") ||
+		strings.Contains(msg, "invalid hosts name")
 }
