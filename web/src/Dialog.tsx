@@ -12,7 +12,9 @@ export type DialogMode =
         | "create-env"
         | "rename-env"
         | "create-override"
-        | "rename-override";
+        | "rename-override"
+        | "create-hosts"
+        | "rename-hosts";
       hint?: string;
     }
   | {
@@ -22,7 +24,7 @@ export type DialogMode =
       submitLabel: string;
       error: string | null;
       path: string;
-      subject?: "request" | "environment" | "override";
+      subject?: "request" | "environment" | "override" | "hosts";
       next?: string;
     };
 

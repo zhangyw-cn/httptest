@@ -50,9 +50,15 @@ export interface Override {
   variables: Record<string, string>;
 }
 
+export interface HostsFile {
+  name: string;
+  mappings: Record<string, string>;
+}
+
 export interface LocalConfig {
   environment: string;
   override: string;
+  hosts: string;
 }
 
 export interface RedirectHop {
@@ -85,6 +91,7 @@ export interface Result {
   errorMessage: string;
   historyError?: string;
   missingVars?: string[];
+  resolvedIP?: string;
   prepared: HttpRequest;
 }
 

@@ -4,6 +4,7 @@ import type {
   Environment,
   ExecutePayload,
   HistoryEntry,
+  HostsFile,
   HttpRequest,
   LocalConfig,
   Override,
@@ -146,6 +147,45 @@ export async function renameOverride(
     },
   );
   return parseJSON<Override>(res);
+}
+
+export async function getHosts(): Promise<HostsFile[]> {
+  const res = await fetch("/api/hosts");
+  return parseJSON<HostsFile[]>(res);
+}
+
+export async function putHosts(
+  name: string,
+  hosts: HostsFile,
+): Promise<HostsFile> {
+  const res = await fetch(`/api/hosts/${encodeURIComponent(name)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(hosts),
+  });
+  return parseJSON<HostsFile>(res);
+}
+
+export async function deleteHosts(name: string): Promise<void> {
+  const res = await fetch(`/api/hosts/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  });
+  await parseJSON<void>(res);
+}
+
+export async function renameHosts(
+  name: string,
+  next: string,
+): Promise<HostsFile> {
+  const res = await fetch(
+    `/api/hosts/${encodeURIComponent(name)}/rename`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: next }),
+    },
+  );
+  return parseJSON<HostsFile>(res);
 }
 
 export async function getLocal(): Promise<LocalConfig> {

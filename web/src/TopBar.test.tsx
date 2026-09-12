@@ -10,7 +10,7 @@ describe("TopBar", () => {
         workdir="/tmp/project"
         envs={[]}
         overrides={[]}
-        local={{ environment: "", override: "dev" }}
+        local={{ environment: "", override: "dev", hosts: "" }}
         onEnvChange={vi.fn()}
         onOverrideChange={vi.fn()}
       />,
