@@ -6,6 +6,7 @@ describe("workMode", () => {
     expect(workMode("settings")).toBe("settings");
     expect(workMode("environment")).toBe("environment");
     expect(workMode("override")).toBe("override");
+    expect(workMode("hosts")).toBe("hosts");
     expect(workMode("collection")).toBe("request");
     expect(workMode("history")).toBe("request");
   });

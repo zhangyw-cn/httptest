@@ -37,6 +37,7 @@ export function shouldSaveOnCtrlS(view: LeftView): boolean {
     view === "collection" ||
     view === "history" ||
     view === "environment" ||
-    view === "override"
+    view === "override" ||
+    view === "hosts"
   );
 }

@@ -17,6 +17,7 @@ const ACTIVITY_TITLE: Record<LeftView, string> = {
   history: "历史",
   environment: "环境",
   override: "覆盖",
+  hosts: "Hosts",
   settings: "设置",
 };
 
@@ -45,6 +46,12 @@ const ACTIVITY_ICON: Record<LeftView, ReactElement> = {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M5 6.5h14v11H5z" />
       <path d="M8 10h8M8 14h5" />
+    </svg>
+  ),
+  hosts: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="7.2" />
+      <path d="M4.8 12h14.4M12 4.8c2.2 2.4 2.2 12 0 14.4M12 4.8c-2.2 2.4-2.2 12 0 14.4" />
     </svg>
   ),
   settings: (

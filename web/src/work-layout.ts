@@ -1,6 +1,11 @@
 import type { LeftView } from "./activity";
 
-export type WorkMode = "settings" | "environment" | "override" | "request";
+export type WorkMode =
+  | "settings"
+  | "environment"
+  | "override"
+  | "hosts"
+  | "request";
 
 export function workMode(view: LeftView): WorkMode {
   switch (view) {
@@ -10,6 +15,8 @@ export function workMode(view: LeftView): WorkMode {
       return "environment";
     case "override":
       return "override";
+    case "hosts":
+      return "hosts";
     case "collection":
     case "history":
       return "request";

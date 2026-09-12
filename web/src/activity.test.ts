@@ -58,6 +58,15 @@ describe("clickActivityIcon", () => {
     });
   });
 
+  it("opens hosts from collection and collapses it on the next click", () => {
+    const opened = clickActivityIcon(openCollection, "hosts");
+    expect(opened).toEqual({ view: "hosts", panelOpen: true });
+    expect(clickActivityIcon(opened, "hosts")).toEqual({
+      view: "hosts",
+      panelOpen: false,
+    });
+  });
+
   it("opens settings from collection and collapses it on the next click", () => {
     const opened = clickActivityIcon(openCollection, "settings");
     expect(opened).toEqual({ view: "settings", panelOpen: true });
@@ -101,13 +110,15 @@ describe("togglePanel", () => {
 });
 
 describe("ACTIVITY_VIEWS", () => {
-  it("lists only the top four icons, not settings", () => {
+  it("lists only the top five icons, not settings", () => {
     expect([...ACTIVITY_VIEWS]).toEqual([
       "collection",
       "history",
       "environment",
       "override",
+      "hosts",
     ]);
+    expect(ACTIVITY_LABEL.hosts).toBe("Hosts");
     expect(ACTIVITY_LABEL.settings).toBe("设置");
   });
 });

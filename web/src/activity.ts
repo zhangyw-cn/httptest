@@ -3,6 +3,7 @@ export type LeftView =
   | "history"
   | "environment"
   | "override"
+  | "hosts"
   | "settings";
 
 export const ACTIVITY_VIEWS: readonly LeftView[] = [
@@ -10,6 +11,7 @@ export const ACTIVITY_VIEWS: readonly LeftView[] = [
   "history",
   "environment",
   "override",
+  "hosts",
 ];
 
 export const ACTIVITY_LABEL: Record<LeftView, string> = {
@@ -17,6 +19,7 @@ export const ACTIVITY_LABEL: Record<LeftView, string> = {
   history: "历史",
   environment: "环境",
   override: "覆盖",
+  hosts: "Hosts",
   settings: "设置",
 };
 

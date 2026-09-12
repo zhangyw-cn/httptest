@@ -57,6 +57,7 @@ describe("shouldSendOnEnter", () => {
     expect(shouldSendOnEnter("history")).toBe(true);
     expect(shouldSendOnEnter("environment")).toBe(false);
     expect(shouldSendOnEnter("override")).toBe(false);
+    expect(shouldSendOnEnter("hosts")).toBe(false);
     expect(shouldSendOnEnter("settings")).toBe(false);
   });
 });
@@ -67,6 +68,7 @@ describe("shouldSaveOnCtrlS", () => {
     expect(shouldSaveOnCtrlS("history")).toBe(true);
     expect(shouldSaveOnCtrlS("environment")).toBe(true);
     expect(shouldSaveOnCtrlS("override")).toBe(true);
+    expect(shouldSaveOnCtrlS("hosts")).toBe(true);
     expect(shouldSaveOnCtrlS("settings")).toBe(false);
   });
 });
