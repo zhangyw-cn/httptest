@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { newEnvPair } from "./env";
 import {
+  hostPairsToMappings,
   hostsNameError,
   hostsAPIError,
   validateHostMappings,
@@ -23,6 +25,33 @@ describe("validateHostMappings", () => {
       validateHostMappings({ "A.com": "1.1.1.1", "a.com": "2.2.2.2" }),
     ).toMatch(/重复/);
     expect(validateHostMappings({ "api.example.com": "10.0.0.5" })).toBeNull();
+  });
+
+  it("accepts IPv6 forms ParseIP would accept and rejects junk", () => {
+    expect(validateHostMappings({ "a.com": "2001:db8::1" })).toBeNull();
+    expect(validateHostMappings({ "a.com": "::ffff:127.0.0.1" })).toBeNull();
+    expect(validateHostMappings({ "a.com": ":::" })).toMatch(/IP/);
+  });
+});
+
+describe("hostPairsToMappings", () => {
+  it("rejects duplicate hosts across editor rows before map merge", () => {
+    const result = hostPairsToMappings([
+      newEnvPair("Foo.com", "1.1.1.1"),
+      newEnvPair("foo.com", "2.2.2.2"),
+    ]);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toMatch(/重复/);
+  });
+
+  it("normalizes keys on success", () => {
+    const result = hostPairsToMappings([
+      newEnvPair("API.Example.COM", "10.0.0.5"),
+    ]);
+    expect(result).toEqual({
+      ok: true,
+      mappings: { "api.example.com": "10.0.0.5" },
+    });
   });
 });
 

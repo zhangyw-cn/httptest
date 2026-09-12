@@ -236,11 +236,15 @@ func newExecuteTransport(mappings map[string]string, lastResolved *string) *http
 	dialer := &net.Dialer{}
 	t.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
 		addr, ip, hit := mapDialAddress(address, mappings)
+		if lastResolved != nil {
+			if hit {
+				*lastResolved = ip
+			} else {
+				*lastResolved = ""
+			}
+		}
 		if hit {
 			address = addr
-			if lastResolved != nil {
-				*lastResolved = ip
-			}
 		}
 		return dialer.DialContext(ctx, network, address)
 	}

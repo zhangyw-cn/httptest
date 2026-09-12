@@ -255,3 +255,31 @@ func TestExecuteHostsRedirectSecondHop(t *testing.T) {
 		t.Fatalf("redirects=%v", res.Redirects)
 	}
 }
+
+func TestExecuteHostsResolvedIPClearsOnUnmappedHop(t *testing.T) {
+	mux := http.NewServeMux()
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	u, _ := url.Parse(srv.URL)
+	port := u.Port()
+	mux.HandleFunc("/a", func(w http.ResponseWriter, r *http.Request) {
+		// Second hop uses the literal server host (IP), which must not remap.
+		http.Redirect(w, r, srv.URL+"/b", http.StatusFound)
+	})
+	mux.HandleFunc("/b", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("done"))
+	})
+	res := Execute(context.Background(), workspace.Request{
+		Method: "GET",
+		URL:    "http://api.example.com:" + port + "/a",
+	}, nil, map[string]string{
+		"api.example.com": "127.0.0.1",
+	})
+	if res.ErrorClass != ClassHTTP || res.Status != 200 || res.Body != "done" {
+		t.Fatalf("%+v", res)
+	}
+	if res.ResolvedIP != "" {
+		t.Fatalf("final hop is IP literal; resolvedIP should clear, got %q", res.ResolvedIP)
+	}
+}

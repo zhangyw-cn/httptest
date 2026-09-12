@@ -98,6 +98,34 @@ func TestActiveHostsMappings(t *testing.T) {
 	}
 }
 
+func TestActiveHostsMappingsCorruptFileDegrades(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(ws.Workdir(), "hosts")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "bad.yaml"), []byte(":::not-yaml"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.PutLocal(Local{Hosts: "bad"}); err != nil {
+		t.Fatal(err)
+	}
+	m, err := ws.ActiveHostsMappings()
+	if err != nil || m != nil {
+		t.Fatalf("corrupt yaml should degrade: %v %v", m, err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "bad.yaml"), []byte("name: bad\nmappings:\n  a/b: \"1.1.1.1\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m, err = ws.ActiveHostsMappings()
+	if err != nil || m != nil {
+		t.Fatalf("invalid mappings should degrade: %v %v", m, err)
+	}
+}
+
 func TestDeleteHostsClearsActive(t *testing.T) {
 	ws, err := Init(t.TempDir())
 	if err != nil {

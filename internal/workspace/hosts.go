@@ -143,9 +143,15 @@ func (w *Workspace) ActiveHostsMappings() (map[string]string, error) {
 	}
 	var h HostsFile
 	if err := yaml.Unmarshal(data, &h); err != nil {
-		return nil, err
+		// Corrupt YAML: degrade like a missing file so execute is not blocked.
+		return nil, nil
 	}
-	return normalizeAndValidateMappings(h.Mappings)
+	mappings, err := normalizeAndValidateMappings(h.Mappings)
+	if err != nil {
+		// Invalid mappings on disk: degrade to system DNS (same as missing).
+		return nil, nil
+	}
+	return mappings, nil
 }
 
 func (w *Workspace) DeleteHosts(name string) error {

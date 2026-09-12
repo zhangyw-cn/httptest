@@ -55,11 +55,11 @@ import {
   type EnvPair,
 } from "./env";
 import {
+  hostPairsToMappings,
   hostsAPIError,
   hostsDeleteDialog,
   hostsNameError,
   hostsRenameConfirmDialog,
-  validateHostMappings,
 } from "./hosts";
 import {
   overrideAPIError,
@@ -579,12 +579,12 @@ export default function App() {
     const name = editingHostsRef.current;
     if (!name) return;
     if (!isEnvDirty(hostsPairsRef.current, hostsSavedRef.current)) return;
-    const mappings = pairsToVars(hostsPairsRef.current);
-    const invalid = validateHostMappings(mappings);
-    if (invalid) {
-      setHostsError(invalid);
+    const converted = hostPairsToMappings(hostsPairsRef.current);
+    if (!converted.ok) {
+      setHostsError(converted.error);
       return;
     }
+    const mappings = converted.mappings;
     const epoch = hostsEpochRef.current;
     hostsSavingRef.current = true;
     setHostsSaving(true);
