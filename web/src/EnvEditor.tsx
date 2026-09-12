@@ -11,6 +11,8 @@ interface Props {
   onRename: () => void;
   emptyTitle?: string;
   maskValues?: boolean;
+  keyHeader?: string;
+  valueHeader?: string;
 }
 
 export default function EnvEditor({
@@ -24,6 +26,8 @@ export default function EnvEditor({
   onRename,
   emptyTitle = "在左侧选择一个环境，或新建",
   maskValues = false,
+  keyHeader = "键",
+  valueHeader = "值",
 }: Props) {
   if (!name) {
     return (
@@ -63,8 +67,8 @@ export default function EnvEditor({
         <table className="kv-table">
           <thead>
             <tr>
-              <th>键</th>
-              <th>值</th>
+              <th>{keyHeader}</th>
+              <th>{valueHeader}</th>
               <th />
             </tr>
           </thead>

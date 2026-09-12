@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import { listHistory } from "./api";
 import { buildRequestTree, type TreeNode } from "./tree";
 import type { LeftView } from "./activity";
+import { hostsRowStates } from "./hosts";
 import { overrideRowStates } from "./override";
 import type {
   Environment,
   HistoryEntry,
+  HostsFile,
   Override,
   RequestMeta,
 } from "./types";
@@ -31,8 +33,15 @@ interface Props {
   onSelectOverride: (name: string) => void;
   onNewOverride: () => void;
   onDeleteOverride: (name: string) => void;
+  hostsList: HostsFile[];
+  editingHosts: string | null;
+  activeHosts: string;
+  onSelectHosts: (name: string) => void;
+  onNewHosts: () => void;
+  onDeleteHosts: (name: string) => void;
   envBusy?: boolean;
   overrideBusy?: boolean;
+  hostsBusy?: boolean;
 }
 
 function TreeItems({
@@ -114,8 +123,15 @@ export default function Sidebar({
   onSelectOverride,
   onNewOverride,
   onDeleteOverride,
+  hostsList,
+  editingHosts,
+  activeHosts,
+  onSelectHosts,
+  onNewHosts,
+  onDeleteHosts,
   envBusy = false,
   overrideBusy = false,
+  hostsBusy = false,
 }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [histError, setHistError] = useState<string | null>(null);
@@ -233,6 +249,76 @@ export default function Sidebar({
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteEnv(env.name);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </aside>
+    );
+  }
+
+  if (view === "hosts") {
+    return (
+      <aside className="sidebar">
+        <div className="sidebar-head">
+          Hosts
+          <button
+            type="button"
+            className="btn-icon"
+            title="新建"
+            onClick={onNewHosts}
+            disabled={hostsBusy}
+          >
+            ＋
+          </button>
+        </div>
+        <div className="sidebar-body">
+          {hostsList.length === 0 ? (
+            <div className="empty-state">
+              <p className="empty-title">还没有 Hosts</p>
+              <p className="empty-hint">用标题栏 ＋ 或下方按钮创建</p>
+              <button
+                type="button"
+                className="btn"
+                onClick={onNewHosts}
+                disabled={hostsBusy}
+              >
+                新建 Hosts
+              </button>
+            </div>
+          ) : (
+            <ul className="req-list">
+              {hostsRowStates(
+                hostsList.map((item) => item.name),
+                activeHosts,
+                editingHosts,
+              ).map((row) => (
+                <li key={row.name}>
+                  <div className="tree-row">
+                    <button
+                      type="button"
+                      className={row.itemClassName}
+                      onClick={() => onSelectHosts(row.name)}
+                    >
+                      <span className="req-path">{row.name}</span>
+                      {row.showSendBadge ? (
+                        <span className="env-send-badge">发送</span>
+                      ) : null}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-icon"
+                      title="删除"
+                      disabled={hostsBusy}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteHosts(row.name);
                       }}
                     >
                       ×

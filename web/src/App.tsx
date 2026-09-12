@@ -4,19 +4,23 @@ import {
   cancelExecute,
   createRequest,
   deleteEnvironment,
+  deleteHosts,
   deleteOverride,
   deleteRequest,
   execute,
   getEnvironments,
+  getHosts,
   getLocal,
   getOverrides,
   getRequest,
   getWorkspace,
   putEnvironment,
+  putHosts,
   putLocal,
   putOverride,
   putRequest,
   renameEnvironment,
+  renameHosts,
   renameOverride,
 } from "./api";
 import {
@@ -43,12 +47,20 @@ import {
   envNameError,
   environmentAPIError,
   isEnvDirty,
+  newEnvPair,
   openEnvForEdit,
   pairsToVars,
   varsJSON,
   varsToPairs,
   type EnvPair,
 } from "./env";
+import {
+  hostsAPIError,
+  hostsDeleteDialog,
+  hostsNameError,
+  hostsRenameConfirmDialog,
+  validateHostMappings,
+} from "./hosts";
 import {
   overrideAPIError,
   overrideDeleteDialog,
@@ -70,6 +82,7 @@ import {
 import type {
   Environment,
   HistoryEntry,
+  HostsFile,
   HttpRequest,
   LocalConfig,
   Override,
@@ -94,6 +107,12 @@ export default function App() {
   const [overrideDirty, setOverrideDirty] = useState(false);
   const [overrideSaving, setOverrideSaving] = useState(false);
   const [overrideError, setOverrideError] = useState<string | null>(null);
+  const [hostsList, setHostsList] = useState<HostsFile[]>([]);
+  const [editingHosts, setEditingHosts] = useState<string | null>(null);
+  const [hostsPairs, setHostsPairs] = useState<EnvPair[]>(() => [newEnvPair()]);
+  const [hostsDirty, setHostsDirty] = useState(false);
+  const [hostsSaving, setHostsSaving] = useState(false);
+  const [hostsError, setHostsError] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [draft, setDraft] = useState<HttpRequest>(defaultDraft);
   const [dirty, setDirty] = useState(false);
@@ -144,6 +163,16 @@ export default function App() {
   overridePairsRef.current = overridePairs;
   const overridesRef = useRef(overrides);
   overridesRef.current = overrides;
+  const editingHostsRef = useRef(editingHosts);
+  editingHostsRef.current = editingHosts;
+  const hostsSavingRef = useRef(hostsSaving);
+  hostsSavingRef.current = hostsSaving;
+  const hostsEpochRef = useRef(0);
+  const hostsSavedRef = useRef(varsJSON({}));
+  const hostsPairsRef = useRef(hostsPairs);
+  hostsPairsRef.current = hostsPairs;
+  const hostsListRef = useRef(hostsList);
+  hostsListRef.current = hostsList;
 
   const applyDraft = useCallback((next: HttpRequest, saved?: boolean) => {
     const n = normalizeRequest(next);
@@ -181,21 +210,32 @@ export default function App() {
     setOverrideError(null);
   }, []);
 
+  const loadHosts = useCallback((h: HostsFile) => {
+    hostsEpochRef.current += 1;
+    setEditingHosts(h.name);
+    setHostsPairs(varsToPairs(h.mappings ?? {}));
+    hostsSavedRef.current = varsJSON(h.mappings ?? {});
+    setHostsDirty(false);
+    setHostsError(null);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [ws, loc, environments, overrideList] = await Promise.all([
+        const [ws, loc, environments, overrideList, hosts] = await Promise.all([
           getWorkspace(),
           getLocal(),
           getEnvironments(),
           getOverrides(),
+          getHosts(),
         ]);
         if (cancelled) return;
         setWorkspace(ws);
         setLocal(loc);
         setEnvs(environments);
         setOverrides(overrideList);
+        setHostsList(hosts);
         setError(null);
       } catch (err) {
         if (!cancelled) {
@@ -220,6 +260,12 @@ export default function App() {
     const next = { ...local, override };
     const saved = await putLocal(next);
     setLocal(saved);
+  }
+
+  async function onHostsChange(hosts: string) {
+    if (!local || local.hosts === hosts) return;
+    const next = { ...local, hosts };
+    setLocal(await putLocal(next));
   }
 
   function onThemeChange(pref: ThemePref) {
@@ -364,6 +410,47 @@ export default function App() {
     });
   }
 
+  function onSelectHosts(name: string) {
+    const h = hostsList.find((item) => item.name === name);
+    if (!h) return;
+    loadHosts(h);
+  }
+
+  function openNewHostsDialog() {
+    if (hostsSavingRef.current) return;
+    setDialogError(null);
+    setDialog({
+      kind: "path",
+      title: "新建 Hosts",
+      submitLabel: "创建",
+      error: null,
+      intent: "create-hosts",
+      hint: "文件名，例如 lan，不能含 /",
+    });
+  }
+
+  function openDeleteHostsDialog(name: string) {
+    if (hostsSavingRef.current) return;
+    const isActive = local?.hosts === name;
+    setDialogError(null);
+    setDialog(hostsDeleteDialog(name, isActive));
+  }
+
+  function openRenameHostsDialog() {
+    if (hostsSavingRef.current) return;
+    const name = editingHostsRef.current;
+    if (!name) return;
+    setDialogError(null);
+    setDialog({
+      kind: "path",
+      title: "重命名 Hosts",
+      submitLabel: "重命名",
+      error: null,
+      intent: "rename-hosts",
+      hint: "文件名，例如 lan，不能含 /",
+    });
+  }
+
   function onSelectHistory(entry: HistoryEntry) {
     applyDraft(entry.request);
     if (entry.requestPath) setCurrentPath(entry.requestPath);
@@ -487,6 +574,51 @@ export default function App() {
     }
   }, []);
 
+  const onSaveHosts = useCallback(async () => {
+    if (hostsSavingRef.current) return;
+    const name = editingHostsRef.current;
+    if (!name) return;
+    if (!isEnvDirty(hostsPairsRef.current, hostsSavedRef.current)) return;
+    const mappings = pairsToVars(hostsPairsRef.current);
+    const invalid = validateHostMappings(mappings);
+    if (invalid) {
+      setHostsError(invalid);
+      return;
+    }
+    const epoch = hostsEpochRef.current;
+    hostsSavingRef.current = true;
+    setHostsSaving(true);
+    setHostsError(null);
+    try {
+      const saved = await putHosts(name, { name, mappings });
+      const list = await getHosts();
+      setHostsList(list);
+      const apply = applyEnvSaveResult({
+        savedName: name,
+        editingName: editingHostsRef.current,
+        epochAtStart: epoch,
+        epochNow: hostsEpochRef.current,
+        currentPairs: hostsPairsRef.current,
+        saved: { name: saved.name, variables: saved.mappings },
+      });
+      if (apply.action === "reload") {
+        setEditingHosts(apply.env.name);
+        hostsSavedRef.current = varsJSON(apply.env.variables);
+        setHostsDirty(false);
+      } else if (apply.action === "keep") {
+        hostsSavedRef.current = apply.snapshot;
+        setHostsDirty(apply.dirty);
+      }
+    } catch (err) {
+      setHostsError(
+        hostsAPIError(err instanceof Error ? err.message : String(err)),
+      );
+    } finally {
+      hostsSavingRef.current = false;
+      setHostsSaving(false);
+    }
+  }, []);
+
   const saveToPath = useCallback(async (path: string) => {
     setSaving(true);
     try {
@@ -528,6 +660,38 @@ export default function App() {
       if (current.kind === "path") {
         const p = path?.trim() ?? "";
         if (!p) return;
+        if (current.intent === "rename-hosts") {
+          if (hostsSavingRef.current) {
+            setDialogError("请等待 Hosts 保存完成");
+            return;
+          }
+          const oldName = editingHostsRef.current;
+          if (!oldName) return;
+          if (p === oldName) {
+            setDialogError("不能改成当前名称");
+            return;
+          }
+          const others = hostsListRef.current
+            .map((item) => item.name)
+            .filter((name) => name !== oldName);
+          const err = hostsNameError(p, others);
+          if (err) {
+            setDialogError(err);
+            return;
+          }
+          if (local?.hosts === oldName) {
+            setDialog(hostsRenameConfirmDialog(oldName, p));
+            return;
+          }
+          const renamed = await renameHosts(oldName, p);
+          const [list, loc] = await Promise.all([getHosts(), getLocal()]);
+          setHostsList(list);
+          setLocal(loc);
+          loadHosts(renamed);
+          setDialog(null);
+          setDialogError(null);
+          return;
+        }
         if (current.intent === "rename-override") {
           if (overrideSavingRef.current) {
             setDialogError("请等待覆盖保存完成");
@@ -639,6 +803,27 @@ export default function App() {
           setDialogError(null);
           return;
         }
+        if (current.intent === "create-hosts") {
+          if (hostsSavingRef.current) {
+            setDialogError("请等待 Hosts 保存完成");
+            return;
+          }
+          const err = hostsNameError(
+            p,
+            hostsListRef.current.map((item) => item.name),
+          );
+          if (err) {
+            setDialogError(err);
+            return;
+          }
+          await putHosts(p, { name: p, mappings: {} });
+          const list = await getHosts();
+          setHostsList(list);
+          loadHosts({ name: p, mappings: {} });
+          setDialog(null);
+          setDialogError(null);
+          return;
+        }
         if (current.intent === "create") {
           const req = defaultDraft();
           const segs = p.split("/").filter(Boolean);
@@ -651,6 +836,33 @@ export default function App() {
           await saveToPath(p);
         }
       } else {
+        if (current.subject === "hosts") {
+          if (hostsSavingRef.current) {
+            setDialogError("请等待 Hosts 保存完成");
+            return;
+          }
+          if (current.next) {
+            const renamed = await renameHosts(current.path, current.next);
+            const [list, loc] = await Promise.all([getHosts(), getLocal()]);
+            setHostsList(list);
+            setLocal(loc);
+            loadHosts(renamed);
+          } else {
+            await deleteHosts(current.path);
+            const [list, loc] = await Promise.all([getHosts(), getLocal()]);
+            setHostsList(list);
+            setLocal(loc);
+            if (editingHostsRef.current === current.path) {
+              hostsEpochRef.current += 1;
+              setEditingHosts(null);
+              setHostsPairs([newEnvPair()]);
+              setHostsDirty(false);
+            }
+          }
+          setDialog(null);
+          setDialogError(null);
+          return;
+        }
         if (current.subject === "override") {
           if (overrideSavingRef.current) {
             setDialogError("请等待覆盖保存完成");
@@ -728,12 +940,19 @@ export default function App() {
           (current.intent === "create-override" ||
             current.intent === "rename-override")) ||
         (current.kind === "confirm" && current.subject === "override");
+      const hostsOp =
+        (current.kind === "path" &&
+          (current.intent === "create-hosts" ||
+            current.intent === "rename-hosts")) ||
+        (current.kind === "confirm" && current.subject === "hosts");
       setDialogError(
-        overrideOp
-          ? overrideAPIError(message)
-          : envOp
-            ? environmentAPIError(message)
-            : message,
+        hostsOp
+          ? hostsAPIError(message)
+          : overrideOp
+            ? overrideAPIError(message)
+            : envOp
+              ? environmentAPIError(message)
+              : message,
       );
     }
   }
@@ -759,6 +978,8 @@ export default function App() {
           void onSaveEnv();
         } else if (leftRef.current.view === "override") {
           void onSaveOverride();
+        } else if (leftRef.current.view === "hosts") {
+          void onSaveHosts();
         } else {
           void onSave();
         }
@@ -776,7 +997,7 @@ export default function App() {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onSave, onSaveEnv, onSaveOverride, onSend, onStop]);
+  }, [onSave, onSaveEnv, onSaveHosts, onSaveOverride, onSend, onStop]);
 
   const dialogMode =
     dialog === null
@@ -791,9 +1012,11 @@ export default function App() {
         workdir={workspace?.workdir ?? ""}
         envs={envs}
         overrides={overrides}
+        hosts={hostsList}
         local={local}
         onEnvChange={onEnvChange}
         onOverrideChange={onOverrideChange}
+        onHostsChange={onHostsChange}
       />
       {error && <div className="banner error">{error}</div>}
       {/* eslint-disable-next-line react/no-unknown-property */}
@@ -831,8 +1054,15 @@ export default function App() {
               onSelectOverride={onSelectOverride}
               onNewOverride={openNewOverrideDialog}
               onDeleteOverride={openDeleteOverrideDialog}
+              hostsList={hostsList}
+              editingHosts={editingHosts}
+              activeHosts={local?.hosts ?? ""}
+              onSelectHosts={onSelectHosts}
+              onNewHosts={openNewHostsDialog}
+              onDeleteHosts={openDeleteHostsDialog}
               envBusy={envSaving}
               overrideBusy={overrideSaving}
+              hostsBusy={hostsSaving}
             />
           ))}
         <div className="work">
@@ -865,6 +1095,23 @@ export default function App() {
               onPairsChange={onOverridePairsChange}
               onSave={() => void onSaveOverride()}
               onRename={openRenameOverrideDialog}
+            />
+          ) : mode === "hosts" ? (
+            <EnvEditor
+              name={editingHosts}
+              pairs={hostsPairs}
+              dirty={hostsDirty}
+              saving={hostsSaving}
+              error={hostsError}
+              emptyTitle="在左侧选择一套 Hosts，或新建"
+              keyHeader="主机名"
+              valueHeader="IP"
+              onPairsChange={(next) => {
+                setHostsPairs(next);
+                setHostsDirty(isEnvDirty(next, hostsSavedRef.current));
+              }}
+              onSave={() => void onSaveHosts()}
+              onRename={openRenameHostsDialog}
             />
           ) : (
             <>
