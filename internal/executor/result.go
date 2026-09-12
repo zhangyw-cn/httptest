@@ -44,5 +44,6 @@ type Result struct {
 	ErrorMessage string              `json:"errorMessage"`
 	HistoryError string              `json:"historyError,omitempty"`
 	MissingVars  []string            `json:"missingVars,omitempty"`
+	ResolvedIP   string              `json:"resolvedIP,omitempty"`
 	Prepared     workspace.Request   `json:"prepared"`
 }

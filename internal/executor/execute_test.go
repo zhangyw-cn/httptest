@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -40,7 +41,7 @@ func TestExecuteJSONOK(t *testing.T) {
 		URL:    "{{baseUrl}}/login",
 		Body:   workspace.Body{Type: workspace.BodyJSON, Text: `{"u":"{{user}}"}`},
 	}
-	res := Execute(context.Background(), req, map[string]string{"baseUrl": srv.URL, "user": "n"})
+	res := Execute(context.Background(), req, map[string]string{"baseUrl": srv.URL, "user": "n"}, nil)
 	if res.ErrorClass != ClassHTTP || res.Status != 200 || res.Body != `{"ok":true}` {
 		t.Fatalf("%+v", res)
 	}
@@ -80,7 +81,7 @@ func TestExecuteMissingVarDoesNotHitServer(t *testing.T) {
 	hit := false
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { hit = true }))
 	defer srv.Close()
-	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: "{{missing}}/x"}, nil)
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: "{{missing}}/x"}, nil, nil)
 	if hit {
 		t.Fatal("server hit")
 	}
@@ -94,7 +95,7 @@ func TestExecuteNotFoundIsHTTP(t *testing.T) {
 		http.NotFound(w, r)
 	}))
 	defer srv.Close()
-	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL + "/nope"}, nil)
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL + "/nope"}, nil, nil)
 	if res.ErrorClass != ClassHTTP || res.Status != 404 {
 		t.Fatalf("%+v", res)
 	}
@@ -107,7 +108,7 @@ func TestExecuteSendsConnectionClose(t *testing.T) {
 		w.WriteHeader(200)
 	}))
 	defer srv.Close()
-	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL}, nil)
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL}, nil, nil)
 	if res.ErrorClass != ClassHTTP || res.Status != 200 {
 		t.Fatalf("%+v", res)
 	}
@@ -120,7 +121,7 @@ func TestExecuteSendsConnectionClose(t *testing.T) {
 }
 
 func TestExecuteTransportIgnoresProxy(t *testing.T) {
-	tr := newExecuteTransport()
+	tr := newExecuteTransport(nil, nil)
 	if tr.Proxy != nil {
 		t.Fatal("Proxy must be nil so HTTP_PROXY/HTTPS_PROXY are ignored")
 	}
@@ -149,7 +150,7 @@ func TestExecuteBodyReadErrorSetsMessage(t *testing.T) {
 		_ = conn.Close()
 	}))
 	defer srv.Close()
-	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL}, nil)
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL}, nil, nil)
 	if res.ErrorMessage == "" {
 		t.Fatalf("want ErrorMessage on body read failure, got %+v", res)
 	}
@@ -181,7 +182,7 @@ func TestGzipDumpKeepsEncodingAndWireSize(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL}, nil)
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL}, nil, nil)
 	if res.ErrorClass != ClassHTTP || res.Status != 200 {
 		t.Fatalf("%+v", res)
 	}
@@ -193,5 +194,64 @@ func TestGzipDumpKeepsEncodingAndWireSize(t *testing.T) {
 	}
 	if !strings.Contains(res.ResponseDump, "Content-Encoding: gzip") {
 		t.Fatalf("dump missing Content-Encoding:\n%s", res.ResponseDump)
+	}
+}
+
+func TestExecuteHostsMappingKeepsHostHeader(t *testing.T) {
+	var sawHost string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawHost = r.Host
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+	u, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostURL := "http://api.example.com:" + u.Port() + "/x"
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: hostURL}, nil, map[string]string{
+		"api.example.com": "127.0.0.1",
+	})
+	if res.ErrorClass != ClassHTTP || res.Status != 200 {
+		t.Fatalf("%+v", res)
+	}
+	if sawHost != "api.example.com:"+u.Port() {
+		t.Fatalf("host=%q", sawHost)
+	}
+	if res.ResolvedIP != "127.0.0.1" {
+		t.Fatalf("resolvedIP=%q", res.ResolvedIP)
+	}
+}
+
+func TestExecuteHostsRedirectSecondHop(t *testing.T) {
+	mux := http.NewServeMux()
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	u, _ := url.Parse(srv.URL)
+	port := u.Port()
+	mux.HandleFunc("/a", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "http://pay.example.com:"+port+"/b", http.StatusFound)
+	})
+	mux.HandleFunc("/b", func(w http.ResponseWriter, r *http.Request) {
+		if r.Host != "pay.example.com:"+port {
+			t.Errorf("hop2 host=%q", r.Host)
+		}
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("done"))
+	})
+	mappings := map[string]string{
+		"api.example.com": "127.0.0.1",
+		"pay.example.com": "127.0.0.1",
+	}
+	res := Execute(context.Background(), workspace.Request{
+		Method: "GET",
+		URL:    "http://api.example.com:" + port + "/a",
+	}, nil, mappings)
+	if res.ErrorClass != ClassHTTP || res.Status != 200 || res.Body != "done" {
+		t.Fatalf("%+v", res)
+	}
+	if len(res.Redirects) < 1 {
+		t.Fatalf("redirects=%v", res.Redirects)
 	}
 }

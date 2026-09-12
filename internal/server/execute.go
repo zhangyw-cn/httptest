@@ -52,7 +52,7 @@ func (s *server) handleExecute(w http.ResponseWriter, r *http.Request) {
 		cancel()
 	}()
 
-	result := executor.Execute(ctx, body.Request, vars)
+	result := executor.Execute(ctx, body.Request, vars, nil)
 
 	raw, err := json.Marshal(result)
 	if err != nil {

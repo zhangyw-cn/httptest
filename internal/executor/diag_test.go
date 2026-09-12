@@ -23,7 +23,7 @@ func TestRedirectChain(t *testing.T) {
 		_, _ = w.Write([]byte("ok"))
 	}))
 	defer srv.Close()
-	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL + "/a"}, nil)
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL + "/a"}, nil, nil)
 	if res.ErrorClass != ClassHTTP || res.Status != 200 || res.Body != "ok" {
 		t.Fatalf("%+v", res)
 	}
@@ -45,7 +45,7 @@ func TestRedirectFollowsTenThenOK(t *testing.T) {
 		_, _ = w.Write([]byte("ok"))
 	}))
 	defer srv.Close()
-	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL + "/0"}, nil)
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL + "/0"}, nil, nil)
 	if res.ErrorClass != ClassHTTP || res.Status != 200 || res.Body != "ok" {
 		t.Fatalf("%+v", res)
 	}
@@ -63,7 +63,7 @@ func TestRedirectLimitSurfaced(t *testing.T) {
 		http.Redirect(w, r, srv.URL+"/next", http.StatusFound)
 	}))
 	defer srv.Close()
-	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL}, nil)
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL}, nil, nil)
 	if res.ErrorClass != ClassHTTP || res.Status != http.StatusFound {
 		t.Fatalf("%+v", res)
 	}
@@ -77,7 +77,7 @@ func TestRedirectLimitSurfaced(t *testing.T) {
 
 func TestUnsupportedSchemeIsInvalid(t *testing.T) {
 	for _, raw := range []string{"file:///etc/passwd", "ftp://example.com/", "/relative-path"} {
-		res := Execute(context.Background(), workspace.Request{Method: "GET", URL: raw}, nil)
+		res := Execute(context.Background(), workspace.Request{Method: "GET", URL: raw}, nil, nil)
 		if res.ErrorClass != ClassInvalid {
 			t.Fatalf("%s: class=%s msg=%s", raw, res.ErrorClass, res.ErrorMessage)
 		}
@@ -90,14 +90,14 @@ func TestTimeoutClass(t *testing.T) {
 		w.WriteHeader(200)
 	}))
 	defer srv.Close()
-	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL, Timeout: "50ms"}, nil)
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL, Timeout: "50ms"}, nil, nil)
 	if res.ErrorClass != ClassTimeout {
 		t.Fatalf("%+v", res)
 	}
 }
 
 func TestDNSClass(t *testing.T) {
-	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: "http://no-such-host.invalid/"}, nil)
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: "http://no-such-host.invalid/"}, nil, nil)
 	if res.ErrorClass != ClassDNS {
 		t.Fatalf("%+v", res)
 	}
@@ -107,7 +107,7 @@ func TestTLSClass(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	defer srv.Close()
 	httpsURL := "https://" + strings.TrimPrefix(srv.URL, "http://")
-	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: httpsURL}, nil)
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: httpsURL}, nil, nil)
 	if res.ErrorClass != ClassTLS {
 		t.Fatalf("%+v", res)
 	}
@@ -120,7 +120,7 @@ func TestCanceledClass(t *testing.T) {
 	defer srv.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	res := Execute(ctx, workspace.Request{Method: "GET", URL: srv.URL}, nil)
+	res := Execute(ctx, workspace.Request{Method: "GET", URL: srv.URL}, nil, nil)
 	if res.ErrorClass != ClassCanceled {
 		t.Fatalf("%+v", res)
 	}
@@ -132,7 +132,7 @@ func TestTruncateBody(t *testing.T) {
 		_, _ = w.Write([]byte(big))
 	}))
 	defer srv.Close()
-	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL}, nil)
+	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL}, nil, nil)
 	if !res.Truncated || len(res.Body) != 2*1024*1024 {
 		t.Fatalf("truncated=%v len=%d", res.Truncated, len(res.Body))
 	}

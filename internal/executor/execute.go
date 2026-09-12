@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptrace"
 	"net/http/httputil"
@@ -17,7 +18,7 @@ import (
 
 const maxBodyBytes = 2 * 1024 * 1024
 
-func Execute(ctx context.Context, req workspace.Request, vars map[string]string) (res Result) {
+func Execute(ctx context.Context, req workspace.Request, vars map[string]string, hosts map[string]string) (res Result) {
 	start := time.Now()
 	var timings Timings
 	defer func() {
@@ -140,8 +141,9 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string)
 
 	var redirects []RedirectHop
 	redirectLimit := false
+	var lastResolved string
 	client := &http.Client{
-		Transport: newExecuteTransport(),
+		Transport: newExecuteTransport(hosts, &lastResolved),
 		CheckRedirect: func(r *http.Request, via []*http.Request) error {
 			if len(via) > 10 {
 				redirectLimit = true
@@ -162,6 +164,7 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string)
 
 	resp, err := client.Do(httpReq)
 	res.Redirects = redirects
+	res.ResolvedIP = lastResolved
 	if err != nil {
 		res.ErrorClass = classify(err)
 		res.ErrorMessage = err.Error()
@@ -220,13 +223,27 @@ func elapsedMs(start, end time.Time) float64 {
 	return float64(end.Sub(start)) / float64(time.Millisecond)
 }
 
-func newExecuteTransport() *http.Transport {
+func newExecuteTransport(mappings map[string]string, lastResolved *string) *http.Transport {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	// Ignore HTTP_PROXY/HTTPS_PROXY so a company proxy cannot silently
 	// intercept or block this local debugger. Documented in the design spec.
 	t.Proxy = nil
 	t.DisableKeepAlives = true
 	t.DisableCompression = true
+	if len(mappings) == 0 {
+		return t
+	}
+	dialer := &net.Dialer{}
+	t.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		addr, ip, hit := mapDialAddress(address, mappings)
+		if hit {
+			address = addr
+			if lastResolved != nil {
+				*lastResolved = ip
+			}
+		}
+		return dialer.DialContext(ctx, network, address)
+	}
 	return t
 }
 
