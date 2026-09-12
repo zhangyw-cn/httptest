@@ -1,26 +1,34 @@
-import type { Environment, LocalConfig, Override } from "./types";
+import type { Environment, HostsFile, LocalConfig, Override } from "./types";
 
 interface Props {
   workdir: string;
   envs: Environment[];
   overrides: Override[];
+  hosts: HostsFile[];
   local: LocalConfig | null;
   onEnvChange: (environment: string) => void;
   onOverrideChange: (override: string) => void;
+  onHostsChange: (hosts: string) => void;
 }
 
 export default function TopBar({
   workdir,
   envs,
   overrides,
+  hosts,
   local,
   onEnvChange,
   onOverrideChange,
+  onHostsChange,
 }: Props) {
   const activeOverride = local?.override ?? "";
   const missingOverride =
     activeOverride !== "" &&
     !overrides.some((override) => override.name === activeOverride);
+  const activeHosts = local?.hosts ?? "";
+  const missingHosts =
+    activeHosts !== "" &&
+    !hosts.some((item) => item.name === activeHosts);
 
   return (
     <header className="topbar">
@@ -60,6 +68,25 @@ export default function TopBar({
             {overrides.map((override) => (
               <option key={override.name} value={override.name}>
                 {override.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="env-label">
+          Hosts
+          <select
+            value={activeHosts}
+            onChange={(e) => onHostsChange(e.target.value)}
+          >
+            <option value="">无</option>
+            {missingHosts && (
+              <option value={activeHosts}>
+                {activeHosts}（文件缺失）
+              </option>
+            )}
+            {hosts.map((item) => (
+              <option key={item.name} value={item.name}>
+                {item.name}
               </option>
             ))}
           </select>
