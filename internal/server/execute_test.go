@@ -244,7 +244,7 @@ func TestExecuteUsesActiveHosts(t *testing.T) {
 	defer srv.Close()
 	u, _ := url.Parse(srv.URL)
 	port := u.Port()
-	put := []byte(`{"name":"lan","mappings":{"api.example.com":"127.0.0.1"}}`)
+	put := []byte(`{"name":"lan","type":"map","mappings":{"api.example.com":"127.0.0.1"}}`)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/lan", put))
 	if rr.Code != http.StatusOK {
@@ -274,6 +274,38 @@ func TestExecuteUsesActiveHosts(t *testing.T) {
 	}
 	if sawHost != "api.example.com:"+port {
 		t.Fatalf("host=%q", sawHost)
+	}
+}
+
+func TestExecuteActiveTypelessHostsDegrades(t *testing.T) {
+	ws, err := workspace.Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := New(ws, nil)
+	legacyDir := filepath.Join(ws.Workdir(), "hosts")
+	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	legacy := filepath.Join(legacyDir, "lan.yaml")
+	if err := os.WriteFile(legacy, []byte("name: lan\nmappings:\n  api.example.com: 127.0.0.1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"","override":"","hosts":"lan"}`)))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+	body := []byte(`{"id":"1","request":{"name":"t","method":"GET","url":"` + srv.URL + `","query":{},"headers":{},"body":{"type":"none"}}}`)
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/execute", body))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("%d %s", rr.Code, rr.Body.Bytes())
 	}
 }
 

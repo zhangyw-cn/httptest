@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -390,7 +391,7 @@ func TestPutOverrideInvalidPathSegment(t *testing.T) {
 
 func TestHostsCRUDAndLocal(t *testing.T) {
 	h := newTestHandler(t)
-	putBody := []byte(`{"name":"lan","mappings":{"api.example.com":"10.0.0.5"}}`)
+	putBody := []byte(`{"name":"lan","type":"map","mappings":{"api.example.com":"10.0.0.5"}}`)
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/lan", putBody))
 	if rr.Code != http.StatusOK {
@@ -438,16 +439,63 @@ func TestHostsCRUDAndLocal(t *testing.T) {
 func TestHostsPutInvalidMapping(t *testing.T) {
 	h := newTestHandler(t)
 	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/lan", []byte(`{"name":"lan","mappings":{"a/b":"1.1.1.1"}}`)))
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/lan", []byte(`{"name":"lan","type":"map","mappings":{"a/b":"1.1.1.1"}}`)))
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("got %d", rr.Code)
+	}
+}
+
+func TestHostsListInvalidType500(t *testing.T) {
+	ws, err := workspace.Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := New(ws, nil)
+	putOK := []byte(`{"name":"ok","type":"map","mappings":{"a.com":"1.1.1.1"}}`)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/ok", putOK))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code)
+	}
+	bad := filepath.Join(ws.Workdir(), "hosts", "bad.yaml")
+	if err := os.WriteFile(bad, []byte("name: bad\nmappings: {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodGet, "/api/hosts", nil))
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("got %d %s", rr.Code, rr.Body.Bytes())
+	}
+}
+
+func TestHostsPutChangeType400(t *testing.T) {
+	h := newTestHandler(t)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/lan", []byte(`{"name":"lan","type":"map","mappings":{}}`)))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code)
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/lan", []byte(`{"name":"lan","type":"hosts","content":""}`)))
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("got %d", rr.Code)
+	}
+}
+
+func TestHostsPutHostsTypeOK(t *testing.T) {
+	h := newTestHandler(t)
+	body := []byte(`{"name":"lan","type":"hosts","content":"10.0.0.5 api.example.com api\n"}`)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/lan", body))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("%d %s", rr.Code, rr.Body.Bytes())
 	}
 }
 
 func TestHostsRenameConflict(t *testing.T) {
 	h := newTestHandler(t)
 	for _, name := range []string{"a", "b"} {
-		body := []byte(`{"name":"` + name + `","mappings":{}}`)
+		body := []byte(`{"name":"` + name + `","type":"map","mappings":{}}`)
 		rr := httptest.NewRecorder()
 		h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/"+name, body))
 		if rr.Code != http.StatusOK {

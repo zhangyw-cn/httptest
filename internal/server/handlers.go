@@ -306,11 +306,10 @@ func writeHostsErr(w http.ResponseWriter, err error) {
 		writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 		return
 	}
-	if errors.Is(err, workspace.ErrSameHostsName) {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-		return
-	}
-	if errors.Is(err, workspace.ErrInvalidHostsMapping) {
+	if errors.Is(err, workspace.ErrSameHostsName) ||
+		errors.Is(err, workspace.ErrInvalidHostsMapping) ||
+		errors.Is(err, workspace.ErrInvalidHostsType) ||
+		errors.Is(err, workspace.ErrHostsTypeImmutable) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
