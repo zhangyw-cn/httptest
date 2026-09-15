@@ -50,9 +50,13 @@ export interface Override {
   variables: Record<string, string>;
 }
 
+export type HostsType = "map" | "hosts";
+
 export interface HostsFile {
   name: string;
+  type: HostsType;
   mappings: Record<string, string>;
+  content: string;
 }
 
 export interface LocalConfig {

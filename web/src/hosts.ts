@@ -1,5 +1,6 @@
 import { cleanEnvName, type EnvPair } from "./env";
 import type { DialogMode } from "./Dialog";
+import type { HostsFile, HostsType } from "./types";
 
 export function hostsNameError(name: string, existing: string[]): string | null {
   const cleaned = cleanEnvName(name);
@@ -50,6 +51,65 @@ export function validateHostMappings(
   return result.ok ? null : result.error;
 }
 
+/** Parse classic hosts text into hostname→IP (aliases expanded). */
+export function parseHostsContent(
+  content: string,
+): { ok: true; mappings: Record<string, string> } | { ok: false; error: string } {
+  const mappings = Object.create(null) as Record<string, string>;
+  for (const raw of content.split("\n")) {
+    let line = raw;
+    const hash = line.indexOf("#");
+    if (hash >= 0) line = line.slice(0, hash);
+    const fields = line.trim() === "" ? [] : line.trim().split(/\s+/);
+    if (fields.length === 0) continue;
+    if (fields.length < 2) {
+      return { ok: false, error: "每行须包含 IP 与主机名" };
+    }
+    const ip = fields[0];
+    if (!isIPLiteral(ip)) {
+      return { ok: false, error: "IP 非法（须为 IPv4 或 IPv6 字面量）" };
+    }
+    for (const name of fields.slice(1)) {
+      const host = name.trim().toLowerCase();
+      if (!host) {
+        return { ok: false, error: "主机名不能为空" };
+      }
+      if (host.includes("://") || host.includes("/") || host.includes(":")) {
+        return { ok: false, error: "主机名非法（不能含 ://、/ 或 :）" };
+      }
+      if (Object.hasOwn(mappings, host)) {
+        return { ok: false, error: "主机名重复（大小写不敏感）" };
+      }
+      mappings[host] = ip;
+    }
+  }
+  return { ok: true, mappings };
+}
+
+function validateHostsType(type: string): string | null {
+  if (type !== "map" && type !== "hosts") return "Hosts 类型非法";
+  return null;
+}
+
+export function validateHostsFile(
+  h: Pick<HostsFile, "type" | "mappings" | "content">,
+): string | null {
+  const typeErr = validateHostsType(h.type);
+  if (typeErr) return typeErr;
+  const mappings = h.mappings ?? {};
+  switch (h.type as HostsType) {
+    case "map":
+      if (h.content.trim() !== "") return "map 类型不能包含 content";
+      return validateHostMappings(mappings);
+    case "hosts":
+      if (Object.keys(mappings).length > 0) return "hosts 类型不能包含 mappings";
+      {
+        const parsed = parseHostsContent(h.content);
+        return parsed.ok ? null : parsed.error;
+      }
+  }
+}
+
 /** Align with Go net.ParseIP: IPv4 dotted decimal or IPv6 (incl. ::ffff:x.x.x.x). */
 function isIPLiteral(ip: string): boolean {
   const trimmed = ip.trim();
@@ -74,6 +134,8 @@ export function hostsAPIError(message: string): string {
   const lower = message.toLowerCase();
   if (lower.includes("same hosts name")) return "不能改成当前名称";
   if (lower.includes("hosts exists")) return "已有同名 Hosts";
+  if (lower.includes("hosts type immutable")) return "不能更改 Hosts 类型";
+  if (lower.includes("invalid hosts type")) return "Hosts 类型非法";
   if (
     lower.includes("no such file") ||
     lower.includes("not found") ||

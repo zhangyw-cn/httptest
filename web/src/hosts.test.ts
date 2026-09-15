@@ -6,6 +6,8 @@ import {
   hostsAPIError,
   validateHostMappings,
   hostsRowStates,
+  parseHostsContent,
+  validateHostsFile,
 } from "./hosts";
 
 describe("hostsNameError", () => {
@@ -55,10 +57,39 @@ describe("hostPairsToMappings", () => {
   });
 });
 
+describe("parseHostsContent", () => {
+  it("expands aliases and strips comments", () => {
+    const r = parseHostsContent("10.0.0.5 api.example.com api # x\n");
+    expect(r).toEqual({
+      ok: true,
+      mappings: { "api.example.com": "10.0.0.5", api: "10.0.0.5" },
+    });
+  });
+
+  it("rejects duplicates case-insensitively", () => {
+    const r = parseHostsContent("1.1.1.1 a.com\n2.2.2.2 A.COM");
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("validateHostsFile", () => {
+  it("rejects cross fields", () => {
+    expect(
+      validateHostsFile({
+        type: "map",
+        mappings: { "a.com": "1.1.1.1" },
+        content: "nope",
+      }),
+    ).toBeTruthy();
+  });
+});
+
 describe("hostsAPIError", () => {
   it("maps known errors", () => {
     expect(hostsAPIError("hosts exists")).toBe("已有同名 Hosts");
     expect(hostsAPIError("same hosts name")).toBe("不能改成当前名称");
+    expect(hostsAPIError("hosts type immutable")).toBe("不能更改 Hosts 类型");
+    expect(hostsAPIError("invalid hosts type")).toBe("Hosts 类型非法");
   });
 });
 
