@@ -12,15 +12,24 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	HostsTypeMap   = "map"
+	HostsTypeHosts = "hosts"
+)
+
 var (
 	ErrHostsExists         = errors.New("hosts exists")
 	ErrSameHostsName       = errors.New("same hosts name")
 	ErrInvalidHostsMapping = errors.New("invalid hosts mapping")
+	ErrInvalidHostsType    = errors.New("invalid hosts type")
+	ErrHostsTypeImmutable  = errors.New("hosts type immutable")
 )
 
 type HostsFile struct {
 	Name     string            `json:"name" yaml:"name"`
+	Type     string            `json:"type" yaml:"type"`
 	Mappings map[string]string `json:"mappings" yaml:"mappings"`
+	Content  string            `json:"content" yaml:"content"`
 }
 
 func (w *Workspace) hostsPath(name string) (string, string, error) {
@@ -32,6 +41,43 @@ func (w *Workspace) hostsPath(name string) (string, string, error) {
 		return "", "", fmt.Errorf("invalid hosts name %q", name)
 	}
 	return filepath.Join(w.workdir, "hosts", cleaned+".yaml"), cleaned, nil
+}
+
+func validateHostsType(t string) error {
+	if t != HostsTypeMap && t != HostsTypeHosts {
+		return fmt.Errorf("%w: %q", ErrInvalidHostsType, t)
+	}
+	return nil
+}
+
+func normalizeHostsFile(h HostsFile) (HostsFile, error) {
+	if err := validateHostsType(h.Type); err != nil {
+		return HostsFile{}, err
+	}
+	if h.Mappings == nil {
+		h.Mappings = map[string]string{}
+	}
+	switch h.Type {
+	case HostsTypeMap:
+		if strings.TrimSpace(h.Content) != "" {
+			return HostsFile{}, fmt.Errorf("%w: unexpected content", ErrInvalidHostsMapping)
+		}
+		m, err := normalizeAndValidateMappings(h.Mappings)
+		if err != nil {
+			return HostsFile{}, err
+		}
+		h.Mappings = m
+		h.Content = ""
+	case HostsTypeHosts:
+		if len(h.Mappings) > 0 {
+			return HostsFile{}, fmt.Errorf("%w: unexpected mappings", ErrInvalidHostsMapping)
+		}
+		if _, err := ParseHostsContent(h.Content); err != nil {
+			return HostsFile{}, err
+		}
+		h.Mappings = map[string]string{}
+	}
+	return h, nil
 }
 
 func normalizeAndValidateMappings(in map[string]string) (map[string]string, error) {
@@ -59,17 +105,47 @@ func normalizeAndValidateMappings(in map[string]string) (map[string]string, erro
 	return out, nil
 }
 
+func (w *Workspace) loadHostsFile(path string) (HostsFile, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return HostsFile{}, err
+	}
+	var h HostsFile
+	if err := yaml.Unmarshal(data, &h); err != nil {
+		return HostsFile{}, err
+	}
+	if h.Mappings == nil {
+		h.Mappings = map[string]string{}
+	}
+	h.Name = strings.TrimSuffix(filepath.Base(path), ".yaml")
+	return normalizeHostsFile(h)
+}
+
 func (w *Workspace) PutHosts(h HostsFile) (HostsFile, error) {
 	path, cleaned, err := w.hostsPath(h.Name)
 	if err != nil {
 		return HostsFile{}, err
 	}
-	mappings, err := normalizeAndValidateMappings(h.Mappings)
+	if _, err := os.Stat(path); err == nil {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return HostsFile{}, err
+		}
+		var existing HostsFile
+		if err := yaml.Unmarshal(data, &existing); err != nil {
+			return HostsFile{}, err
+		}
+		if existing.Type != h.Type {
+			return HostsFile{}, ErrHostsTypeImmutable
+		}
+	} else if !os.IsNotExist(err) {
+		return HostsFile{}, err
+	}
+	h, err = normalizeHostsFile(h)
 	if err != nil {
 		return HostsFile{}, err
 	}
 	h.Name = cleaned
-	h.Mappings = mappings
 	data, err := yaml.Marshal(&h)
 	if err != nil {
 		return HostsFile{}, err
@@ -101,24 +177,11 @@ func (w *Workspace) ListHosts() ([]HostsFile, error) {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".yaml") {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(root, e.Name()))
+		name := strings.TrimSuffix(e.Name(), ".yaml")
+		h, err := w.loadHostsFile(filepath.Join(root, e.Name()))
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("hosts %q: %w", name, err)
 		}
-		var h HostsFile
-		if err := yaml.Unmarshal(data, &h); err != nil {
-			continue
-		}
-		if h.Mappings == nil {
-			h.Mappings = map[string]string{}
-		}
-		norm, err := normalizeAndValidateMappings(h.Mappings)
-		if err != nil {
-			// Skip corrupt/invalid files rather than showing unvalidated mappings.
-			continue
-		}
-		h.Mappings = norm
-		h.Name = strings.TrimSuffix(e.Name(), ".yaml")
 		list = append(list, h)
 	}
 	sort.Slice(list, func(i, j int) bool { return list[i].Name < list[j].Name })
@@ -137,24 +200,18 @@ func (w *Workspace) ActiveHostsMappings() (map[string]string, error) {
 	if err != nil {
 		return nil, nil
 	}
-	data, err := os.ReadFile(path)
+	h, err := w.loadHostsFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	var h HostsFile
-	if err := yaml.Unmarshal(data, &h); err != nil {
-		// Corrupt YAML: degrade like a missing file so execute is not blocked.
 		return nil, nil
 	}
-	mappings, err := normalizeAndValidateMappings(h.Mappings)
-	if err != nil {
-		// Invalid mappings on disk: degrade to system DNS (same as missing).
+	switch h.Type {
+	case HostsTypeMap:
+		return h.Mappings, nil
+	case HostsTypeHosts:
+		return ParseHostsContent(h.Content)
+	default:
 		return nil, nil
 	}
-	return mappings, nil
 }
 
 func (w *Workspace) DeleteHosts(name string) error {

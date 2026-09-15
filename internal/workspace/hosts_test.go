@@ -14,6 +14,7 @@ func TestPutListHostsNormalizesKeys(t *testing.T) {
 	}
 	saved, err := ws.PutHosts(HostsFile{
 		Name: "lan",
+		Type: HostsTypeMap,
 		Mappings: map[string]string{
 			"API.Example.COM": "10.0.0.5",
 		},
@@ -40,24 +41,105 @@ func TestPutListHostsNormalizesKeys(t *testing.T) {
 	}
 }
 
-func TestListHostsSkipsInvalidMappings(t *testing.T) {
+func TestListHostsRejectsInvalidFile(t *testing.T) {
 	ws, err := Init(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ws.PutHosts(HostsFile{Name: "ok", Mappings: map[string]string{"a.com": "1.1.1.1"}}); err != nil {
+	if _, err := ws.PutHosts(HostsFile{Name: "ok", Type: HostsTypeMap, Mappings: map[string]string{"a.com": "1.1.1.1"}}); err != nil {
 		t.Fatal(err)
 	}
 	root := filepath.Join(ws.Workdir(), "hosts")
-	if err := os.WriteFile(filepath.Join(root, "bad.yaml"), []byte("name: bad\nmappings:\n  a/b: \"1.1.1.1\"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "bad.yaml"), []byte("name: bad\nmappings:\n  a.com: \"1.1.1.1\"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	list, err := ws.ListHosts()
+	_, err = ws.ListHosts()
+	if err == nil {
+		t.Fatal("expected list error")
+	}
+}
+
+func TestPutHostsRequiresTypeAndRejectsChange(t *testing.T) {
+	ws, err := Init(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(list) != 1 || list[0].Name != "ok" {
-		t.Fatalf("want only ok entry, got %+v", list)
+	if _, err := ws.PutHosts(HostsFile{Name: "lan", Mappings: map[string]string{}}); err == nil {
+		t.Fatal("expected missing type error")
+	}
+	if _, err := ws.PutHosts(HostsFile{Name: "lan", Type: HostsTypeMap, Mappings: map[string]string{}}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = ws.PutHosts(HostsFile{Name: "lan", Type: HostsTypeHosts, Content: ""})
+	if !errors.Is(err, ErrHostsTypeImmutable) {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestPutHostsContentRoundTrip(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := "# c\n10.0.0.5 api.example.com api\n"
+	saved, err := ws.PutHosts(HostsFile{Name: "lan", Type: HostsTypeHosts, Content: raw})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.Content != raw {
+		t.Fatalf("%q", saved.Content)
+	}
+	list, err := ws.ListHosts()
+	if err != nil || len(list) != 1 || list[0].Content != raw {
+		t.Fatalf("%+v %v", list, err)
+	}
+	if _, err := ws.PutLocal(Local{Hosts: "lan"}); err != nil {
+		t.Fatal(err)
+	}
+	m, err := ws.ActiveHostsMappings()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m["api"] != "10.0.0.5" || m["api.example.com"] != "10.0.0.5" {
+		t.Fatalf("%v", m)
+	}
+}
+
+func TestActiveHostsMappingsInvalidTypeDegrades(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(ws.Workdir(), "hosts")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "lan.yaml"), []byte("name: lan\nmappings: {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.PutLocal(Local{Hosts: "lan"}); err != nil {
+		t.Fatal(err)
+	}
+	m, err := ws.ActiveHostsMappings()
+	if err != nil || m != nil {
+		t.Fatalf("%v %v", m, err)
+	}
+}
+
+func TestPutHostsRejectsCrossFields(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = ws.PutHosts(HostsFile{
+		Name: "lan", Type: HostsTypeMap,
+		Mappings: map[string]string{"a.com": "1.1.1.1"},
+		Content:  "should not",
+	})
+	if !errors.Is(err, ErrInvalidHostsMapping) {
+		if err == nil {
+			t.Fatal("expected error")
+		}
 	}
 }
 
@@ -75,7 +157,7 @@ func TestPutHostsRejectsBadMapping(t *testing.T) {
 		{"ok": ""},
 	}
 	for _, m := range cases {
-		if _, err := ws.PutHosts(HostsFile{Name: "lan", Mappings: m}); err == nil {
+		if _, err := ws.PutHosts(HostsFile{Name: "lan", Type: HostsTypeMap, Mappings: m}); err == nil {
 			t.Fatalf("expected error for %v", m)
 		}
 	}
@@ -96,7 +178,7 @@ func TestActiveHostsMappings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ws.PutHosts(HostsFile{Name: "lan", Mappings: map[string]string{"api.test": "127.0.0.1"}}); err != nil {
+	if _, err := ws.PutHosts(HostsFile{Name: "lan", Type: HostsTypeMap, Mappings: map[string]string{"api.test": "127.0.0.1"}}); err != nil {
 		t.Fatal(err)
 	}
 	m, err := ws.ActiveHostsMappings()
@@ -152,7 +234,7 @@ func TestDeleteHostsClearsActive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ws.PutHosts(HostsFile{Name: "lan", Mappings: map[string]string{}}); err != nil {
+	if _, err := ws.PutHosts(HostsFile{Name: "lan", Type: HostsTypeMap, Mappings: map[string]string{}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ws.PutLocal(Local{Environment: "e", Override: "o", Hosts: "lan"}); err != nil {
@@ -175,7 +257,7 @@ func TestRenameHostsUpdatesActive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ws.PutHosts(HostsFile{Name: "old", Mappings: map[string]string{"a.com": "1.1.1.1"}}); err != nil {
+	if _, err := ws.PutHosts(HostsFile{Name: "old", Type: HostsTypeMap, Mappings: map[string]string{"a.com": "1.1.1.1"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ws.PutLocal(Local{Hosts: "old"}); err != nil {
@@ -200,7 +282,7 @@ func TestRenameHostsConflict(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, n := range []string{"a", "b"} {
-		if _, err := ws.PutHosts(HostsFile{Name: n, Mappings: map[string]string{}}); err != nil {
+		if _, err := ws.PutHosts(HostsFile{Name: n, Type: HostsTypeMap, Mappings: map[string]string{}}); err != nil {
 			t.Fatal(err)
 		}
 	}
