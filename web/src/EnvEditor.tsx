@@ -34,6 +34,7 @@ export default function EnvEditor({
       <div className="env-editor">
         <div className="empty-state">
           <p className="empty-title">{emptyTitle}</p>
+          {error ? <p className="error env-editor-error">{error}</p> : null}
         </div>
       </div>
     );
