@@ -730,6 +730,71 @@ button:focus-visible {
   margin: 0.4rem 0.6rem 0;
 }
 
+.hosts-type-tag {
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 0.1rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-family: var(--mono);
+}
+
+.hosts-editor-map {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.hosts-editor-map .env-editor-name::after {
+  content: "map";
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: normal;
+  padding: 0.05rem 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-family: var(--mono);
+}
+
+.hosts-content {
+  width: 100%;
+  min-height: 12rem;
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  resize: vertical;
+}
+
+.hosts-type-pick {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.hosts-type-pick legend {
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding: 0 0.25rem;
+}
+
+.hosts-type-pick label {
+  font-size: 0.85rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+
 .settings-pane:has(> .empty-state) {
   display: flex;
 }

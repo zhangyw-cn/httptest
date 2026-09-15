@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { HostsType } from "./types";
 
 export type DialogMode =
   | {
@@ -31,11 +32,15 @@ export type DialogMode =
 interface Props {
   mode: DialogMode;
   onClose: () => void;
-  onSubmit: (path?: string) => void | Promise<void>;
+  onSubmit: (
+    path?: string,
+    opts?: { hostsType?: HostsType },
+  ) => void | Promise<void>;
 }
 
 export default function Dialog({ mode, onClose, onSubmit }: Props) {
   const [path, setPath] = useState("");
+  const [hostsType, setHostsType] = useState<HostsType>("map");
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -54,6 +59,10 @@ export default function Dialog({ mode, onClose, onSubmit }: Props) {
       if (mode.kind === "path") {
         const p = path.trim();
         if (!p) return;
+        if (mode.intent === "create-hosts") {
+          await onSubmit(p, { hostsType });
+          return;
+        }
         await onSubmit(p);
         return;
       }
@@ -91,6 +100,31 @@ export default function Dialog({ mode, onClose, onSubmit }: Props) {
                 }
               }}
             />
+            {mode.intent === "create-hosts" ? (
+              <fieldset className="hosts-type-pick">
+                <legend>类型</legend>
+                <label>
+                  <input
+                    type="radio"
+                    name="hostsType"
+                    value="map"
+                    checked={hostsType === "map"}
+                    onChange={() => setHostsType("map")}
+                  />{" "}
+                  map（键值）
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="hostsType"
+                    value="hosts"
+                    checked={hostsType === "hosts"}
+                    onChange={() => setHostsType("hosts")}
+                  />{" "}
+                  hosts（文本）
+                </label>
+              </fieldset>
+            ) : null}
           </>
         ) : (
           <p>{mode.body}</p>
