@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import ActivityBar from "./ActivityBar";
 import EnvEditor from "./EnvEditor";
 import HostsContentEditor from "./HostsContentEditor";
+import Sidebar from "./Sidebar";
 import { hostsRowStates } from "./hosts";
 
 describe("hosts activity", () => {
@@ -37,6 +38,42 @@ describe("hosts activity", () => {
     );
     expect(markup).toContain("无法加载 Hosts 列表");
     expect(markup).toContain("env-editor-error");
+  });
+
+  it("disables new-hosts controls when list load failed", () => {
+    const markup = renderToStaticMarkup(
+      <Sidebar
+        requests={[]}
+        currentPath={null}
+        view="hosts"
+        sending={false}
+        envs={[]}
+        editingEnv={null}
+        activeEnv=""
+        overrides={[]}
+        editingOverride={null}
+        activeOverride=""
+        onSelectRequest={vi.fn()}
+        onNewRequest={vi.fn()}
+        onDeleteRequest={vi.fn()}
+        onSelectHistory={vi.fn()}
+        onSelectEnv={vi.fn()}
+        onNewEnv={vi.fn()}
+        onDeleteEnv={vi.fn()}
+        onSelectOverride={vi.fn()}
+        onNewOverride={vi.fn()}
+        onDeleteOverride={vi.fn()}
+        hostsList={[]}
+        editingHosts={null}
+        activeHosts=""
+        onSelectHosts={vi.fn()}
+        onNewHosts={vi.fn()}
+        onDeleteHosts={vi.fn()}
+        hostsListError="无法加载 Hosts 列表"
+      />,
+    );
+    expect(markup).toContain("Hosts 列表加载失败");
+    expect(markup).toContain('disabled=""');
   });
 
   it("shows list load error in HostsContentEditor empty state", () => {

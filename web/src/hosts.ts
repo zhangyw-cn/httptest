@@ -2,6 +2,19 @@ import { cleanEnvName, type EnvPair } from "./env";
 import type { DialogMode } from "./Dialog";
 import type { HostsFile, HostsType } from "./types";
 
+export const HOSTS_CREATE_BLOCKED_LIST_ERROR =
+  "Hosts 列表加载失败，请先修复非法文件后再新建";
+
+/** Block new-hosts when the sidebar list failed to load (empty list is not authoritative). */
+export function hostsNewBlockedReason(
+  hostsError: string | null,
+  hostsSaving = false,
+): string | null {
+  if (hostsSaving) return "请等待 Hosts 保存完成";
+  if (hostsError != null) return HOSTS_CREATE_BLOCKED_LIST_ERROR;
+  return null;
+}
+
 export function hostsNameError(name: string, existing: string[]): string | null {
   const cleaned = cleanEnvName(name);
   if (cleaned === null) return name.trim() ? "名称非法" : "名称不能为空";

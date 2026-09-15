@@ -60,6 +60,7 @@ import {
   hostsAPIError,
   hostsDeleteDialog,
   hostsNameError,
+  hostsNewBlockedReason,
   hostsRenameConfirmDialog,
   parseHostsContent,
 } from "./hosts";
@@ -184,6 +185,8 @@ export default function App() {
   editingHostsTypeRef.current = editingHostsType;
   const hostsListRef = useRef(hostsList);
   hostsListRef.current = hostsList;
+  const hostsErrorRef = useRef(hostsError);
+  hostsErrorRef.current = hostsError;
 
   const applyDraft = useCallback((next: HttpRequest, saved?: boolean) => {
     const n = normalizeRequest(next);
@@ -448,7 +451,11 @@ export default function App() {
   }
 
   function openNewHostsDialog() {
-    if (hostsSavingRef.current) return;
+    const blocked = hostsNewBlockedReason(
+      hostsErrorRef.current,
+      hostsSavingRef.current,
+    );
+    if (blocked) return;
     setDialogError(null);
     setDialog({
       kind: "path",
@@ -633,8 +640,6 @@ export default function App() {
           content,
           mappings: {},
         });
-        const list = await getHosts();
-        setHostsList(list);
         if (
           editingHostsRef.current === name &&
           hostsEpochRef.current === epoch
@@ -642,6 +647,14 @@ export default function App() {
           hostsSavedRef.current = saved.content;
           setHostsContent(saved.content);
           setHostsDirty(false);
+        }
+        try {
+          setHostsList(await getHosts());
+        } catch (err) {
+          setHostsList([]);
+          setHostsError(
+            hostsAPIError(err instanceof Error ? err.message : String(err)),
+          );
         }
         return;
       }
@@ -657,8 +670,6 @@ export default function App() {
         mappings,
         content: "",
       });
-      const list = await getHosts();
-      setHostsList(list);
       const apply = applyEnvSaveResult({
         savedName: name,
         editingName: editingHostsRef.current,
@@ -674,6 +685,14 @@ export default function App() {
       } else if (apply.action === "keep") {
         hostsSavedRef.current = apply.snapshot;
         setHostsDirty(apply.dirty);
+      }
+      try {
+        setHostsList(await getHosts());
+      } catch (err) {
+        setHostsList([]);
+        setHostsError(
+          hostsAPIError(err instanceof Error ? err.message : String(err)),
+        );
       }
     } catch (err) {
       setHostsError(
@@ -873,8 +892,12 @@ export default function App() {
           return;
         }
         if (current.intent === "create-hosts") {
-          if (hostsSavingRef.current) {
-            setDialogError("请等待 Hosts 保存完成");
+          const blocked = hostsNewBlockedReason(
+            hostsErrorRef.current,
+            hostsSavingRef.current,
+          );
+          if (blocked) {
+            setDialogError(blocked);
             return;
           }
           const err = hostsNameError(
@@ -1145,6 +1168,7 @@ export default function App() {
               envBusy={envSaving}
               overrideBusy={overrideSaving}
               hostsBusy={hostsSaving}
+              hostsListError={hostsError}
             />
           ))}
         <div className="work">

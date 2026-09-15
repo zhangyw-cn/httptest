@@ -42,6 +42,7 @@ interface Props {
   envBusy?: boolean;
   overrideBusy?: boolean;
   hostsBusy?: boolean;
+  hostsListError?: string | null;
 }
 
 function TreeItems({
@@ -132,6 +133,7 @@ export default function Sidebar({
   envBusy = false,
   overrideBusy = false,
   hostsBusy = false,
+  hostsListError = null,
 }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [histError, setHistError] = useState<string | null>(null);
@@ -264,6 +266,7 @@ export default function Sidebar({
   }
 
   if (view === "hosts") {
+    const hostsCreateDisabled = hostsBusy || hostsListError != null;
     return (
       <aside className="sidebar">
         <div className="sidebar-head">
@@ -271,9 +274,9 @@ export default function Sidebar({
           <button
             type="button"
             className="btn-icon"
-            title="新建"
+            title={hostsListError ?? "新建"}
             onClick={onNewHosts}
-            disabled={hostsBusy}
+            disabled={hostsCreateDisabled}
           >
             ＋
           </button>
@@ -281,13 +284,19 @@ export default function Sidebar({
         <div className="sidebar-body">
           {hostsList.length === 0 ? (
             <div className="empty-state">
-              <p className="empty-title">还没有 Hosts</p>
-              <p className="empty-hint">用侧栏 ＋ 或下方按钮创建</p>
+              <p className="empty-title">
+                {hostsListError ? "Hosts 列表加载失败" : "还没有 Hosts"}
+              </p>
+              <p className="empty-hint">
+                {hostsListError
+                  ? "请先修复非法文件后再新建"
+                  : "用侧栏 ＋ 或下方按钮创建"}
+              </p>
               <button
                 type="button"
                 className="btn"
                 onClick={onNewHosts}
-                disabled={hostsBusy}
+                disabled={hostsCreateDisabled}
               >
                 新建 Hosts
               </button>

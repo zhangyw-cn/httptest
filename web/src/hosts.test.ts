@@ -2,13 +2,25 @@ import { describe, expect, it } from "vitest";
 import { newEnvPair } from "./env";
 import {
   hostPairsToMappings,
+  HOSTS_CREATE_BLOCKED_LIST_ERROR,
   hostsNameError,
   hostsAPIError,
+  hostsNewBlockedReason,
   validateHostMappings,
   hostsRowStates,
   parseHostsContent,
   validateHostsFile,
 } from "./hosts";
+
+describe("hostsNewBlockedReason", () => {
+  it("blocks create when list load failed", () => {
+    expect(hostsNewBlockedReason("无法加载 Hosts 列表")).toBe(
+      HOSTS_CREATE_BLOCKED_LIST_ERROR,
+    );
+    expect(hostsNewBlockedReason(null)).toBeNull();
+    expect(hostsNewBlockedReason(null, true)).toBe("请等待 Hosts 保存完成");
+  });
+});
 
 describe("hostsNameError", () => {
   it("rejects slash and duplicates", () => {
