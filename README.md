@@ -44,7 +44,7 @@ httptest [DIR] [--listen 127.0.0.1:1370] [--open]
 
 ## 界面
 
-顶栏是产品名、工作区路径、环境选择器、覆盖选择器（覆盖可选「无」）与 Hosts 选择器（可选「无」），不含主题切换。左侧活动栏上方切换集合、历史、环境、覆盖与 Hosts，底部为设置；再点当前图标收起树（`Ctrl+B`）。树展开时宽 220px。Hosts 与环境、覆盖相互独立：切换环境不改 Hosts，切换 Hosts 不改环境。设置视图下左侧为分类树（外观），中间为主题浅色/深色/系统三档，不显示 UrlBar、请求编辑器与响应区。集合/历史视图下 Method、URL、Send、Stop、Save 横跨中间请求栏和右侧结果栏（`Ctrl+Enter` 发送，`Ctrl+S` 保存请求）。环境视图左侧列环境名，中间编辑模板变量（`Ctrl+S` 保存环境，`Ctrl+Enter` 不发送）；覆盖视图同理编辑本机覆盖集；Hosts 视图左侧列配置名，中间编辑 hostname → IP 映射（`Ctrl+S` 保存，`Ctrl+Enter` 不发送）。树选中只打开编辑，顶栏选择器才是发送用的当前环境、覆盖与 Hosts。新建/改名/删除在应用内对话框完成，不使用浏览器原生弹窗。请求栏为 `Query | Headers | Body`；右侧结果栏 meta 为状态码、总耗时、响应体积，一级页签为 `Request | Response | Raw`。Request 二级为 `Overview | Query | Headers | Body`（只读变量展开后的请求，Overview 含请求体积；命中 Hosts 映射时显示拨号 IP `resolvedIP`）；Response 二级为 `Body | Headers | Timeline`；Raw 为请求 dump 与响应 dump。
+顶栏是产品名、工作区路径、环境选择器、覆盖选择器（覆盖可选「无」）与 Hosts 选择器（可选「无」），不含主题切换。左侧活动栏上方切换集合、历史、环境、覆盖与 Hosts，底部为设置；再点当前图标收起树（`Ctrl+B`）。树展开时宽 220px。Hosts 与环境、覆盖相互独立：切换环境不改 Hosts，切换 Hosts 不改环境。设置视图下左侧为分类树（外观），中间为主题浅色/深色/系统三档，不显示 UrlBar、请求编辑器与响应区。集合/历史视图下 Method、URL、Send、Stop、Save 横跨中间请求栏和右侧结果栏（`Ctrl+Enter` 发送，`Ctrl+S` 保存请求）。环境视图左侧列环境名，中间编辑模板变量（`Ctrl+S` 保存环境，`Ctrl+Enter` 不发送）；覆盖视图同理编辑本机覆盖集；Hosts 视图左侧列配置名，中间按类型编辑：`map` 为 hostname → IP 键值表，`hosts` 为经典 hosts 原文（`Ctrl+S` 保存，`Ctrl+Enter` 不发送）；新建 Hosts 时在对话框选择 `map` 或 `hosts`，创建后不可改类型。树选中只打开编辑，顶栏选择器才是发送用的当前环境、覆盖与 Hosts。新建/改名/删除在应用内对话框完成，不使用浏览器原生弹窗。请求栏为 `Query | Headers | Body`；右侧结果栏 meta 为状态码、总耗时、响应体积，一级页签为 `Request | Response | Raw`。Request 二级为 `Overview | Query | Headers | Body`（只读变量展开后的请求，Overview 含请求体积；命中 Hosts 映射时显示拨号 IP `resolvedIP`）；Response 二级为 `Body | Headers | Timeline`；Raw 为请求 dump 与响应 dump。
 
 ## 工作区
 
@@ -60,7 +60,7 @@ httptest [DIR] [--listen 127.0.0.1:1370] [--open]
 <workdir>/
   collections/      # 请求，可提交
   environments/     # 环境模板，可提交
-  hosts/            # 域名→IP 映射，可提交
+  hosts/            # 域名解析配置（map 或 hosts 文本），可提交
   .httptest/
     .gitignore
     local/
@@ -132,13 +132,25 @@ hosts: lan
 
 ## Hosts
 
-路径：`hosts/<name>.yaml`，可随项目提交共享。顶栏 Hosts 选择器（含「无」）决定发送时是否应用映射；与环境、覆盖相互独立。
+路径：`hosts/<name>.yaml`，可随项目提交共享。顶栏 Hosts 选择器（含「无」）决定发送时是否应用映射；与环境、覆盖相互独立。每个文件须含必填字段 `type`：`map`（键值映射）或 `hosts`（经典 hosts 原文）。新建时在对话框选择类型，创建后不可更改类型。
+
+**破坏性变更：** 旧版无 `type` 的文件不再合法。请为现有文件补 `type: map` 并保留原 `mappings`；`hosts` 类型在 UI 中编辑多行原文。
 
 ```yaml
-# hosts/lan.yaml
+# hosts/lan.yaml — map
 name: lan
+type: map
 mappings:
   api.example.com: "10.0.0.5"
+```
+
+```yaml
+# hosts/lab.yaml — hosts 文本
+name: lab
+type: hosts
+content: |
+  10.0.0.5 api.example.com api
+  # comment
 ```
 
 ```yaml
@@ -148,10 +160,11 @@ override: dev
 hosts: lan
 ```
 
+- `map`：`mappings` 为 hostname → IP；`hosts`：`content` 为 hosts 格式原文（支持 `#` 注释与别名），保存原样落盘。
 - 精确 hostname 匹配（小写）；不改系统 `/etc/hosts`。
 - 出站 `DialContext` 拨到映射 IP，`Host` 头与 TLS SNI 仍用原域名。
 - `active.yaml` 中 `hosts` 为空或缺字段表示「无」（系统 DNS）。
-- 若 `active.hosts` 指向的文件已不存在，发送时降级为「无」，不阻断请求。
+- 若 `active.hosts` 指向的文件已不存在或非法，发送时降级为「无」，不阻断请求；非法 hosts 文件会使列表接口失败。
 
 ## v1 明确不做
 
@@ -184,4 +197,4 @@ web/
 
 ## 相关文档
 
-实现与文件格式细节见 [docs/superpowers/specs/2026-09-01-httptest-design.md](docs/superpowers/specs/2026-09-01-httptest-design.md)。工作目录布局见 [docs/superpowers/specs/2026-09-05-workdir-design.md](docs/superpowers/specs/2026-09-05-workdir-design.md)。Hosts 解析见 [docs/superpowers/specs/2026-09-12-hosts-resolution-design.md](docs/superpowers/specs/2026-09-12-hosts-resolution-design.md)。
+实现与文件格式细节见 [docs/superpowers/specs/2026-09-01-httptest-design.md](docs/superpowers/specs/2026-09-01-httptest-design.md)。工作目录布局见 [docs/superpowers/specs/2026-09-05-workdir-design.md](docs/superpowers/specs/2026-09-05-workdir-design.md)。Hosts 解析见 [docs/superpowers/specs/2026-09-12-hosts-resolution-design.md](docs/superpowers/specs/2026-09-12-hosts-resolution-design.md)；双类型（`map` / `hosts`）见 [docs/superpowers/specs/2026-09-15-hosts-dual-type-design.md](docs/superpowers/specs/2026-09-15-hosts-dual-type-design.md)。
