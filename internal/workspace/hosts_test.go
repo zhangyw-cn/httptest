@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -56,6 +57,28 @@ func TestListHostsRejectsInvalidFile(t *testing.T) {
 	_, err = ws.ListHosts()
 	if err == nil {
 		t.Fatal("expected list error")
+	}
+}
+
+func TestListHostsRejectsIllegalMappings(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ws.PutHosts(HostsFile{Name: "ok", Type: HostsTypeMap, Mappings: map[string]string{"a.com": "1.1.1.1"}}); err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(ws.Workdir(), "hosts")
+	badHost := "a/b"
+	if err := os.WriteFile(filepath.Join(root, "bad.yaml"), []byte("name: bad\ntype: map\nmappings:\n  "+badHost+": \"1.1.1.1\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err = ws.ListHosts()
+	if err == nil {
+		t.Fatal("expected list error for illegal mapping key")
+	}
+	if !strings.Contains(err.Error(), badHost) {
+		t.Fatalf("expected error to mention %q, got %v", badHost, err)
 	}
 }
 
@@ -137,9 +160,15 @@ func TestPutHostsRejectsCrossFields(t *testing.T) {
 		Content:  "should not",
 	})
 	if !errors.Is(err, ErrInvalidHostsMapping) {
-		if err == nil {
-			t.Fatal("expected error")
-		}
+		t.Fatalf("map with content: got %v", err)
+	}
+	_, err = ws.PutHosts(HostsFile{
+		Name: "lan", Type: HostsTypeHosts,
+		Mappings: map[string]string{"a.com": "1.1.1.1"},
+		Content:  "127.0.0.1 a.com",
+	})
+	if !errors.Is(err, ErrInvalidHostsMapping) {
+		t.Fatalf("hosts with mappings: got %v", err)
 	}
 }
 
