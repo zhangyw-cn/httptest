@@ -99,6 +99,24 @@ func TestPutHostsRequiresTypeAndRejectsChange(t *testing.T) {
 	}
 }
 
+func TestPutHostsLegacyMissingTypeIsInvalidNotImmutable(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(ws.Workdir(), "hosts")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "lan.yaml"), []byte("name: lan\nmappings: {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err = ws.PutHosts(HostsFile{Name: "lan", Type: HostsTypeMap, Mappings: map[string]string{}})
+	if !errors.Is(err, ErrInvalidHostsType) {
+		t.Fatalf("got %v", err)
+	}
+}
+
 func TestPutHostsContentRoundTrip(t *testing.T) {
 	ws, err := Init(t.TempDir())
 	if err != nil {

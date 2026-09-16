@@ -135,6 +135,10 @@ func (w *Workspace) PutHosts(h HostsFile) (HostsFile, error) {
 		if err := yaml.Unmarshal(data, &existing); err != nil {
 			return HostsFile{}, err
 		}
+		if err := validateHostsType(existing.Type); err != nil {
+			// Legacy / corrupt on-disk type: diagnose as invalid, not "immutable".
+			return HostsFile{}, err
+		}
 		if existing.Type != h.Type {
 			return HostsFile{}, ErrHostsTypeImmutable
 		}

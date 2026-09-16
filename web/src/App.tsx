@@ -650,10 +650,11 @@ export default function App() {
         }
         try {
           setHostsList(await getHosts());
+          setHostsError(null);
         } catch (err) {
-          setHostsList([]);
+          // Keep prior list + editor; saved file is on disk.
           setHostsError(
-            hostsAPIError(err instanceof Error ? err.message : String(err)),
+            `已保存，但 Hosts 列表无法刷新：${hostsAPIError(err instanceof Error ? err.message : String(err))}`,
           );
         }
         return;
@@ -688,10 +689,11 @@ export default function App() {
       }
       try {
         setHostsList(await getHosts());
+        setHostsError(null);
       } catch (err) {
-        setHostsList([]);
+        // Keep prior list + editor; saved file is on disk.
         setHostsError(
-          hostsAPIError(err instanceof Error ? err.message : String(err)),
+          `已保存，但 Hosts 列表无法刷新：${hostsAPIError(err instanceof Error ? err.message : String(err))}`,
         );
       }
     } catch (err) {

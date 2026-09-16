@@ -103,6 +103,12 @@ describe("hostsAPIError", () => {
     expect(hostsAPIError("hosts type immutable")).toBe("不能更改 Hosts 类型");
     expect(hostsAPIError("invalid hosts type")).toBe("Hosts 类型非法");
   });
+
+  it("maps list load errors to Chinese with file name", () => {
+    expect(
+      hostsAPIError('500: hosts "bad": invalid hosts type: ""'),
+    ).toBe('无法加载 Hosts 列表：文件 bad 缺少合法 type');
+  });
 });
 
 describe("hostsRowStates", () => {

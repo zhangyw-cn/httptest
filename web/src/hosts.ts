@@ -148,7 +148,19 @@ export function hostsAPIError(message: string): string {
   if (lower.includes("same hosts name")) return "不能改成当前名称";
   if (lower.includes("hosts exists")) return "已有同名 Hosts";
   if (lower.includes("hosts type immutable")) return "不能更改 Hosts 类型";
-  if (lower.includes("invalid hosts type")) return "Hosts 类型非法";
+  if (lower.includes("invalid hosts type")) {
+    const file = message.match(/hosts\s+"([^"]+)"/i)?.[1];
+    return file
+      ? `无法加载 Hosts 列表：文件 ${file} 缺少合法 type`
+      : "Hosts 类型非法";
+  }
+  if (/hosts\s+"[^"]+"/i.test(message)) {
+    const file = message.match(/hosts\s+"([^"]+)"/i)?.[1] ?? "";
+    const detail = message.replace(/^\d+:\s*/, "").trim();
+    return file
+      ? `无法加载 Hosts 列表：文件 ${file} 无效（${detail}）`
+      : `无法加载 Hosts 列表：${detail}`;
+  }
   if (
     lower.includes("no such file") ||
     lower.includes("not found") ||
