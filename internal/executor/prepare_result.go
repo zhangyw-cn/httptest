@@ -1,7 +1,10 @@
 package executor
 
 import (
+	"errors"
+	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -24,8 +27,22 @@ type PrepareResult struct {
 	MissingVars    []string          `json:"missingVars,omitempty"`
 }
 
+func validateRequestScheme(req *http.Request) error {
+	scheme := ""
+	if req.URL != nil {
+		scheme = strings.ToLower(req.URL.Scheme)
+	}
+	if scheme != "http" && scheme != "https" {
+		if scheme == "" {
+			return errors.New("unsupported protocol scheme")
+		}
+		return fmt.Errorf("unsupported protocol scheme %s", scheme)
+	}
+	return nil
+}
+
 func EffectiveTimeoutSeconds(timeout string) (float64, error) {
-	if strings.TrimSpace(timeout) == "" {
+	if timeout == "" {
 		return 30, nil
 	}
 	d, err := time.ParseDuration(timeout)
@@ -74,6 +91,17 @@ func BuildPrepareResult(req workspace.Request, vars, mappings map[string]string)
 	if len(missing) > 0 {
 		out.ErrorClass = ClassInvalid
 		out.MissingVars = missing
+		return out
+	}
+	httpReq, err := http.NewRequest(prepared.Method, prepared.URL, nil)
+	if err != nil {
+		out.ErrorClass = ClassInvalid
+		out.ErrorMessage = err.Error()
+		return out
+	}
+	if schemeErr := validateRequestScheme(httpReq); schemeErr != nil {
+		out.ErrorClass = ClassInvalid
+		out.ErrorMessage = schemeErr.Error()
 		return out
 	}
 	sec, terr := EffectiveTimeoutSeconds(prepared.Timeout)

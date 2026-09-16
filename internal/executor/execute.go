@@ -75,17 +75,9 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string,
 		res.ErrorMessage = err.Error()
 		return res
 	}
-	scheme := ""
-	if httpReq.URL != nil {
-		scheme = strings.ToLower(httpReq.URL.Scheme)
-	}
-	if scheme != "http" && scheme != "https" {
+	if schemeErr := validateRequestScheme(httpReq); schemeErr != nil {
 		res.ErrorClass = ClassInvalid
-		if scheme == "" {
-			res.ErrorMessage = "unsupported protocol scheme"
-		} else {
-			res.ErrorMessage = "unsupported protocol scheme " + scheme
-		}
+		res.ErrorMessage = schemeErr.Error()
 		return res
 	}
 

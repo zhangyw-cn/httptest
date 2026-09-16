@@ -31,6 +31,9 @@ func TestEffectiveTimeoutSeconds(t *testing.T) {
 	if _, err := EffectiveTimeoutSeconds("nope"); err == nil {
 		t.Fatal("expected error")
 	}
+	if _, err := EffectiveTimeoutSeconds("   "); err == nil {
+		t.Fatal("expected error for whitespace-only timeout")
+	}
 }
 
 func TestBuildPrepareResultMissingVars(t *testing.T) {
@@ -40,6 +43,28 @@ func TestBuildPrepareResultMissingVars(t *testing.T) {
 	}, nil, nil)
 	if res.ErrorClass != ClassInvalid || len(res.MissingVars) == 0 {
 		t.Fatalf("%+v", res)
+	}
+}
+
+func TestBuildPrepareResultInvalidURL(t *testing.T) {
+	cases := []struct {
+		url string
+		msg string
+	}{
+		{"not-a-url", "unsupported protocol scheme"},
+		{"ftp://h/", "unsupported protocol scheme ftp"},
+	}
+	for _, tc := range cases {
+		res := BuildPrepareResult(workspace.Request{
+			Method: "GET",
+			URL:    tc.url,
+		}, nil, nil)
+		if res.ErrorClass != ClassInvalid {
+			t.Fatalf("url=%q class=%q want invalid", tc.url, res.ErrorClass)
+		}
+		if res.ErrorMessage != tc.msg {
+			t.Fatalf("url=%q msg=%q want %q", tc.url, res.ErrorMessage, tc.msg)
+		}
 	}
 }
 
