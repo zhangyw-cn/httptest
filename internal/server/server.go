@@ -16,6 +16,7 @@ func New(ws *workspace.Workspace, ui fs.FS) http.Handler {
 	s := &server{ws: ws, cancels: make(map[string]context.CancelFunc)}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/execute", s.handleExecute)
+	mux.HandleFunc("POST /api/prepare", s.handlePrepare)
 	mux.HandleFunc("POST /api/execute/{id}/cancel", s.handleCancel)
 	mux.HandleFunc("GET /api/history", s.handleListHistory)
 	mux.HandleFunc("GET /api/history/{id}", s.handleGetHistory)
