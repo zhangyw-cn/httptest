@@ -146,6 +146,7 @@ export default function App() {
     resolve?: ResolveSpec;
     timeoutSeconds: number;
   } | null>(null);
+  const [preparingExport, setPreparingExport] = useState(false);
   const savedRef = useRef(JSON.stringify(defaultDraft()));
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -534,7 +535,9 @@ export default function App() {
   }, []);
 
   const onExportCurl = useCallback(async () => {
+    if (preparingExport) return;
     setError(null);
+    setPreparingExport(true);
     try {
       const res = await prepare(draftRef.current);
       if (res.errorClass) {
@@ -570,8 +573,10 @@ export default function App() {
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPreparingExport(false);
     }
-  }, []);
+  }, [preparingExport]);
 
   const onSaveEnv = useCallback(async () => {
     if (envSavingRef.current) return;
@@ -1315,6 +1320,7 @@ export default function App() {
                 onSend={() => void onSend()}
                 onStop={() => void onStop()}
                 onSave={() => void onSave()}
+                exporting={preparingExport}
                 onExportCurl={() => void onExportCurl()}
               />
               <div className="panes">

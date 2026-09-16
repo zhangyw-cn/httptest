@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { methodClass } from "./method";
 import type { HttpRequest } from "./types";
 
@@ -14,11 +14,17 @@ const METHODS = [
 
 export { methodClass };
 
+/** Menu actions disabled while sending or preparing an export. */
+export function sendMenuBusy(sending: boolean, exporting: boolean): boolean {
+  return sending || exporting;
+}
+
 interface Props {
   draft: HttpRequest;
   dirty: boolean;
   sending: boolean;
   saving: boolean;
+  exporting?: boolean;
   onChange: (next: HttpRequest) => void;
   onSend: () => void;
   onStop: () => void;
@@ -31,6 +37,7 @@ export default function UrlBar({
   dirty,
   sending,
   saving,
+  exporting = false,
   onChange,
   onSend,
   onStop,
@@ -38,6 +45,31 @@ export default function UrlBar({
   onExportCurl,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const busy = sendMenuBusy(sending, exporting);
+
+  useEffect(() => {
+    if (busy) setMenuOpen(false);
+  }, [busy]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocMouseDown(e: MouseEvent) {
+      const el = menuRef.current;
+      if (el && !el.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function onDocKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onDocKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onDocKeyDown);
+    };
+  }, [menuOpen]);
 
   function onExportClick() {
     onExportCurl();
@@ -69,15 +101,15 @@ export default function UrlBar({
           type="button"
           className="btn btn-primary send-split-main"
           onClick={onSend}
-          disabled={sending}
+          disabled={busy}
         >
           Send
         </button>
-        <div className="send-menu">
+        <div className="send-menu" ref={menuRef}>
           <button
             type="button"
             className="btn btn-primary send-menu-toggle"
-            disabled={sending}
+            disabled={busy}
             aria-label="Send 菜单"
             aria-expanded={menuOpen}
             aria-haspopup="menu"
@@ -92,7 +124,7 @@ export default function UrlBar({
             <button
               type="button"
               role="menuitem"
-              disabled={sending}
+              disabled={busy}
               onClick={onExportClick}
             >
               导出 curl

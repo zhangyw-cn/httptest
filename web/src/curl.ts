@@ -14,6 +14,16 @@ export function defaultCurlOptions(): CurlOptions {
   };
 }
 
+export function effectiveCurlOptions(
+  options: CurlOptions,
+  resolve?: ResolveSpec | null,
+): CurlOptions {
+  return {
+    ...options,
+    useResolve: options.useResolve && !!resolve,
+  };
+}
+
 export function shellSingleQuote(s: string): string {
   return `'${s.replace(/'/g, "'\\''")}'`;
 }

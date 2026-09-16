@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { defaultCurlOptions, formatCurl } from "./curl";
+import { defaultCurlOptions, effectiveCurlOptions, formatCurl } from "./curl";
 import type { HttpRequest, ResolveSpec } from "./types";
 
 interface Props {
@@ -19,10 +19,7 @@ export default function ExportCurlDialog({
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
 
-  const effectiveOptions = {
-    ...options,
-    useResolve: options.useResolve && !!resolve,
-  };
+  const effectiveOptions = effectiveCurlOptions(options, resolve);
 
   const preview = formatCurl({
     prepared,
