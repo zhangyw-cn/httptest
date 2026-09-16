@@ -17,6 +17,7 @@ import {
   putEnvironment,
   putHosts,
   putLocal,
+  prepare,
   putOverride,
   putRequest,
   renameEnvironment,
@@ -31,6 +32,7 @@ import {
 } from "./activity";
 import ActivityBar from "./ActivityBar";
 import Dialog, { type DialogMode } from "./Dialog";
+import ExportCurlDialog from "./ExportCurlDialog";
 import EnvEditor from "./EnvEditor";
 import HostsContentEditor from "./HostsContentEditor";
 import ErrorBoundary from "./ErrorBoundary";
@@ -90,6 +92,7 @@ import type {
   HttpRequest,
   LocalConfig,
   Override,
+  ResolveSpec,
   Result,
   WorkspaceInfo,
 } from "./types";
@@ -138,6 +141,11 @@ export default function App() {
     useState<SettingsCategory>("appearance");
   const [dialog, setDialog] = useState<DialogMode | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
+  const [exportCurl, setExportCurl] = useState<{
+    prepared: HttpRequest;
+    resolve?: ResolveSpec;
+    timeoutSeconds: number;
+  } | null>(null);
   const savedRef = useRef(JSON.stringify(defaultDraft()));
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -522,6 +530,46 @@ export default function App() {
       await cancelExecute(id);
     } catch {
       // execute 可能已结束，忽略 404
+    }
+  }, []);
+
+  const onExportCurl = useCallback(async () => {
+    setError(null);
+    try {
+      const res = await prepare(draftRef.current);
+      if (res.errorClass) {
+        setResult({
+          status: 0,
+          statusText: "",
+          headers: {},
+          body: "",
+          truncated: false,
+          requestDump: "",
+          responseDump: "",
+          requestSize: 0,
+          responseSize: 0,
+          redirects: [],
+          timings: {
+            dnsMs: 0,
+            connectMs: 0,
+            tlsMs: 0,
+            firstByteMs: 0,
+            totalMs: 0,
+          },
+          errorClass: res.errorClass,
+          errorMessage: res.errorMessage ?? "",
+          missingVars: res.missingVars,
+          prepared: res.prepared,
+        });
+        return;
+      }
+      setExportCurl({
+        prepared: res.prepared,
+        resolve: res.resolve,
+        timeoutSeconds: res.timeoutSeconds ?? 30,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     }
   }, []);
 
@@ -1267,7 +1315,7 @@ export default function App() {
                 onSend={() => void onSend()}
                 onStop={() => void onStop()}
                 onSave={() => void onSave()}
-                onExportCurl={() => {}}
+                onExportCurl={() => void onExportCurl()}
               />
               <div className="panes">
                 <RequestEditor
@@ -1295,6 +1343,14 @@ export default function App() {
             setDialogError(null);
           }}
           onSubmit={(p, opts) => onDialogSubmit(p, opts)}
+        />
+      )}
+      {exportCurl && (
+        <ExportCurlDialog
+          prepared={exportCurl.prepared}
+          resolve={exportCurl.resolve}
+          timeoutSeconds={exportCurl.timeoutSeconds}
+          onClose={() => setExportCurl(null)}
         />
       )}
     </div>
