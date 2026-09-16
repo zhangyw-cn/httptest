@@ -755,6 +755,60 @@ button:focus-visible {
   gap: 0.4rem;
 }
 
+.export-curl-dialog {
+  width: min(560px, 92vw);
+}
+
+.curl-options {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.curl-options-legend {
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding: 0 0.25rem;
+}
+
+.curl-option {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.curl-option input:disabled + *,
+.curl-option:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.curl-option-hint {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.curl-preview {
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.65rem;
+  max-height: 14rem;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--field);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
 .env-send-badge {
   color: var(--muted);
   font-size: 12px;
