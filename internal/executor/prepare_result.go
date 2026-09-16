@@ -3,7 +3,6 @@ package executor
 import (
 	"errors"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -53,25 +52,19 @@ func EffectiveTimeoutSeconds(timeout string) (float64, error) {
 }
 
 func LookupResolve(rawURL string, mappings map[string]string) *ResolveSpec {
-	if len(mappings) == 0 {
-		return nil
-	}
 	u, err := url.Parse(rawURL)
 	if err != nil || u.Hostname() == "" {
 		return nil
 	}
 	host := u.Hostname()
-	if net.ParseIP(host) != nil {
-		return nil
-	}
-	key := strings.ToLower(host)
-	ip, ok := mappings[key]
+	ip, ok := lookupHostMapping(host, mappings)
 	if !ok {
 		return nil
 	}
+	key := strings.ToLower(host)
 	port := u.Port()
 	if port == "" {
-		if u.Scheme == "https" {
+		if strings.EqualFold(u.Scheme, "https") {
 			port = "443"
 		} else {
 			port = "80"

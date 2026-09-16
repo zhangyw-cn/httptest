@@ -19,10 +19,13 @@ export function shellSingleQuote(s: string): string {
 }
 
 function formatSeconds(seconds: number): string {
-  if (Number.isInteger(seconds)) {
-    return String(seconds);
-  }
   return String(seconds);
+}
+
+/** curl --resolve needs IPv6 addresses in brackets: host:port:[addr] */
+export function resolveArg(host: string, port: string, ip: string): string {
+  const addr = ip.includes(":") ? `[${ip}]` : ip;
+  return `${host}:${port}:${addr}`;
 }
 
 function urlWithQuery(prepared: HttpRequest): string {
@@ -64,7 +67,7 @@ export function formatCurl(input: {
   if (options.maxTime) parts.push(`--max-time ${formatSeconds(timeoutSeconds)}`);
   if (options.useResolve && resolve) {
     parts.push(
-      `--resolve ${shellSingleQuote(`${resolve.host}:${resolve.port}:${resolve.ip}`)}`,
+      `--resolve ${shellSingleQuote(resolveArg(resolve.host, resolve.port, resolve.ip))}`,
     );
   }
 

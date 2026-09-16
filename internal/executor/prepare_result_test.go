@@ -83,3 +83,10 @@ func TestBuildPrepareResultOK(t *testing.T) {
 		t.Fatalf("timeout=%v", res.TimeoutSeconds)
 	}
 }
+
+func TestLookupResolveHTTPSSchemeCase(t *testing.T) {
+	r := LookupResolve("HTTPS://API.Example.com/v1", map[string]string{"api.example.com": "10.0.0.5"})
+	if r == nil || r.Port != "443" {
+		t.Fatalf("%+v", r)
+	}
+}

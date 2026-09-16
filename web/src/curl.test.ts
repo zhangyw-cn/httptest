@@ -62,4 +62,14 @@ describe("formatCurl", () => {
     });
     expect(s).toContain("--resolve 'api.local:80:10.0.0.1'");
   });
+
+  it("brackets IPv6 addresses in --resolve", () => {
+    const s = formatCurl({
+      prepared: base({ url: "https://api.local/" }),
+      resolve: { host: "api.local", port: "443", ip: "2001:db8::1" },
+      timeoutSeconds: 30,
+      options: { ...defaultCurlOptions(), followRedirects: false, maxTime: false },
+    });
+    expect(s).toContain("--resolve 'api.local:443:[2001:db8::1]'");
+  });
 });
