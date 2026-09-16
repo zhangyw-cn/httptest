@@ -1,15 +1,9 @@
-import type { HttpRequest } from "./types";
+import type { HttpRequest, ResolveSpec } from "./types";
 
 export interface CurlOptions {
   useResolve: boolean;
   followRedirects: boolean;
   maxTime: boolean;
-}
-
-export interface CurlResolve {
-  host: string;
-  port: string;
-  ip: string;
 }
 
 export function defaultCurlOptions(): CurlOptions {
@@ -59,7 +53,7 @@ function encodeFormBody(content: string | Record<string, string>): string {
 
 export function formatCurl(input: {
   prepared: HttpRequest;
-  resolve?: CurlResolve | null;
+  resolve?: ResolveSpec | null;
   timeoutSeconds: number;
   options: CurlOptions;
 }): string {

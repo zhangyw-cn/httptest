@@ -79,6 +79,21 @@ export interface Timings {
   totalMs: number;
 }
 
+export interface ResolveSpec {
+  host: string;
+  port: string;
+  ip: string;
+}
+
+export interface PrepareResponse {
+  prepared: HttpRequest;
+  resolve?: ResolveSpec;
+  timeoutSeconds?: number;
+  errorClass: ErrorClass | "";
+  errorMessage: string;
+  missingVars?: string[];
+}
+
 export interface Result {
   status: number;
   statusText: string;

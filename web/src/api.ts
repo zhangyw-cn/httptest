@@ -8,6 +8,7 @@ import type {
   HttpRequest,
   LocalConfig,
   Override,
+  PrepareResponse,
   Result,
   WorkspaceInfo,
 } from "./types";
@@ -200,6 +201,15 @@ export async function putLocal(local: LocalConfig): Promise<LocalConfig> {
     body: JSON.stringify(local),
   });
   return parseJSON<LocalConfig>(res);
+}
+
+export async function prepare(request: HttpRequest): Promise<PrepareResponse> {
+  const res = await fetch("/api/prepare", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ request }),
+  });
+  return parseJSON<PrepareResponse>(res);
 }
 
 export async function execute(
