@@ -351,6 +351,62 @@ button:focus-visible {
   height: 32px;
 }
 
+.send-split {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.send-split-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.send-menu {
+  position: relative;
+}
+
+.send-menu-toggle {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: -1px;
+  padding: 0 0.35rem;
+  min-width: 28px;
+}
+
+.send-menu-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  min-width: 9rem;
+  padding: 0.25rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
+}
+
+.send-menu-panel-open {
+  display: block;
+}
+
+.send-menu-panel button {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 32px;
+  padding: 0.35rem 0.6rem;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+}
+
+.send-menu-panel button:hover:not(:disabled) {
+  background: var(--hover);
+}
+
 .panes {
   flex: 1;
   min-height: 0;

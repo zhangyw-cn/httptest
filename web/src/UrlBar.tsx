@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { methodClass } from "./method";
 import type { HttpRequest } from "./types";
 
@@ -22,6 +23,7 @@ interface Props {
   onSend: () => void;
   onStop: () => void;
   onSave: () => void;
+  onExportCurl: () => void;
 }
 
 export default function UrlBar({
@@ -33,7 +35,15 @@ export default function UrlBar({
   onSend,
   onStop,
   onSave,
+  onExportCurl,
 }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  function onExportClick() {
+    onExportCurl();
+    setMenuOpen(false);
+  }
+
   return (
     <div className="urlbar">
       <select
@@ -54,14 +64,42 @@ export default function UrlBar({
         spellCheck={false}
       />
       {dirty && <span className="dirty">未保存</span>}
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={onSend}
-        disabled={sending}
-      >
-        Send
-      </button>
+      <div className="send-split">
+        <button
+          type="button"
+          className="btn btn-primary send-split-main"
+          onClick={onSend}
+          disabled={sending}
+        >
+          Send
+        </button>
+        <div className="send-menu">
+          <button
+            type="button"
+            className="btn btn-primary send-menu-toggle"
+            disabled={sending}
+            aria-label="Send 菜单"
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            ▾
+          </button>
+          <div
+            className={`send-menu-panel${menuOpen ? " send-menu-panel-open" : ""}`}
+            role="menu"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              disabled={sending}
+              onClick={onExportClick}
+            >
+              导出 curl
+            </button>
+          </div>
+        </div>
+      </div>
       <button type="button" className="btn" onClick={onStop} disabled={!sending}>
         Stop
       </button>

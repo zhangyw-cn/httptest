@@ -1267,6 +1267,7 @@ export default function App() {
                 onSend={() => void onSend()}
                 onStop={() => void onStop()}
                 onSave={() => void onSave()}
+                onExportCurl={() => {}}
               />
               <div className="panes">
                 <RequestEditor
