@@ -62,7 +62,7 @@ import {
   hostsNameError,
   hostsNewBlockedReason,
   hostsRenameConfirmDialog,
-  parseHostsContent,
+  validateHostsFile,
 } from "./hosts";
 import {
   overrideAPIError,
@@ -629,9 +629,13 @@ export default function App() {
     try {
       if (hostsType === "hosts") {
         const content = hostsContentRef.current;
-        const parsed = parseHostsContent(content);
-        if (!parsed.ok) {
-          setHostsError(parsed.error);
+        const vErr = validateHostsFile({
+          type: "hosts",
+          content,
+          mappings: {},
+        });
+        if (vErr) {
+          setHostsError(vErr);
           return;
         }
         const saved = await putHosts(name, {
@@ -665,6 +669,15 @@ export default function App() {
         return;
       }
       const mappings = converted.mappings;
+      const vErr = validateHostsFile({
+        type: "map",
+        mappings,
+        content: "",
+      });
+      if (vErr) {
+        setHostsError(vErr);
+        return;
+      }
       const saved = await putHosts(name, {
         name,
         type: "map",

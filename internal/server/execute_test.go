@@ -233,6 +233,55 @@ func TestExecuteMissingHostsFileDegrades(t *testing.T) {
 	}
 }
 
+func TestExecuteUsesActiveHostsAlias(t *testing.T) {
+	h := newTestHandler(t)
+	var sawHost string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawHost = r.Host
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+	u, _ := url.Parse(srv.URL)
+	port := u.Port()
+	content, _ := json.Marshal(map[string]any{
+		"name":    "lan",
+		"type":    "hosts",
+		"content": "127.0.0.1 api.example.com api\n",
+	})
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/hosts/lan", content))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("put %d %s", rr.Code, rr.Body.Bytes())
+	}
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPut, "/api/local", []byte(`{"environment":"","override":"","hosts":"lan"}`)))
+	if rr.Code != http.StatusOK {
+		t.Fatal(rr.Code)
+	}
+	// Hit via alias "api"
+	reqURL := "http://api:" + port + "/x"
+	body := []byte(`{"id":"alias","request":{"name":"t","method":"GET","url":"` + reqURL + `","query":{},"headers":{},"body":{"type":"none"}}}`)
+	rr = httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/execute", body))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("%d %s", rr.Code, rr.Body.Bytes())
+	}
+	var res struct {
+		Status     int    `json:"status"`
+		ResolvedIP string `json:"resolvedIP"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Status != 200 || res.ResolvedIP != "127.0.0.1" {
+		t.Fatalf("%+v", res)
+	}
+	if sawHost != "api:"+port {
+		t.Fatalf("host=%q", sawHost)
+	}
+}
+
 func TestExecuteUsesActiveHosts(t *testing.T) {
 	h := newTestHandler(t)
 	var sawHost string

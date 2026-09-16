@@ -321,15 +321,19 @@ func (w *Workspace) RenameHosts(oldName, newName string) (HostsFile, error) {
 		}
 		return rerr
 	}
+	normalized, err := w.loadHostsFile(newPath)
+	if err != nil {
+		return HostsFile{}, wrapRestore(err, rollback())
+	}
 	local, err := w.GetLocal()
 	if err != nil {
 		return HostsFile{}, wrapRestore(err, rollback())
 	}
 	if local.Hosts != oldClean {
-		return h, nil
+		return normalized, nil
 	}
 	if err := w.writeActive(local.Environment, local.Override, newClean); err != nil {
 		return HostsFile{}, wrapRestore(err, rollback())
 	}
-	return h, nil
+	return normalized, nil
 }

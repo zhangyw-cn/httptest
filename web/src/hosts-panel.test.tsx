@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import ActivityBar from "./ActivityBar";
+import Dialog from "./Dialog";
 import EnvEditor from "./EnvEditor";
 import HostsContentEditor from "./HostsContentEditor";
 import Sidebar from "./Sidebar";
@@ -73,7 +74,30 @@ describe("hosts activity", () => {
       />,
     );
     expect(markup).toContain("Hosts 列表加载失败");
+    expect(markup).toContain("无法加载 Hosts 列表");
     expect(markup).toContain('disabled=""');
+  });
+
+  it("shows create-hosts type picker with default map", () => {
+    const markup = renderToStaticMarkup(
+      <Dialog
+        mode={{
+          kind: "path",
+          title: "新建 Hosts",
+          submitLabel: "创建",
+          error: null,
+          intent: "create-hosts",
+          hint: "名称，例如 lan",
+        }}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+    expect(markup).toContain("hosts-type-pick");
+    expect(markup).toContain("map（键值）");
+    expect(markup).toContain("hosts（文本）");
+    expect(markup).toContain('value="map"');
+    expect(markup).toContain("checked");
   });
 
   it("shows list load error in HostsContentEditor empty state", () => {

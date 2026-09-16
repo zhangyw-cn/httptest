@@ -82,15 +82,40 @@ describe("parseHostsContent", () => {
     const r = parseHostsContent("1.1.1.1 a.com\n2.2.2.2 A.COM");
     expect(r.ok).toBe(false);
   });
+
+  it("accepts empty/comment-only and IPv6; rejects bad lines", () => {
+    expect(parseHostsContent("\n# only\n")).toEqual({
+      ok: true,
+      mappings: {},
+    });
+    const v6 = parseHostsContent("2001:db8::1 ipv6.example.com v6\n");
+    expect(v6).toEqual({
+      ok: true,
+      mappings: {
+        "ipv6.example.com": "2001:db8::1",
+        v6: "2001:db8::1",
+      },
+    });
+    expect(parseHostsContent("1.1.1.1").ok).toBe(false);
+    expect(parseHostsContent("not-ip a.com").ok).toBe(false);
+    expect(parseHostsContent("1.1.1.1 a.com a.com").ok).toBe(false);
+  });
 });
 
 describe("validateHostsFile", () => {
-  it("rejects cross fields", () => {
+  it("rejects cross fields both ways", () => {
     expect(
       validateHostsFile({
         type: "map",
         mappings: { "a.com": "1.1.1.1" },
         content: "nope",
+      }),
+    ).toBeTruthy();
+    expect(
+      validateHostsFile({
+        type: "hosts",
+        mappings: { "a.com": "1.1.1.1" },
+        content: "",
       }),
     ).toBeTruthy();
   });

@@ -304,7 +304,7 @@ func TestRenameHostsUpdatesActive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ws.PutHosts(HostsFile{Name: "old", Type: HostsTypeMap, Mappings: map[string]string{"a.com": "1.1.1.1"}}); err != nil {
+	if _, err := ws.PutHosts(HostsFile{Name: "old", Type: HostsTypeMap, Mappings: map[string]string{"A.com": "1.1.1.1"}}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := ws.PutLocal(Local{Hosts: "old"}); err != nil {
@@ -313,6 +313,12 @@ func TestRenameHostsUpdatesActive(t *testing.T) {
 	h, err := ws.RenameHosts("old", "new")
 	if err != nil || h.Name != "new" {
 		t.Fatalf("%v %v", h, err)
+	}
+	if h.Type != HostsTypeMap || h.Mappings["a.com"] != "1.1.1.1" {
+		t.Fatalf("rename return not normalized: %+v", h)
+	}
+	if _, ok := h.Mappings["A.com"]; ok {
+		t.Fatal("raw key should not remain")
 	}
 	got, err := ws.GetLocal()
 	if err != nil || got.Hosts != "new" {

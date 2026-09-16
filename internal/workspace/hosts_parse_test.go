@@ -35,3 +35,28 @@ func TestParseHostsContentEmptyOK(t *testing.T) {
 		t.Fatalf("%v %v", m, err)
 	}
 }
+
+func TestParseHostsContentRejectsBadLines(t *testing.T) {
+	cases := []string{
+		"not-an-ip a.com",
+		"1.1.1.1",
+		"1.1.1.1 a/b",
+		"1.1.1.1 a.com\n2.2.2.2 a.com",
+		"1.1.1.1 a.com a.com",
+	}
+	for _, c := range cases {
+		if _, err := ParseHostsContent(c); !errors.Is(err, ErrInvalidHostsMapping) {
+			t.Fatalf("%q: got %v", c, err)
+		}
+	}
+}
+
+func TestParseHostsContentIPv6(t *testing.T) {
+	m, err := ParseHostsContent("2001:db8::1 ipv6.example.com v6\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m["ipv6.example.com"] != "2001:db8::1" || m["v6"] != "2001:db8::1" {
+		t.Fatalf("%v", m)
+	}
+}

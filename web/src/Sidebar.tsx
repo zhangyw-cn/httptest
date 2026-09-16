@@ -289,7 +289,7 @@ export default function Sidebar({
               </p>
               <p className="empty-hint">
                 {hostsListError
-                  ? "请先修复非法文件后再新建"
+                  ? hostsListError
                   : "用侧栏 ＋ 或下方按钮创建"}
               </p>
               <button
