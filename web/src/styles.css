@@ -351,29 +351,19 @@ button:focus-visible {
   height: 32px;
 }
 
-.send-split {
-  display: inline-flex;
-  align-items: stretch;
-}
-
-.send-split-main {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.send-menu {
+.urlbar-more {
   position: relative;
+  margin-left: auto;
 }
 
-.send-menu-toggle {
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-  margin-left: -1px;
-  padding: 0 0.35rem;
-  min-width: 28px;
+.urlbar-more-toggle {
+  padding: 0 0.45rem;
+  min-width: 32px;
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
-.send-menu-panel {
+.urlbar-more-panel {
   display: none;
   position: absolute;
   top: calc(100% + 4px);
@@ -387,11 +377,11 @@ button:focus-visible {
   box-shadow: 0 4px 12px rgb(0 0 0 / 0.15);
 }
 
-.send-menu-panel-open {
+.urlbar-more-panel-open {
   display: block;
 }
 
-.send-menu-panel button {
+.urlbar-more-panel button {
   display: block;
   width: 100%;
   height: auto;
@@ -403,7 +393,7 @@ button:focus-visible {
   border-radius: 4px;
 }
 
-.send-menu-panel button:hover:not(:disabled) {
+.urlbar-more-panel button:hover:not(:disabled) {
   background: var(--hover);
 }
 

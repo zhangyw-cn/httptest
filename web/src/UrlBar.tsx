@@ -29,6 +29,7 @@ interface Props {
   onSend: () => void;
   onStop: () => void;
   onSave: () => void;
+  onImportCurl: () => void;
   onExportCurl: () => void;
 }
 
@@ -42,6 +43,7 @@ export default function UrlBar({
   onSend,
   onStop,
   onSave,
+  onImportCurl,
   onExportCurl,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -71,11 +73,6 @@ export default function UrlBar({
     };
   }, [menuOpen]);
 
-  function onExportClick() {
-    onExportCurl();
-    setMenuOpen(false);
-  }
-
   return (
     <div className="urlbar">
       <select
@@ -96,48 +93,60 @@ export default function UrlBar({
         spellCheck={false}
       />
       {dirty && <span className="dirty">未保存</span>}
-      <div className="send-split">
-        <button
-          type="button"
-          className="btn btn-primary send-split-main"
-          onClick={onSend}
-          disabled={busy}
-        >
-          Send
-        </button>
-        <div className="send-menu" ref={menuRef}>
-          <button
-            type="button"
-            className="btn btn-primary send-menu-toggle"
-            disabled={busy}
-            aria-label="Send 菜单"
-            aria-expanded={menuOpen}
-            aria-haspopup="menu"
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            ▾
-          </button>
-          <div
-            className={`send-menu-panel${menuOpen ? " send-menu-panel-open" : ""}`}
-            role="menu"
-          >
-            <button
-              type="button"
-              role="menuitem"
-              disabled={busy}
-              onClick={onExportClick}
-            >
-              导出 curl
-            </button>
-          </div>
-        </div>
-      </div>
+      <button
+        type="button"
+        className="btn btn-primary"
+        onClick={onSend}
+        disabled={busy}
+      >
+        Send
+      </button>
       <button type="button" className="btn" onClick={onStop} disabled={!sending}>
         Stop
       </button>
       <button type="button" className="btn" onClick={onSave} disabled={saving}>
         保存
       </button>
+      <div className="urlbar-more" ref={menuRef}>
+        <button
+          type="button"
+          className="btn urlbar-more-toggle"
+          disabled={busy}
+          aria-label="更多"
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          onClick={() => setMenuOpen((o) => !o)}
+        >
+          ⋯
+        </button>
+        <div
+          className={`urlbar-more-panel${menuOpen ? " urlbar-more-panel-open" : ""}`}
+          role="menu"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            disabled={busy}
+            onClick={() => {
+              onImportCurl();
+              setMenuOpen(false);
+            }}
+          >
+            导入 curl
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            disabled={busy}
+            onClick={() => {
+              onExportCurl();
+              setMenuOpen(false);
+            }}
+          >
+            导出 curl
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

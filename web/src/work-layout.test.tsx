@@ -34,6 +34,7 @@ function renderWorkbench(view: "settings" | "collection", panelOpen: boolean) {
             onSend={vi.fn()}
             onStop={vi.fn()}
             onSave={vi.fn()}
+            onImportCurl={vi.fn()}
             onExportCurl={vi.fn()}
           />
         )}
