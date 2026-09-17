@@ -33,6 +33,8 @@ import {
 import ActivityBar from "./ActivityBar";
 import Dialog, { type DialogMode } from "./Dialog";
 import ExportCurlDialog from "./ExportCurlDialog";
+import ImportCurlDialog from "./ImportCurlDialog";
+import { applyParsedCurl } from "./curl";
 import EnvEditor from "./EnvEditor";
 import HostsContentEditor from "./HostsContentEditor";
 import ErrorBoundary from "./ErrorBoundary";
@@ -147,6 +149,7 @@ export default function App() {
     timeoutSeconds: number;
   } | null>(null);
   const [preparingExport, setPreparingExport] = useState(false);
+  const [importCurlOpen, setImportCurlOpen] = useState(false);
   const savedRef = useRef(JSON.stringify(defaultDraft()));
   const draftRef = useRef(draft);
   draftRef.current = draft;
@@ -1321,6 +1324,7 @@ export default function App() {
                 onStop={() => void onStop()}
                 onSave={() => void onSave()}
                 exporting={preparingExport}
+                onImportCurl={() => setImportCurlOpen(true)}
                 onExportCurl={() => void onExportCurl()}
               />
               <div className="panes">
@@ -1349,6 +1353,15 @@ export default function App() {
             setDialogError(null);
           }}
           onSubmit={(p, opts) => onDialogSubmit(p, opts)}
+        />
+      )}
+      {importCurlOpen && (
+        <ImportCurlDialog
+          onClose={() => setImportCurlOpen(false)}
+          onApply={(parsed) => {
+            applyDraft(applyParsedCurl(draftRef.current, parsed));
+            setImportCurlOpen(false);
+          }}
         />
       )}
       {exportCurl && (
