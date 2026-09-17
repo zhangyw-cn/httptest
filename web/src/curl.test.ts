@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyParsedCurl,
   formatCurl,
+  parseCurl,
   shellSingleQuote,
   defaultCurlOptions,
   effectiveCurlOptions,
@@ -205,5 +207,166 @@ describe("formatCurl", () => {
     });
     expect(on).toContain("-L");
     expect(off).not.toContain("-L");
+  });
+});
+
+describe("parseCurl", () => {
+  it("parses simple GET", () => {
+    const r = parseCurl("curl 'http://example.com/api'");
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.method).toBe("GET");
+    expect(r.request.url).toBe("http://example.com/api");
+    expect(r.request.query).toEqual({});
+    expect(r.request.body.type).toBe("none");
+  });
+
+  it("splits URL query into query map", () => {
+    const r = parseCurl("curl 'http://example.com/x?a=1&b=2'");
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.url).toBe("http://example.com/x");
+    expect(r.request.query).toEqual({ a: "1", b: "2" });
+  });
+
+  it("maps -X -H --data-raw and infers POST", () => {
+    const r = parseCurl(
+      `curl -X POST 'http://example.com/login' -H 'Content-Type: application/json' --data-raw '{"u":"a"}'`,
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.method).toBe("POST");
+    expect(r.request.headers["Content-Type"]).toBe("application/json");
+    expect(r.request.body).toEqual({
+      type: "json",
+      content: '{"u":"a"}',
+    });
+  });
+
+  it("data without -X defaults to POST", () => {
+    const r = parseCurl(`curl 'http://example.com/' --data-raw 'x=1'`);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.method).toBe("POST");
+    expect(r.request.body.type).toBe("raw");
+  });
+
+  it("maps -A and -e; later -H wins", () => {
+    const r = parseCurl(
+      `curl 'http://example.com/' -A 'OldUA' -H 'User-Agent: NewUA' -e 'http://ref.example/'`,
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.headers["User-Agent"]).toBe("NewUA");
+    expect(r.request.headers["Referer"]).toBe("http://ref.example/");
+  });
+
+  it("maps --max-time to timeout", () => {
+    const r = parseCurl(`curl --max-time 1.5 'http://example.com/'`);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.timeout).toBe("1.5s");
+  });
+
+  it("ignores -L -v --compressed", () => {
+    const r = parseCurl(
+      `curl -L -v --compressed 'http://example.com/'`,
+    );
+    expect(r.ok).toBe(true);
+  });
+
+  it("fails on --resolve", () => {
+    const r = parseCurl(
+      `curl --resolve example.com:80:127.0.0.1 'http://example.com/'`,
+    );
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toMatch(/--resolve/);
+  });
+
+  it("fails on unknown flag", () => {
+    const r = parseCurl(`curl --proxy http://p 'http://example.com/'`);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toMatch(/--proxy/);
+  });
+
+  it("fails on clustered short options", () => {
+    const r = parseCurl(`curl -vL 'http://example.com/'`);
+    expect(r.ok).toBe(false);
+  });
+
+  it("fails without curl prefix", () => {
+    expect(parseCurl("wget http://x").ok).toBe(false);
+  });
+
+  it("handles line continuations and # comments", () => {
+    const r = parseCurl(`# demo
+curl -X GET \\
+  'http://example.com/y'`);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.method).toBe("GET");
+    expect(r.request.url).toBe("http://example.com/y");
+  });
+
+  it("-G moves data into query", () => {
+    const r = parseCurl(
+      `curl -G 'http://example.com/search' --data-raw 'q=hi&page=1'`,
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.method).toBe("GET");
+    expect(r.request.query).toEqual({ q: "hi", page: "1" });
+    expect(r.request.body.type).toBe("none");
+  });
+
+  it("-I sets HEAD", () => {
+    const r = parseCurl(`curl -I 'http://example.com/'`);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.method).toBe("HEAD");
+  });
+
+  it("urlencoded body becomes form", () => {
+    const r = parseCurl(
+      `curl 'http://example.com/' -H 'Content-Type: application/x-www-form-urlencoded' --data-raw 'a=1&b=2'`,
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.body).toEqual({ type: "form", content: { a: "1", b: "2" } });
+  });
+
+  it("GET with data without -G fails", () => {
+    const r = parseCurl(
+      `curl -X GET 'http://example.com/' --data-raw 'x=1'`,
+    );
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("applyParsedCurl", () => {
+  it("keeps name and clears timeout when absent", () => {
+    const draft: HttpRequest = {
+      name: "Login",
+      method: "POST",
+      url: "http://old/",
+      query: { z: "9" },
+      headers: { A: "1" },
+      body: { type: "raw", content: "x" },
+      timeout: "10s",
+    };
+    const parsed = {
+      method: "GET",
+      url: "http://new/",
+      query: {},
+      headers: {},
+      body: { type: "none" as const },
+    };
+    const next = applyParsedCurl(draft, parsed);
+    expect(next.name).toBe("Login");
+    expect(next.method).toBe("GET");
+    expect(next.url).toBe("http://new/");
+    expect(next.timeout).toBeUndefined();
   });
 });
