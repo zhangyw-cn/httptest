@@ -1,13 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import UrlBar, { sendMenuBusy } from "./UrlBar";
+import UrlBar, { urlBarBusy } from "./UrlBar";
 import { defaultDraft } from "./request";
 
-describe("sendMenuBusy", () => {
+describe("urlBarBusy", () => {
   it("is busy when sending or exporting", () => {
-    expect(sendMenuBusy(false, false)).toBe(false);
-    expect(sendMenuBusy(true, false)).toBe(true);
-    expect(sendMenuBusy(false, true)).toBe(true);
+    expect(urlBarBusy(false, false)).toBe(false);
+    expect(urlBarBusy(true, false)).toBe(true);
+    expect(urlBarBusy(false, true)).toBe(true);
   });
 });
 

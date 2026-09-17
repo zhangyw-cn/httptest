@@ -166,6 +166,10 @@ export default function App() {
   executeIdRef.current = executeId;
   const dialogRef = useRef(dialog);
   dialogRef.current = dialog;
+  const importCurlOpenRef = useRef(importCurlOpen);
+  importCurlOpenRef.current = importCurlOpen;
+  const exportCurlRef = useRef(exportCurl);
+  exportCurlRef.current = exportCurl;
   const envSavedRef = useRef(varsJSON({}));
   const envPairsRef = useRef(envPairs);
   envPairsRef.current = envPairs;
@@ -1135,8 +1139,12 @@ export default function App() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      const overlayOpen =
+        dialogRef.current !== null ||
+        importCurlOpenRef.current ||
+        exportCurlRef.current !== null;
       const action = shortcutFromEvent(e, {
-        dialogOpen: dialogRef.current !== null,
+        dialogOpen: overlayOpen,
       });
       if (!action) return;
       if (action === "save" || action === "block-browser-save") {
@@ -1166,6 +1174,10 @@ export default function App() {
         if (dialogRef.current) {
           setDialog(null);
           setDialogError(null);
+        } else if (importCurlOpenRef.current) {
+          setImportCurlOpen(false);
+        } else if (exportCurlRef.current) {
+          setExportCurl(null);
         } else if (sendingRef.current) {
           void onStop();
         }
@@ -1179,6 +1191,9 @@ export default function App() {
     dialog === null
       ? null
       : { ...dialog, error: dialogError ?? dialog.error };
+
+  const curlOverlayOpen = importCurlOpen || exportCurl !== null;
+  const mainInert = dialogMode !== null || curlOverlayOpen;
 
   const mode = workMode(left.view);
 
@@ -1196,7 +1211,7 @@ export default function App() {
       />
       {error && <div className="banner error">{error}</div>}
       {/* eslint-disable-next-line react/no-unknown-property */}
-      <div className="main" {...(dialogMode ? { inert: "" } : {})}>
+      <div className="main" {...(mainInert ? { inert: "" } : {})}>
         <ActivityBar
           view={left.view}
           panelOpen={left.panelOpen}

@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { parseCurl, type ParsedCurlRequest } from "./curl";
+import { parseCurl, type ParsedCurlRequest, type ParseCurlResult } from "./curl";
 
 interface Props {
   onApply: (parsed: ParsedCurlRequest) => void;
   onClose: () => void;
+}
+
+/** Parse paste text; dialog keeps open and shows error when !ok. */
+export function tryApplyImport(text: string): ParseCurlResult {
+  return parseCurl(text);
 }
 
 export default function ImportCurlDialog({ onApply, onClose }: Props) {
@@ -11,7 +16,7 @@ export default function ImportCurlDialog({ onApply, onClose }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   function apply() {
-    const result = parseCurl(text);
+    const result = tryApplyImport(text);
     if (!result.ok) {
       setError(result.error);
       return;

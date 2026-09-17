@@ -268,6 +268,30 @@ describe("parseCurl", () => {
     expect(r.request.timeout).toBe("1.5s");
   });
 
+  it("maps -m to timeout", () => {
+    const r = parseCurl(`curl -m 30 'http://example.com/'`);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.timeout).toBe("30s");
+  });
+
+  it("fails on shell variable expansion", () => {
+    const r = parseCurl(`curl 'http://example.com/' -H "Authorization: $TOKEN"`);
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toMatch(/shell|变量|命令/);
+  });
+
+  it("fails on backticks", () => {
+    const r = parseCurl("curl `echo http://example.com/`");
+    expect(r.ok).toBe(false);
+  });
+
+  it("fails on attached -m30 short option", () => {
+    const r = parseCurl(`curl -m30 'http://example.com/'`);
+    expect(r.ok).toBe(false);
+  });
+
   it("ignores -L -v --compressed", () => {
     const r = parseCurl(
       `curl -L -v --compressed 'http://example.com/'`,

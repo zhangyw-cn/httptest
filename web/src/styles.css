@@ -734,6 +734,10 @@ button:focus-visible {
   font-size: 0.85rem;
 }
 
+.dialog p.error {
+  color: var(--err);
+}
+
 .dialog-path {
   width: 100%;
   margin-bottom: 0.75rem;
@@ -745,7 +749,8 @@ button:focus-visible {
   gap: 0.4rem;
 }
 
-.export-curl-dialog {
+.export-curl-dialog,
+.import-curl-dialog {
   width: min(560px, 92vw);
 }
 
@@ -802,13 +807,13 @@ button:focus-visible {
 .import-curl-dialog .curl-import-input {
   width: 100%;
   min-height: 12rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 0.85rem;
   padding: 0.5rem;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--bg);
-  color: var(--text);
+  color: var(--ink);
   resize: vertical;
 }
 

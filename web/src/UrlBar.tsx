@@ -14,8 +14,8 @@ const METHODS = [
 
 export { methodClass };
 
-/** Menu actions disabled while sending or preparing an export. */
-export function sendMenuBusy(sending: boolean, exporting: boolean): boolean {
+/** More-menu actions disabled while sending or preparing an export. */
+export function urlBarBusy(sending: boolean, exporting: boolean): boolean {
   return sending || exporting;
 }
 
@@ -48,7 +48,7 @@ export default function UrlBar({
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const busy = sendMenuBusy(sending, exporting);
+  const busy = urlBarBusy(sending, exporting);
 
   useEffect(() => {
     if (busy) setMenuOpen(false);

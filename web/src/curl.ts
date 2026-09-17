@@ -295,6 +295,12 @@ export function parseCurl(input: string): ParseCurlResult {
     return fail("命令必须以 curl 开头");
   }
 
+  for (const t of tokens) {
+    if (t.includes("$") || t.includes("`")) {
+      return fail("不支持 shell 变量或命令替换");
+    }
+  }
+
   let method: string | undefined;
   let methodExplicit = false;
   const headers: Record<string, string> = {};
