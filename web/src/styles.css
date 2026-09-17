@@ -809,6 +809,19 @@ button:focus-visible {
   border-radius: 6px;
 }
 
+.import-curl-dialog .curl-import-input {
+  width: 100%;
+  min-height: 12rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85rem;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+}
+
 .env-send-badge {
   color: var(--muted);
   font-size: 12px;
