@@ -5,6 +5,13 @@ export interface RequestBody {
   content?: string | Record<string, string>;
 }
 
+export interface RequestSettings {
+  timeoutMs?: number;
+  followRedirects?: boolean;
+  maxRedirects?: number;
+  insecureSkipVerify?: boolean;
+}
+
 export interface HttpRequest {
   name: string;
   method: string;
@@ -12,7 +19,7 @@ export interface HttpRequest {
   query: Record<string, string>;
   headers: Record<string, string>;
   body: RequestBody;
-  timeout?: string;
+  settings?: RequestSettings;
 }
 
 export interface ExecutePayload {

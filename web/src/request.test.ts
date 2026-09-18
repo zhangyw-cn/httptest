@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { varsJSON } from "./env";
-import { defaultDraft, normalizeRequest, parseHistoryResult } from "./request";
+import {
+  compactSettings,
+  defaultDraft,
+  normalizeRequest,
+  parseHistoryResult,
+} from "./request";
 import { buildRequestTree } from "./tree";
 
 describe("normalizeRequest", () => {
@@ -9,6 +14,36 @@ describe("normalizeRequest", () => {
     expect(n.method).toBe("GET");
     expect(n.query).toEqual({});
     expect(n.body).toEqual({ type: "none" });
+  });
+});
+
+describe("normalizeRequest settings", () => {
+  it("copies settings and drops legacy timeout", () => {
+    const n = normalizeRequest({
+      name: "a",
+      method: "GET",
+      url: "http://h",
+      query: {},
+      headers: {},
+      body: { type: "none" },
+      settings: { timeoutMs: 1000, followRedirects: false },
+      timeout: "30s",
+    } as never);
+    expect(n.settings).toEqual({ timeoutMs: 1000, followRedirects: false });
+    expect((n as { timeout?: string }).timeout).toBeUndefined();
+  });
+});
+
+describe("compactSettings", () => {
+  it("omits product defaults", () => {
+    expect(
+      compactSettings({
+        timeoutMs: 30000,
+        followRedirects: true,
+        maxRedirects: 10,
+        insecureSkipVerify: false,
+      }),
+    ).toBeUndefined();
   });
 });
 

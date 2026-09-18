@@ -1,4 +1,17 @@
-import type { HttpRequest, Result } from "./types";
+import type { HttpRequest, RequestSettings, Result } from "./types";
+
+export function compactSettings(
+  s: RequestSettings | undefined,
+): RequestSettings | undefined {
+  if (!s) return undefined;
+  const out: RequestSettings = {};
+  if (s.timeoutMs !== undefined && s.timeoutMs !== 30000) out.timeoutMs = s.timeoutMs;
+  if (s.followRedirects === false) out.followRedirects = false;
+  if (s.maxRedirects !== undefined && s.maxRedirects !== 10)
+    out.maxRedirects = s.maxRedirects;
+  if (s.insecureSkipVerify === true) out.insecureSkipVerify = true;
+  return Object.keys(out).length ? out : undefined;
+}
 
 export function defaultDraft(): HttpRequest {
   return {
@@ -20,7 +33,8 @@ export function normalizeRequest(r: HttpRequest): HttpRequest {
     headers: r.headers ?? {},
     body: r.body ?? { type: "none" },
   };
-  if (r.timeout) next.timeout = r.timeout;
+  const settings = compactSettings(r.settings);
+  if (settings) next.settings = settings;
   return next;
 }
 
