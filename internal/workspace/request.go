@@ -10,14 +10,58 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type RequestSettings struct {
+	TimeoutMs          *int64 `json:"timeoutMs,omitempty" yaml:"timeoutMs,omitempty"`
+	FollowRedirects    *bool  `json:"followRedirects,omitempty" yaml:"followRedirects,omitempty"`
+	MaxRedirects       *int   `json:"maxRedirects,omitempty" yaml:"maxRedirects,omitempty"`
+	InsecureSkipVerify *bool  `json:"insecureSkipVerify,omitempty" yaml:"insecureSkipVerify,omitempty"`
+}
+
 type Request struct {
-	Name    string            `json:"name" yaml:"name"`
-	Method  string            `json:"method" yaml:"method"`
-	URL     string            `json:"url" yaml:"url"`
-	Query   map[string]string `json:"query" yaml:"query"`
-	Headers map[string]string `json:"headers" yaml:"headers"`
-	Body    Body              `json:"body" yaml:"body"`
-	Timeout string            `json:"timeout,omitempty" yaml:"timeout,omitempty"`
+	Name     string            `json:"name" yaml:"name"`
+	Method   string            `json:"method" yaml:"method"`
+	URL      string            `json:"url" yaml:"url"`
+	Query    map[string]string `json:"query" yaml:"query"`
+	Headers  map[string]string `json:"headers" yaml:"headers"`
+	Body     Body              `json:"body" yaml:"body"`
+	Settings RequestSettings   `json:"settings,omitempty" yaml:"settings,omitempty"`
+}
+
+func CompactSettings(s RequestSettings) RequestSettings {
+	out := RequestSettings{}
+	if s.TimeoutMs != nil && *s.TimeoutMs != 30000 {
+		out.TimeoutMs = s.TimeoutMs
+	}
+	if s.FollowRedirects != nil && !*s.FollowRedirects {
+		out.FollowRedirects = s.FollowRedirects
+	}
+	if s.MaxRedirects != nil && *s.MaxRedirects != 10 {
+		out.MaxRedirects = s.MaxRedirects
+	}
+	if s.InsecureSkipVerify != nil && *s.InsecureSkipVerify {
+		out.InsecureSkipVerify = s.InsecureSkipVerify
+	}
+	return out
+}
+
+func rejectLegacyTimeoutKeys(data []byte) error {
+	var probe map[string]interface{}
+	if err := yaml.Unmarshal(data, &probe); err != nil {
+		return err
+	}
+	if _, ok := probe["timeout"]; ok {
+		return fmt.Errorf("top-level timeout is no longer supported; use settings.timeoutMs")
+	}
+	if raw, ok := probe["settings"]; ok && raw != nil {
+		m, ok := raw.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("settings must be a mapping")
+		}
+		if _, ok := m["timeout"]; ok {
+			return fmt.Errorf("settings.timeout is no longer supported; use settings.timeoutMs")
+		}
+	}
+	return nil
 }
 
 type RequestMeta struct {
@@ -54,6 +98,7 @@ func (w *Workspace) PutRequest(rel string, req Request) error {
 		return err
 	}
 	req.Method = method
+	req.Settings = CompactSettings(req.Settings)
 	path, err := w.fileFor(rel)
 	if err != nil {
 		return err
@@ -75,6 +120,9 @@ func (w *Workspace) GetRequest(rel string) (Request, error) {
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
+		return Request{}, err
+	}
+	if err := rejectLegacyTimeoutKeys(data); err != nil {
 		return Request{}, err
 	}
 	var req Request
