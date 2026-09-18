@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { BodyType, HttpRequest } from "./types";
+import type { BodyType, HttpRequest, RequestSettings } from "./types";
 
 interface Pair {
   key: string;
@@ -12,6 +12,33 @@ interface Props {
 }
 
 const BODY_TYPES: BodyType[] = ["none", "json", "raw", "form"];
+
+type EditorTab = "query" | "headers" | "body" | "settings";
+
+function effectiveFollow(s?: RequestSettings): boolean {
+  return s?.followRedirects !== false;
+}
+
+function effectiveTimeoutMs(s?: RequestSettings): number {
+  return s?.timeoutMs ?? 30000;
+}
+
+function effectiveMax(s?: RequestSettings): number {
+  return s?.maxRedirects ?? 10;
+}
+
+function effectiveInsecure(s?: RequestSettings): boolean {
+  return s?.insecureSkipVerify === true;
+}
+
+function draftSettings(s?: RequestSettings): RequestSettings {
+  return {
+    timeoutMs: effectiveTimeoutMs(s),
+    followRedirects: effectiveFollow(s),
+    maxRedirects: effectiveMax(s),
+    insecureSkipVerify: effectiveInsecure(s),
+  };
+}
 
 function recordToPairs(rec: Record<string, string> | undefined): Pair[] {
   const rows = Object.entries(rec ?? {}).map(([key, value]) => ({ key, value }));
@@ -109,7 +136,7 @@ function PairTable({
 }
 
 export default function RequestEditor({ draft, onChange }: Props) {
-  const [tab, setTab] = useState<"query" | "headers" | "body">("body");
+  const [tab, setTab] = useState<EditorTab>("body");
   const [queryPairs, setQueryPairs] = useState<Pair[]>(() =>
     recordToPairs(draft.query),
   );
@@ -173,6 +200,10 @@ export default function RequestEditor({ draft, onChange }: Props) {
     onChange({ ...draft, body: { type: "form", content: rec } });
   }
 
+  function commitSettings(next: RequestSettings) {
+    onChange({ ...draft, settings: next });
+  }
+
   function setBodyType(type: BodyType) {
     if (type === "none") {
       onChange({ ...draft, body: { type: "none" } });
@@ -213,6 +244,13 @@ export default function RequestEditor({ draft, onChange }: Props) {
           onClick={() => setTab("body")}
         >
           Body
+        </button>
+        <button
+          type="button"
+          className={tab === "settings" ? "tab active" : "tab"}
+          onClick={() => setTab("settings")}
+        >
+          请求设置
         </button>
       </div>
       <div className="editor-body">
@@ -255,6 +293,73 @@ export default function RequestEditor({ draft, onChange }: Props) {
             )}
           </div>
         )}
+        <div className="request-settings" hidden={tab !== "settings"}>
+          <label className="env-label" htmlFor="request-timeout-ms">
+            超时 (ms)
+            <input
+              id="request-timeout-ms"
+              type="number"
+              value={effectiveTimeoutMs(draft.settings)}
+              onChange={(e) => {
+                const next = draftSettings(draft.settings);
+                if (e.target.value === "") {
+                  delete next.timeoutMs;
+                } else {
+                  next.timeoutMs = Number(e.target.value);
+                }
+                commitSettings(next);
+              }}
+            />
+          </label>
+          <label className="env-label">
+            跟随重定向
+            <input
+              type="checkbox"
+              checked={effectiveFollow(draft.settings)}
+              onChange={(e) =>
+                commitSettings({
+                  ...draftSettings(draft.settings),
+                  followRedirects: e.target.checked,
+                })
+              }
+            />
+          </label>
+          <label className="env-label" htmlFor="request-max-redirects">
+            最大重定向次数
+            <input
+              id="request-max-redirects"
+              type="number"
+              min={1}
+              max={50}
+              disabled={!effectiveFollow(draft.settings)}
+              value={effectiveMax(draft.settings)}
+              onChange={(e) =>
+                commitSettings({
+                  ...draftSettings(draft.settings),
+                  maxRedirects: Number(e.target.value),
+                })
+              }
+            />
+          </label>
+          <label className="env-label">
+            跳过 TLS 校验
+            <input
+              type="checkbox"
+              checked={effectiveInsecure(draft.settings)}
+              onChange={(e) =>
+                commitSettings({
+                  ...draftSettings(draft.settings),
+                  insecureSkipVerify: e.target.checked,
+                })
+              }
+            />
+            {effectiveInsecure(draft.settings) ? (
+              <span className="muted">
+                仅用于本机调试，勿对生产证书使用
+              </span>
+            ) : null}
+          </label>
+        </div>
       </div>
     </section>
   );

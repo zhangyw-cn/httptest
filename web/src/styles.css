@@ -613,6 +613,16 @@ button:focus-visible {
   height: 100%;
 }
 
+.request-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.request-settings[hidden] {
+  display: none;
+}
+
 .body-text,
 .dump {
   width: 100%;
