@@ -42,6 +42,8 @@ describe("effectiveCurlOptions", () => {
     const o = effectiveCurlOptions(defaultCurlOptions(), undefined);
     expect(o.useResolve).toBe(false);
     expect(o.followRedirects).toBe(true);
+    expect(o.maxRedirects).toBe(true);
+    expect(o.insecure).toBe(false);
   });
   it("keeps useResolve when resolve present", () => {
     const o = effectiveCurlOptions(defaultCurlOptions(), {
@@ -63,6 +65,8 @@ describe("formatCurl", () => {
     expect(s).toContain("curl");
     expect(s).toContain("-L");
     expect(s).toContain("--max-time 30");
+    expect(s).toContain("--max-redirs 10");
+    expect(s).not.toContain("-k");
     expect(s).toContain("-X GET");
     expect(s).toContain("'http://example.com/a'");
     expect(s).toContain("User-Agent: httptest/0.1");
@@ -76,10 +80,18 @@ describe("formatCurl", () => {
         body: { type: "json", content: `{"a":1}` },
       }),
       timeoutSeconds: 30,
-      options: { useResolve: false, followRedirects: false, maxTime: false },
+      options: {
+        useResolve: false,
+        followRedirects: false,
+        maxRedirects: false,
+        maxTime: false,
+        insecure: false,
+      },
     });
     expect(s).not.toContain("-L");
     expect(s).not.toContain("--max-time");
+    expect(s).not.toContain("--max-redirs");
+    expect(s).not.toContain("-k");
     expect(s).toContain("q=1");
     expect(s).toContain("Content-Type: application/json");
     expect(s).toContain("--data-raw");
@@ -121,7 +133,13 @@ describe("formatCurl", () => {
         body: { type: "form", content: { b: "2", a: "1" } },
       }),
       timeoutSeconds: 30,
-      options: { useResolve: false, followRedirects: false, maxTime: false },
+      options: {
+        useResolve: false,
+        followRedirects: false,
+        maxRedirects: false,
+        maxTime: false,
+        insecure: false,
+      },
     });
     expect(s).toContain("Content-Type: application/x-www-form-urlencoded");
     expect(s).toContain("--data-raw");
@@ -136,7 +154,13 @@ describe("formatCurl", () => {
         body: { type: "raw", content: "plain" },
       }),
       timeoutSeconds: 30,
-      options: { useResolve: false, followRedirects: false, maxTime: false },
+      options: {
+        useResolve: false,
+        followRedirects: false,
+        maxRedirects: false,
+        maxTime: false,
+        insecure: false,
+      },
     });
     expect(s).toContain("--data-raw 'plain'");
     expect(s).not.toContain("Content-Type: application/json");
@@ -149,7 +173,13 @@ describe("formatCurl", () => {
         body: { type: "json", content: "{}" },
       }),
       timeoutSeconds: 30,
-      options: { useResolve: false, followRedirects: false, maxTime: false },
+      options: {
+        useResolve: false,
+        followRedirects: false,
+        maxRedirects: false,
+        maxTime: false,
+        insecure: false,
+      },
     });
     expect(s).not.toContain("--data-raw");
   });
@@ -162,7 +192,13 @@ describe("formatCurl", () => {
         body: { type: "raw", content: "c'd" },
       }),
       timeoutSeconds: 30,
-      options: { useResolve: false, followRedirects: false, maxTime: false },
+      options: {
+        useResolve: false,
+        followRedirects: false,
+        maxRedirects: false,
+        maxTime: false,
+        insecure: false,
+      },
     });
     expect(s).toContain(shellSingleQuote("X-Token: a'b"));
     expect(s).toContain(`--data-raw ${shellSingleQuote("c'd")}`);
@@ -172,7 +208,13 @@ describe("formatCurl", () => {
     const s = formatCurl({
       prepared: base(),
       timeoutSeconds: 0.5,
-      options: { useResolve: false, followRedirects: false, maxTime: true },
+      options: {
+        useResolve: false,
+        followRedirects: false,
+        maxRedirects: false,
+        maxTime: true,
+        insecure: false,
+      },
     });
     expect(s).toContain("--max-time 0.5");
   });
@@ -182,7 +224,13 @@ describe("formatCurl", () => {
       prepared: base({ url: "http://api.local/" }),
       resolve: { host: "api.local", port: "80", ip: "10.0.0.1" },
       timeoutSeconds: 30,
-      options: { useResolve: false, followRedirects: false, maxTime: false },
+      options: {
+        useResolve: false,
+        followRedirects: false,
+        maxRedirects: false,
+        maxTime: false,
+        insecure: false,
+      },
     });
     expect(s).not.toContain("--resolve");
   });
@@ -193,7 +241,13 @@ describe("formatCurl", () => {
       prepared,
       timeoutSeconds: 30,
       options: effectiveCurlOptions(
-        { useResolve: false, followRedirects: true, maxTime: false },
+        {
+          useResolve: false,
+          followRedirects: true,
+          maxRedirects: false,
+          maxTime: false,
+          insecure: false,
+        },
         null,
       ),
     });
@@ -201,12 +255,49 @@ describe("formatCurl", () => {
       prepared,
       timeoutSeconds: 30,
       options: effectiveCurlOptions(
-        { useResolve: false, followRedirects: false, maxTime: false },
+        {
+          useResolve: false,
+          followRedirects: false,
+          maxRedirects: false,
+          maxTime: false,
+          insecure: false,
+        },
         null,
       ),
     });
     expect(on).toContain("-L");
     expect(off).not.toContain("-L");
+  });
+
+  it("emits -k and --max-redirs when options are on", () => {
+    const s = formatCurl({
+      prepared: base({ settings: { maxRedirects: 3 } }),
+      timeoutSeconds: 30,
+      options: {
+        useResolve: false,
+        followRedirects: true,
+        maxRedirects: true,
+        maxTime: false,
+        insecure: true,
+      },
+    });
+    expect(s).toContain("-k");
+    expect(s).toContain("--max-redirs 3");
+  });
+
+  it("omits --max-redirs when followRedirects is off", () => {
+    const s = formatCurl({
+      prepared: base({ settings: { maxRedirects: 3 } }),
+      timeoutSeconds: 30,
+      options: {
+        useResolve: false,
+        followRedirects: false,
+        maxRedirects: true,
+        maxTime: false,
+        insecure: false,
+      },
+    });
+    expect(s).not.toContain("--max-redirs");
   });
 });
 
@@ -261,18 +352,51 @@ describe("parseCurl", () => {
     expect(r.request.headers["Referer"]).toBe("http://ref.example/");
   });
 
-  it("maps --max-time to timeout", () => {
+  it("maps --max-time to settings.timeoutMs", () => {
     const r = parseCurl(`curl --max-time 1.5 'http://example.com/'`);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.request.timeout).toBe("1.5s");
+    expect(r.request.settings?.timeoutMs).toBe(1500);
   });
 
-  it("maps -m to timeout", () => {
+  it("maps -m to settings.timeoutMs", () => {
     const r = parseCurl(`curl -m 30 'http://example.com/'`);
     expect(r.ok).toBe(true);
     if (!r.ok) return;
-    expect(r.request.timeout).toBe("30s");
+    expect(r.request.settings?.timeoutMs).toBe(30000);
+  });
+
+  it("maps -L -k --max-redirs and -m into settings", () => {
+    const r = parseCurl(
+      `curl -L -k --max-redirs 3 -m 1.5 https://example.com`,
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.settings).toEqual({
+      followRedirects: true,
+      insecureSkipVerify: true,
+      maxRedirects: 3,
+      timeoutMs: 1500,
+    });
+  });
+
+  it("does not set followRedirects false when -L absent", () => {
+    const r = parseCurl(`curl https://example.com`);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.settings?.followRedirects).toBeUndefined();
+  });
+
+  it("fails when --max-redirs is not an integer in [1, 50]", () => {
+    expect(parseCurl(`curl --max-redirs 0 https://example.com`).ok).toBe(
+      false,
+    );
+    expect(parseCurl(`curl --max-redirs 51 https://example.com`).ok).toBe(
+      false,
+    );
+    expect(parseCurl(`curl --max-redirs foo https://example.com`).ok).toBe(
+      false,
+    );
   });
 
   it("fails on shell variable expansion", () => {
@@ -292,11 +416,13 @@ describe("parseCurl", () => {
     expect(r.ok).toBe(false);
   });
 
-  it("ignores -L -v --compressed", () => {
+  it("maps -L and ignores -v --compressed", () => {
     const r = parseCurl(
       `curl -L -v --compressed 'http://example.com/'`,
     );
     expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.request.settings).toEqual({ followRedirects: true });
   });
 
   it("fails on --resolve", () => {
@@ -370,7 +496,7 @@ curl -X GET \\
 });
 
 describe("applyParsedCurl", () => {
-  it("keeps name and clears timeout when absent", () => {
+  it("keeps name and clears settings when absent", () => {
     const draft: HttpRequest = {
       name: "Login",
       method: "POST",
@@ -378,7 +504,7 @@ describe("applyParsedCurl", () => {
       query: { z: "9" },
       headers: { A: "1" },
       body: { type: "raw", content: "x" },
-      timeout: "10s",
+      settings: { timeoutMs: 10000, followRedirects: false },
     };
     const parsed = {
       method: "GET",
@@ -391,6 +517,31 @@ describe("applyParsedCurl", () => {
     expect(next.name).toBe("Login");
     expect(next.method).toBe("GET");
     expect(next.url).toBe("http://new/");
-    expect(next.timeout).toBeUndefined();
+    expect(next.settings).toBeUndefined();
+  });
+
+  it("replaces settings with parsed result", () => {
+    const draft: HttpRequest = {
+      name: "Login",
+      method: "GET",
+      url: "http://old/",
+      query: {},
+      headers: {},
+      body: { type: "none" },
+      settings: { timeoutMs: 10000 },
+    };
+    const parsed = {
+      method: "GET",
+      url: "http://new/",
+      query: {},
+      headers: {},
+      body: { type: "none" as const },
+      settings: { followRedirects: true, insecureSkipVerify: true },
+    };
+    const next = applyParsedCurl(draft, parsed);
+    expect(next.settings).toEqual({
+      followRedirects: true,
+      insecureSkipVerify: true,
+    });
   });
 });

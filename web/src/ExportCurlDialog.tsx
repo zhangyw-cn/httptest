@@ -88,6 +88,19 @@ export default function ExportCurlDialog({
           <label className="curl-option">
             <input
               type="checkbox"
+              checked={options.maxRedirects}
+              onChange={(e) =>
+                setOptions((prev) => ({
+                  ...prev,
+                  maxRedirects: e.target.checked,
+                }))
+              }
+            />
+            限制最大重定向
+          </label>
+          <label className="curl-option">
+            <input
+              type="checkbox"
               checked={options.maxTime}
               onChange={(e) =>
                 setOptions((prev) => ({ ...prev, maxTime: e.target.checked }))
@@ -96,8 +109,21 @@ export default function ExportCurlDialog({
             限制超时
           </label>
           <p className="curl-option-hint muted">
-            使用请求 timeout（默认 30s）
+            使用请求 timeout（默认 30000ms）
           </p>
+          <label className="curl-option">
+            <input
+              type="checkbox"
+              checked={options.insecure}
+              onChange={(e) =>
+                setOptions((prev) => ({
+                  ...prev,
+                  insecure: e.target.checked,
+                }))
+              }
+            />
+            跳过 TLS 校验
+          </label>
         </fieldset>
         <pre className="curl-preview">{preview}</pre>
         {copyError ? <p className="error">{copyError}</p> : null}

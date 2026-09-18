@@ -1,16 +1,25 @@
-import type { HttpRequest, RequestBody, ResolveSpec } from "./types";
+import type {
+  HttpRequest,
+  RequestBody,
+  RequestSettings,
+  ResolveSpec,
+} from "./types";
 
 export interface CurlOptions {
   useResolve: boolean;
   followRedirects: boolean;
+  maxRedirects: boolean;
   maxTime: boolean;
+  insecure: boolean;
 }
 
 export function defaultCurlOptions(): CurlOptions {
   return {
     useResolve: true,
     followRedirects: true,
+    maxRedirects: true,
     maxTime: true,
+    insecure: false,
   };
 }
 
@@ -73,7 +82,15 @@ export function formatCurl(input: {
   const { prepared, resolve, timeoutSeconds, options } = input;
   const parts: string[] = ["curl"];
 
-  if (options.followRedirects) parts.push("-L");
+  if (options.followRedirects) {
+    parts.push("-L");
+    if (options.maxRedirects) {
+      parts.push(
+        `--max-redirs ${prepared.settings?.maxRedirects ?? 10}`,
+      );
+    }
+  }
+  if (options.insecure) parts.push("-k");
   if (options.maxTime) parts.push(`--max-time ${formatSeconds(timeoutSeconds)}`);
   if (options.useResolve && resolve) {
     parts.push(
@@ -263,8 +280,6 @@ function buildBody(
 }
 
 const IGNORE_NO_ARG = new Set([
-  "-L",
-  "--location",
   "--compressed",
   "-v",
   "--verbose",
@@ -306,7 +321,7 @@ export function parseCurl(input: string): ParseCurlResult {
   const headers: Record<string, string> = {};
   const dataChunks: string[] = [];
   let useGet = false;
-  let timeout: string | undefined;
+  const settings: RequestSettings = {};
   const urls: string[] = [];
 
   for (let i = 1; i < tokens.length; i++) {
@@ -378,6 +393,28 @@ export function parseCurl(input: string): ParseCurlResult {
         continue;
       }
 
+      if (token === "-L" || token === "--location") {
+        settings.followRedirects = true;
+        continue;
+      }
+
+      if (token === "-k" || token === "--insecure") {
+        settings.insecureSkipVerify = true;
+        continue;
+      }
+
+      if (token === "--max-redirs") {
+        const arg = needArg(token, tokens, i);
+        if (typeof arg !== "string") return arg;
+        const n = Number(arg);
+        if (!Number.isInteger(n) || n < 1 || n > 50) {
+          return fail(`${token} 参数无效: ${arg}`);
+        }
+        settings.maxRedirects = n;
+        i++;
+        continue;
+      }
+
       if (token === "--max-time" || token === "-m") {
         const arg = needArg(token, tokens, i);
         if (typeof arg !== "string") return arg;
@@ -385,7 +422,7 @@ export function parseCurl(input: string): ParseCurlResult {
         if (!Number.isFinite(n) || n < 0) {
           return fail(`${token} 参数无效: ${arg}`);
         }
-        timeout = `${n}s`;
+        settings.timeoutMs = Math.round(n * 1000);
         i++;
         continue;
       }
@@ -443,8 +480,10 @@ export function parseCurl(input: string): ParseCurlResult {
     query,
     headers,
     body,
-    ...(timeout ? { timeout } : {}),
   };
+  if (Object.keys(settings).length > 0) {
+    request.settings = settings;
+  }
 
   return { ok: true, request };
 }
@@ -461,6 +500,6 @@ export function applyParsedCurl(
     headers: { ...parsed.headers },
     body: parsed.body,
   };
-  if (parsed.timeout) next.timeout = parsed.timeout;
+  if (parsed.settings) next.settings = { ...parsed.settings };
   return next;
 }

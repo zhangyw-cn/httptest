@@ -29,10 +29,14 @@ describe("ExportCurlDialog", () => {
     expect(markup).toContain("使用当前 Hosts 解析");
     expect(markup).toContain("跟随重定向");
     expect(markup).toContain("限制超时");
+    expect(markup).toContain("跳过 TLS 校验");
+    expect(markup).toContain("限制最大重定向");
+    expect(markup).toContain("默认 30000ms");
     expect(markup).toContain("curl");
     expect(markup).toContain("复制到剪贴板");
     expect(markup).toContain("-L");
     expect(markup).toContain("--max-time 30");
+    expect(markup).toContain("--max-redirs 10");
   });
 
   it("disables hosts toggle without resolve", () => {
@@ -77,7 +81,13 @@ describe("ExportCurlDialog preview options", () => {
       resolve,
       timeoutSeconds: 30,
       options: effectiveCurlOptions(
-        { useResolve: false, followRedirects: true, maxTime: false },
+        {
+          useResolve: false,
+          followRedirects: true,
+          maxRedirects: false,
+          maxTime: false,
+          insecure: false,
+        },
         resolve,
       ),
     });
