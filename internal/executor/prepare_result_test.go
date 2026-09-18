@@ -19,20 +19,27 @@ func TestLookupResolveMiss(t *testing.T) {
 	}
 }
 
-func TestEffectiveTimeoutSeconds(t *testing.T) {
-	s, err := EffectiveTimeoutSeconds("")
+func TestEffectiveTimeoutSecondsFromSettings(t *testing.T) {
+	s, err := EffectiveTimeoutSeconds(workspace.RequestSettings{})
 	if err != nil || s != 30 {
 		t.Fatalf("%v %v", s, err)
 	}
-	s, err = EffectiveTimeoutSeconds("500ms")
+	ms := int64(500)
+	s, err = EffectiveTimeoutSeconds(workspace.RequestSettings{TimeoutMs: &ms})
 	if err != nil || s != 0.5 {
 		t.Fatalf("%v %v", s, err)
 	}
-	if _, err := EffectiveTimeoutSeconds("nope"); err == nil {
-		t.Fatal("expected error")
-	}
-	if _, err := EffectiveTimeoutSeconds("   "); err == nil {
-		t.Fatal("expected error for whitespace-only timeout")
+}
+
+func TestBuildPrepareResultInvalidSettings(t *testing.T) {
+	bad := int64(-1)
+	res := BuildPrepareResult(workspace.Request{
+		Method:   "GET",
+		URL:      "http://h/",
+		Settings: workspace.RequestSettings{TimeoutMs: &bad},
+	}, nil, nil)
+	if res.ErrorClass != ClassInvalid || res.TimeoutSeconds != 0 {
+		t.Fatalf("%+v", res)
 	}
 }
 

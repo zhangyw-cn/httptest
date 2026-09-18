@@ -82,8 +82,13 @@ func TestPrepareInvalidTimeout(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := New(ws, nil)
+	bad := int64(0)
 	payload, _ := json.Marshal(map[string]any{
-		"request": workspace.Request{Method: "GET", URL: "http://h/", Timeout: "bogus"},
+		"request": workspace.Request{
+			Method:   "GET",
+			URL:      "http://h/",
+			Settings: workspace.RequestSettings{TimeoutMs: &bad},
+		},
 	})
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/prepare", payload))

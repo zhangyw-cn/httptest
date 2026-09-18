@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/zhangyw-cn/httptest/internal/workspace"
 )
@@ -40,15 +39,12 @@ func validateRequestScheme(req *http.Request) error {
 	return nil
 }
 
-func EffectiveTimeoutSeconds(timeout string) (float64, error) {
-	if timeout == "" {
-		return 30, nil
-	}
-	d, err := time.ParseDuration(timeout)
+func EffectiveTimeoutSeconds(s workspace.RequestSettings) (float64, error) {
+	eff, err := EffectiveSettings(s)
 	if err != nil {
 		return 0, err
 	}
-	return d.Seconds(), nil
+	return float64(eff.TimeoutMs) / 1000.0, nil
 }
 
 func LookupResolve(rawURL string, mappings map[string]string) *ResolveSpec {
@@ -97,7 +93,7 @@ func BuildPrepareResult(req workspace.Request, vars, mappings map[string]string)
 		out.ErrorMessage = schemeErr.Error()
 		return out
 	}
-	sec, terr := EffectiveTimeoutSeconds("")
+	sec, terr := EffectiveTimeoutSeconds(prepared.Settings)
 	if terr != nil {
 		out.ErrorClass = ClassInvalid
 		out.ErrorMessage = terr.Error()
