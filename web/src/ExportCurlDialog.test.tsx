@@ -50,6 +50,28 @@ describe("ExportCurlDialog", () => {
     expect(markup).toContain("当前 Hosts 未命中此主机");
   });
 
+  it("does not emit -L when prepared followRedirects is false", () => {
+    const markup = renderToStaticMarkup(
+      <ExportCurlDialog
+        prepared={{ ...prepared, settings: { followRedirects: false } }}
+        timeoutSeconds={30}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(markup).not.toContain("-L");
+  });
+
+  it("emits -k when prepared insecureSkipVerify is true", () => {
+    const markup = renderToStaticMarkup(
+      <ExportCurlDialog
+        prepared={{ ...prepared, settings: { insecureSkipVerify: true } }}
+        timeoutSeconds={30}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(markup).toContain("-k");
+  });
+
   it("enables hosts option text when resolve provided", () => {
     const markup = renderToStaticMarkup(
       <ExportCurlDialog

@@ -15,7 +15,7 @@ export default function ExportCurlDialog({
   timeoutSeconds,
   onClose,
 }: Props) {
-  const [options, setOptions] = useState(defaultCurlOptions());
+  const [options, setOptions] = useState(defaultCurlOptions(prepared.settings));
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
 

@@ -40,6 +40,20 @@ function draftSettings(s?: RequestSettings): RequestSettings {
   };
 }
 
+export function applySettingsNumberInput(
+  current: RequestSettings,
+  key: "timeoutMs" | "maxRedirects",
+  raw: string,
+): RequestSettings {
+  const next = { ...current };
+  if (raw === "") {
+    delete next[key];
+  } else {
+    next[key] = Number(raw);
+  }
+  return next;
+}
+
 function recordToPairs(rec: Record<string, string> | undefined): Pair[] {
   const rows = Object.entries(rec ?? {}).map(([key, value]) => ({ key, value }));
   return rows.length > 0 ? rows : [{ key: "", value: "" }];
@@ -301,13 +315,13 @@ export default function RequestEditor({ draft, onChange }: Props) {
               type="number"
               value={effectiveTimeoutMs(draft.settings)}
               onChange={(e) => {
-                const next = draftSettings(draft.settings);
-                if (e.target.value === "") {
-                  delete next.timeoutMs;
-                } else {
-                  next.timeoutMs = Number(e.target.value);
-                }
-                commitSettings(next);
+                commitSettings(
+                  applySettingsNumberInput(
+                    draftSettings(draft.settings),
+                    "timeoutMs",
+                    e.target.value,
+                  ),
+                );
               }}
             />
           </label>
@@ -333,12 +347,15 @@ export default function RequestEditor({ draft, onChange }: Props) {
               max={50}
               disabled={!effectiveFollow(draft.settings)}
               value={effectiveMax(draft.settings)}
-              onChange={(e) =>
-                commitSettings({
-                  ...draftSettings(draft.settings),
-                  maxRedirects: Number(e.target.value),
-                })
-              }
+              onChange={(e) => {
+                commitSettings(
+                  applySettingsNumberInput(
+                    draftSettings(draft.settings),
+                    "maxRedirects",
+                    e.target.value,
+                  ),
+                );
+              }}
             />
           </label>
           <label className="env-label">

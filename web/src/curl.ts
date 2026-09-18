@@ -13,13 +13,13 @@ export interface CurlOptions {
   insecure: boolean;
 }
 
-export function defaultCurlOptions(): CurlOptions {
+export function defaultCurlOptions(settings?: RequestSettings): CurlOptions {
   return {
     useResolve: true,
-    followRedirects: true,
+    followRedirects: settings?.followRedirects !== false,
     maxRedirects: true,
     maxTime: true,
-    insecure: false,
+    insecure: settings?.insecureSkipVerify === true,
   };
 }
 
@@ -419,10 +419,11 @@ export function parseCurl(input: string): ParseCurlResult {
         const arg = needArg(token, tokens, i);
         if (typeof arg !== "string") return arg;
         const n = Number(arg);
-        if (!Number.isFinite(n) || n < 0) {
+        const timeoutMs = Math.round(n * 1000);
+        if (!Number.isFinite(n) || !(timeoutMs > 0)) {
           return fail(`${token} 参数无效: ${arg}`);
         }
-        settings.timeoutMs = Math.round(n * 1000);
+        settings.timeoutMs = timeoutMs;
         i++;
         continue;
       }

@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import RequestEditor from "./RequestEditor";
+import RequestEditor, { applySettingsNumberInput } from "./RequestEditor";
 import { defaultDraft } from "./request";
 
 describe("RequestEditor settings tab", () => {
@@ -35,6 +35,26 @@ describe("RequestEditor settings tab", () => {
     );
     const max = markup.match(/<input[^>]*id="request-max-redirects"[^>]*>/);
     expect(max?.[0] ?? "").not.toContain("disabled");
+  });
+
+  it("empty max redirects deletes the field instead of writing NaN", () => {
+    const next = applySettingsNumberInput(
+      { timeoutMs: 30000, followRedirects: true, maxRedirects: 5 },
+      "maxRedirects",
+      "",
+    );
+    expect(next.maxRedirects).toBeUndefined();
+    expect(Number.isNaN(next.maxRedirects)).toBe(false);
+  });
+
+  it("empty timeout deletes timeoutMs like max redirects", () => {
+    const next = applySettingsNumberInput(
+      { timeoutMs: 5000, followRedirects: true, maxRedirects: 10 },
+      "timeoutMs",
+      "",
+    );
+    expect(next.timeoutMs).toBeUndefined();
+    expect(Number.isNaN(next.timeoutMs)).toBe(false);
   });
 
   it("shows TLS warning only when insecure is on", () => {

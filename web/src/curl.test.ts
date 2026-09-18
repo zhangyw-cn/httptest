@@ -37,6 +37,38 @@ describe("resolveArg", () => {
   });
 });
 
+describe("defaultCurlOptions", () => {
+  it("follows redirects unless settings.followRedirects is false", () => {
+    expect(defaultCurlOptions().followRedirects).toBe(true);
+    expect(defaultCurlOptions({}).followRedirects).toBe(true);
+    expect(defaultCurlOptions({ followRedirects: true }).followRedirects).toBe(
+      true,
+    );
+    expect(defaultCurlOptions({ followRedirects: false }).followRedirects).toBe(
+      false,
+    );
+  });
+
+  it("enables insecure only when settings.insecureSkipVerify is true", () => {
+    expect(defaultCurlOptions().insecure).toBe(false);
+    expect(defaultCurlOptions({ insecureSkipVerify: false }).insecure).toBe(
+      false,
+    );
+    expect(defaultCurlOptions({ insecureSkipVerify: true }).insecure).toBe(
+      true,
+    );
+  });
+
+  it("keeps maxRedirects and maxTime on", () => {
+    const o = defaultCurlOptions({
+      followRedirects: false,
+      insecureSkipVerify: true,
+    });
+    expect(o.maxRedirects).toBe(true);
+    expect(o.maxTime).toBe(true);
+  });
+});
+
 describe("effectiveCurlOptions", () => {
   it("forces useResolve off without resolve", () => {
     const o = effectiveCurlOptions(defaultCurlOptions(), undefined);
@@ -285,6 +317,26 @@ describe("formatCurl", () => {
     expect(s).toContain("--max-redirs 3");
   });
 
+  it("does not emit -L by default when followRedirects is false", () => {
+    const prepared = base({ settings: { followRedirects: false } });
+    const s = formatCurl({
+      prepared,
+      timeoutSeconds: 30,
+      options: defaultCurlOptions(prepared.settings),
+    });
+    expect(s).not.toContain("-L");
+  });
+
+  it("emits -k by default when insecureSkipVerify is true", () => {
+    const prepared = base({ settings: { insecureSkipVerify: true } });
+    const s = formatCurl({
+      prepared,
+      timeoutSeconds: 30,
+      options: defaultCurlOptions(prepared.settings),
+    });
+    expect(s).toContain("-k");
+  });
+
   it("omits --max-redirs when followRedirects is off", () => {
     const s = formatCurl({
       prepared: base({ settings: { maxRedirects: 3 } }),
@@ -385,6 +437,15 @@ describe("parseCurl", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.request.settings?.followRedirects).toBeUndefined();
+  });
+
+  it("fails when --max-time or -m rounds to a non-positive timeoutMs", () => {
+    expect(parseCurl(`curl --max-time 0 https://example.com`).ok).toBe(false);
+    expect(parseCurl(`curl --max-time -1 https://example.com`).ok).toBe(false);
+    expect(parseCurl(`curl -m 0 https://example.com`).ok).toBe(false);
+    expect(parseCurl(`curl --max-time 0.0004 https://example.com`).ok).toBe(
+      false,
+    );
   });
 
   it("fails when --max-redirs is not an integer in [1, 50]", () => {
