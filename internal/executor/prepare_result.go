@@ -97,7 +97,7 @@ func BuildPrepareResult(req workspace.Request, vars, mappings map[string]string)
 		out.ErrorMessage = schemeErr.Error()
 		return out
 	}
-	sec, terr := EffectiveTimeoutSeconds(prepared.Timeout)
+	sec, terr := EffectiveTimeoutSeconds("")
 	if terr != nil {
 		out.ErrorClass = ClassInvalid
 		out.ErrorMessage = terr.Error()

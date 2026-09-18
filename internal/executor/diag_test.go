@@ -90,7 +90,11 @@ func TestTimeoutClass(t *testing.T) {
 		w.WriteHeader(200)
 	}))
 	defer srv.Close()
-	res := Execute(context.Background(), workspace.Request{Method: "GET", URL: srv.URL, Timeout: "50ms"}, nil, nil)
+	ms := int64(50)
+	res := Execute(context.Background(), workspace.Request{
+		Method: "GET", URL: srv.URL,
+		Settings: workspace.RequestSettings{TimeoutMs: &ms},
+	}, nil, nil)
 	if res.ErrorClass != ClassTimeout {
 		t.Fatalf("%+v", res)
 	}

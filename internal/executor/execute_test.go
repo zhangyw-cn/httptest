@@ -23,6 +23,29 @@ import (
 	"github.com/zhangyw-cn/httptest/internal/workspace"
 )
 
+func TestExecuteNoFollowRedirects(t *testing.T) {
+	n := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n++
+		http.Redirect(w, r, "/next", http.StatusFound)
+	}))
+	defer srv.Close()
+	follow := false
+	res := Execute(context.Background(), workspace.Request{
+		Method: "GET", URL: srv.URL,
+		Settings: workspace.RequestSettings{FollowRedirects: &follow},
+	}, nil, nil)
+	if res.Status != http.StatusFound {
+		t.Fatalf("status=%d", res.Status)
+	}
+	if n != 1 {
+		t.Fatalf("hits=%d", n)
+	}
+	if len(res.Redirects) != 0 {
+		t.Fatalf("redirects=%v", res.Redirects)
+	}
+}
+
 func TestExecuteJSONOK(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/login" {
@@ -129,7 +152,7 @@ func TestExecuteSendsConnectionClose(t *testing.T) {
 }
 
 func TestExecuteTransportIgnoresProxy(t *testing.T) {
-	tr := newExecuteTransport(nil, nil)
+	tr := newExecuteTransport(nil, nil, false)
 	if tr.Proxy != nil {
 		t.Fatal("Proxy must be nil so HTTP_PROXY/HTTPS_PROXY are ignored")
 	}

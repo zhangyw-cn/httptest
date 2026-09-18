@@ -43,9 +43,9 @@ func Prepare(req workspace.Request, vars map[string]string) (workspace.Request, 
 	}
 
 	out := workspace.Request{
-		Name:    req.Name,
-		Method:  method,
-		Timeout: req.Timeout,
+		Name:     req.Name,
+		Method:   method,
+		Settings: req.Settings,
 		Body: workspace.Body{
 			Type: req.Body.Type,
 		},

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -39,17 +40,13 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string,
 		return res
 	}
 
-	timeout := 30 * time.Second
-	if prepared.Timeout != "" {
-		if d, perr := time.ParseDuration(prepared.Timeout); perr == nil {
-			timeout = d
-		} else {
-			res.ErrorClass = ClassInvalid
-			res.ErrorMessage = perr.Error()
-			return res
-		}
+	eff, serr := EffectiveSettings(prepared.Settings)
+	if serr != nil {
+		res.ErrorClass = ClassInvalid
+		res.ErrorMessage = serr.Error()
+		return res
 	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(eff.TimeoutMs)*time.Millisecond)
 	defer cancel()
 
 	bodyReader, contentType, herr := buildBody(prepared)
@@ -135,9 +132,12 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string,
 	redirectLimit := false
 	var lastResolved string
 	client := &http.Client{
-		Transport: newExecuteTransport(hosts, &lastResolved),
+		Transport: newExecuteTransport(hosts, &lastResolved, eff.InsecureSkipVerify),
 		CheckRedirect: func(r *http.Request, via []*http.Request) error {
-			if len(via) > 10 {
+			if !eff.FollowRedirects {
+				return http.ErrUseLastResponse
+			}
+			if len(via) > eff.MaxRedirects {
 				redirectLimit = true
 				return http.ErrUseLastResponse
 			}
@@ -200,7 +200,7 @@ func Execute(ctx context.Context, req workspace.Request, vars map[string]string,
 	res.Headers = resp.Header
 	res.ErrorClass = ClassHTTP
 	if redirectLimit {
-		res.ErrorMessage = "redirect limit reached (10)"
+		res.ErrorMessage = fmt.Sprintf("redirect limit reached (%d)", eff.MaxRedirects)
 	}
 	if readErr != nil {
 		res.ErrorMessage = readErr.Error()
@@ -215,13 +215,21 @@ func elapsedMs(start, end time.Time) float64 {
 	return float64(end.Sub(start)) / float64(time.Millisecond)
 }
 
-func newExecuteTransport(mappings map[string]string, lastResolved *string) *http.Transport {
+func newExecuteTransport(mappings map[string]string, lastResolved *string, insecure bool) *http.Transport {
 	t := http.DefaultTransport.(*http.Transport).Clone()
 	// Ignore HTTP_PROXY/HTTPS_PROXY so a company proxy cannot silently
 	// intercept or block this local debugger. Documented in the design spec.
 	t.Proxy = nil
 	t.DisableKeepAlives = true
 	t.DisableCompression = true
+	if insecure {
+		if t.TLSClientConfig != nil {
+			t.TLSClientConfig = t.TLSClientConfig.Clone()
+		} else {
+			t.TLSClientConfig = &tls.Config{}
+		}
+		t.TLSClientConfig.InsecureSkipVerify = true
+	}
 	if len(mappings) == 0 {
 		return t
 	}
