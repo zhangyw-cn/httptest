@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { BodyType, HttpRequest, RequestSettings } from "./types";
+import {
+  DEFAULT_MAX_REDIRECTS,
+  DEFAULT_TIMEOUT_MS,
+  MAX_MAX_REDIRECTS,
+} from "./request";
 
 interface Pair {
   key: string;
@@ -20,11 +25,11 @@ function effectiveFollow(s?: RequestSettings): boolean {
 }
 
 function effectiveTimeoutMs(s?: RequestSettings): number {
-  return s?.timeoutMs ?? 30000;
+  return s?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 }
 
 function effectiveMax(s?: RequestSettings): number {
-  return s?.maxRedirects ?? 10;
+  return s?.maxRedirects ?? DEFAULT_MAX_REDIRECTS;
 }
 
 function effectiveInsecure(s?: RequestSettings): boolean {
@@ -48,9 +53,19 @@ export function applySettingsNumberInput(
   const next = { ...current };
   if (raw === "") {
     delete next[key];
-  } else {
-    next[key] = Number(raw);
+    return next;
   }
+  if (!/^\d+$/.test(raw)) {
+    return next;
+  }
+  const n = Number(raw);
+  if (key === "timeoutMs") {
+    if (n <= 0) return next;
+    next.timeoutMs = n;
+    return next;
+  }
+  if (n < 1 || n > MAX_MAX_REDIRECTS) return next;
+  next.maxRedirects = n;
   return next;
 }
 
@@ -313,6 +328,8 @@ export default function RequestEditor({ draft, onChange }: Props) {
             <input
               id="request-timeout-ms"
               type="number"
+              min={1}
+              step={1}
               value={effectiveTimeoutMs(draft.settings)}
               onChange={(e) => {
                 commitSettings(
@@ -345,6 +362,7 @@ export default function RequestEditor({ draft, onChange }: Props) {
               type="number"
               min={1}
               max={50}
+              step={1}
               disabled={!effectiveFollow(draft.settings)}
               value={effectiveMax(draft.settings)}
               onChange={(e) => {

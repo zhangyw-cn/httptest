@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,12 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+)
+
+const (
+	DefaultTimeoutMs    int64 = 30000
+	DefaultMaxRedirects       = 10
+	MaxMaxRedirects           = 50
 )
 
 type RequestSettings struct {
@@ -29,13 +36,13 @@ type Request struct {
 
 func CompactSettings(s RequestSettings) RequestSettings {
 	out := RequestSettings{}
-	if s.TimeoutMs != nil && *s.TimeoutMs != 30000 {
+	if s.TimeoutMs != nil && *s.TimeoutMs != DefaultTimeoutMs {
 		out.TimeoutMs = s.TimeoutMs
 	}
 	if s.FollowRedirects != nil && !*s.FollowRedirects {
 		out.FollowRedirects = s.FollowRedirects
 	}
-	if s.MaxRedirects != nil && *s.MaxRedirects != 10 {
+	if s.MaxRedirects != nil && *s.MaxRedirects != DefaultMaxRedirects {
 		out.MaxRedirects = s.MaxRedirects
 	}
 	if s.InsecureSkipVerify != nil && *s.InsecureSkipVerify {
@@ -44,11 +51,8 @@ func CompactSettings(s RequestSettings) RequestSettings {
 	return out
 }
 
-func rejectLegacyTimeoutKeys(data []byte) error {
-	var probe map[string]interface{}
-	if err := yaml.Unmarshal(data, &probe); err != nil {
-		return err
-	}
+// RejectLegacyTimeoutObject rejects legacy top-level timeout and settings.timeout keys.
+func RejectLegacyTimeoutObject(probe map[string]interface{}) error {
 	if _, ok := probe["timeout"]; ok {
 		return fmt.Errorf("top-level timeout is no longer supported; use settings.timeoutMs")
 	}
@@ -62,6 +66,23 @@ func rejectLegacyTimeoutKeys(data []byte) error {
 		}
 	}
 	return nil
+}
+
+func rejectLegacyTimeoutYAML(data []byte) error {
+	var probe map[string]interface{}
+	if err := yaml.Unmarshal(data, &probe); err != nil {
+		return err
+	}
+	return RejectLegacyTimeoutObject(probe)
+}
+
+// RejectLegacyTimeoutJSON rejects legacy timeout keys in a JSON request object.
+func RejectLegacyTimeoutJSON(data []byte) error {
+	var probe map[string]interface{}
+	if err := json.Unmarshal(data, &probe); err != nil {
+		return err
+	}
+	return RejectLegacyTimeoutObject(probe)
 }
 
 type RequestMeta struct {
@@ -122,7 +143,7 @@ func (w *Workspace) GetRequest(rel string) (Request, error) {
 	if err != nil {
 		return Request{}, err
 	}
-	if err := rejectLegacyTimeoutKeys(data); err != nil {
+	if err := rejectLegacyTimeoutYAML(data); err != nil {
 		return Request{}, err
 	}
 	var req Request
@@ -174,7 +195,7 @@ func (w *Workspace) ListRequests() ([]RequestMeta, error) {
 		rel = strings.TrimSuffix(rel, ".yaml")
 		req, err := w.GetRequest(rel)
 		if err != nil {
-			return nil
+			return fmt.Errorf("%s: %w", rel, err)
 		}
 		list = append(list, RequestMeta{Path: rel, Name: req.Name})
 		return nil

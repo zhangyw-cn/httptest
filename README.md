@@ -102,7 +102,7 @@ settings:
 - `body.type` 为 `none` 或 GET/HEAD 时不发送 body。
 - URL、query、header、body 文本均可出现 `{{name}}`。
 - `settings`（可选）：`timeoutMs` 为正整数毫秒，默认 30000；`followRedirects` 默认 true，可设为 false 关闭跟随；`maxRedirects` 仅在跟随时生效，默认 10，合法范围 1–50；`insecureSkipVerify` 默认 false。落盘时省略与默认值相同的字段（例如默认超时、开启跟随、10 次重定向、不跳过 TLS）。
-- **破坏性变更：** 顶层 `timeout` 与 `settings.timeout` 不再支持，请改为 `settings.timeoutMs`（毫秒整数，不再使用 `30s` 这类 duration 字符串）。
+- **破坏性变更：** 顶层 `timeout` 与 `settings.timeout` 不再支持，请改为 `settings.timeoutMs`（毫秒整数，不再使用 `30s` 这类 duration 字符串）。含顶层 `timeout`（或非法请求文件）会使集合列表接口失败并在界面显示错误（含文件路径与改用 `settings.timeoutMs` 的提示），不会静默从树中消失。API（execute/prepare/保存）与历史回放同样拒绝带顶层 `timeout` 的 JSON；旧历史行会被跳过。
 
 ## 环境与覆盖
 

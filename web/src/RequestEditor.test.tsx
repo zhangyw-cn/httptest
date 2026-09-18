@@ -57,6 +57,29 @@ describe("RequestEditor settings tab", () => {
     expect(Number.isNaN(next.timeoutMs)).toBe(false);
   });
 
+  it("rejects non-positive timeout and out-of-range max", () => {
+    const base = {
+      timeoutMs: 5000,
+      followRedirects: true,
+      maxRedirects: 5,
+    };
+    expect(applySettingsNumberInput(base, "timeoutMs", "0").timeoutMs).toBe(
+      5000,
+    );
+    expect(applySettingsNumberInput(base, "timeoutMs", "1.5").timeoutMs).toBe(
+      5000,
+    );
+    expect(applySettingsNumberInput(base, "maxRedirects", "0").maxRedirects).toBe(
+      5,
+    );
+    expect(
+      applySettingsNumberInput(base, "maxRedirects", "51").maxRedirects,
+    ).toBe(5);
+    expect(applySettingsNumberInput(base, "timeoutMs", "1200").timeoutMs).toBe(
+      1200,
+    );
+  });
+
   it("shows TLS warning only when insecure is on", () => {
     const on = renderToStaticMarkup(
       <RequestEditor

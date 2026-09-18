@@ -1,13 +1,18 @@
 import type { HttpRequest, RequestSettings, Result } from "./types";
 
+export const DEFAULT_TIMEOUT_MS = 30000;
+export const DEFAULT_MAX_REDIRECTS = 10;
+export const MAX_MAX_REDIRECTS = 50;
+
 export function compactSettings(
   s: RequestSettings | undefined,
 ): RequestSettings | undefined {
   if (!s) return undefined;
   const out: RequestSettings = {};
-  if (s.timeoutMs !== undefined && s.timeoutMs !== 30000) out.timeoutMs = s.timeoutMs;
+  if (s.timeoutMs !== undefined && s.timeoutMs !== DEFAULT_TIMEOUT_MS)
+    out.timeoutMs = s.timeoutMs;
   if (s.followRedirects === false) out.followRedirects = false;
-  if (s.maxRedirects !== undefined && s.maxRedirects !== 10)
+  if (s.maxRedirects !== undefined && s.maxRedirects !== DEFAULT_MAX_REDIRECTS)
     out.maxRedirects = s.maxRedirects;
   if (s.insecureSkipVerify === true) out.insecureSkipVerify = true;
   return Object.keys(out).length ? out : undefined;

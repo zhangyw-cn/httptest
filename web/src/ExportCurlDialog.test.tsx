@@ -61,7 +61,7 @@ describe("ExportCurlDialog", () => {
     expect(markup).not.toContain("-L");
   });
 
-  it("emits -k when prepared insecureSkipVerify is true", () => {
+	it("emits -k when prepared insecureSkipVerify is true", () => {
     const markup = renderToStaticMarkup(
       <ExportCurlDialog
         prepared={{ ...prepared, settings: { insecureSkipVerify: true } }}
@@ -70,6 +70,17 @@ describe("ExportCurlDialog", () => {
       />,
     );
     expect(markup).toContain("-k");
+  });
+
+  it("disables max-redirs checkbox when follow is off", () => {
+    const markup = renderToStaticMarkup(
+      <ExportCurlDialog
+        prepared={{ ...prepared, settings: { followRedirects: false } }}
+        timeoutSeconds={30}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(markup).toMatch(/disabled[\s\S]{0,80}限制最大重定向/);
   });
 
   it("enables hosts option text when resolve provided", () => {

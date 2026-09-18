@@ -144,6 +144,17 @@ func readHistoryFile(path string) ([]HistoryEntry, error) {
 		if len(line) > 0 {
 			line = bytes.TrimSpace(line)
 			if len(line) > 0 {
+				var envelope struct {
+					Request json.RawMessage `json:"request"`
+				}
+				if uerr := json.Unmarshal(line, &envelope); uerr != nil {
+					continue
+				}
+				if len(envelope.Request) > 0 {
+					if err := RejectLegacyTimeoutJSON(envelope.Request); err != nil {
+						continue
+					}
+				}
 				var e HistoryEntry
 				if uerr := json.Unmarshal(line, &e); uerr == nil {
 					entries = append(entries, e)

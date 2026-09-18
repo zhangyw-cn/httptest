@@ -85,7 +85,7 @@ func TestFormBodyRoundTrip(t *testing.T) {
 	}
 }
 
-func TestListRequestsSkipsInvalidFiles(t *testing.T) {
+func TestListRequestsFailsOnInvalidFiles(t *testing.T) {
 	ws, err := Init(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -102,18 +102,28 @@ func TestListRequestsSkipsInvalidFiles(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(collections, "bad-method.yaml"), []byte("name: Bad\nmethod: FOO\nurl: http://example.com/bad\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(collections, "corrupt.yaml"), []byte("name: Bad\nmethod: [\n"), 0o644); err != nil {
+	_, err = ws.ListRequests()
+	if err == nil || !strings.Contains(err.Error(), "bad-method") {
+		t.Fatalf("expected list failure naming bad-method, got %v", err)
+	}
+}
+
+func TestListRequestsFailsOnTopLevelTimeout(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
 		t.Fatal(err)
 	}
-	list, err := ws.ListRequests()
-	if err != nil {
-		t.Fatalf("ListRequests should not fail on invalid files: %v", err)
+	path := filepath.Join(ws.Workdir(), "collections", "old.yaml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
 	}
-	if len(list) != 1 {
-		t.Fatalf("expected 1 request, got %d: %+v", len(list), list)
+	content := "name: Old\nmethod: GET\nurl: http://example.com\ntimeout: 30s\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
 	}
-	if list[0].Path != "good" || list[0].Name != "Good" {
-		t.Fatalf("%+v", list)
+	_, err = ws.ListRequests()
+	if err == nil || !strings.Contains(err.Error(), "settings.timeoutMs") {
+		t.Fatalf("got %v", err)
 	}
 }
 
@@ -133,6 +143,39 @@ func TestGetRequestRejectsTopLevelTimeout(t *testing.T) {
 	_, err = ws.GetRequest("old")
 	if err == nil || !strings.Contains(err.Error(), "settings.timeoutMs") {
 		t.Fatalf("got %v", err)
+	}
+}
+
+func TestGetRequestRejectsSettingsTimeout(t *testing.T) {
+	ws, err := Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(ws.Workdir(), "collections", "nested.yaml")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := "name: Nested\nmethod: GET\nurl: http://example.com\nsettings:\n  timeout: 30s\n"
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err = ws.GetRequest("nested")
+	if err == nil || !strings.Contains(err.Error(), "settings.timeoutMs") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+func TestRejectLegacyTimeoutJSON(t *testing.T) {
+	err := RejectLegacyTimeoutJSON([]byte(`{"method":"GET","url":"http://h","timeout":"30s"}`))
+	if err == nil || !strings.Contains(err.Error(), "settings.timeoutMs") {
+		t.Fatalf("got %v", err)
+	}
+	err = RejectLegacyTimeoutJSON([]byte(`{"method":"GET","url":"http://h","settings":{"timeout":"30s"}}`))
+	if err == nil || !strings.Contains(err.Error(), "settings.timeoutMs") {
+		t.Fatalf("got %v", err)
+	}
+	if err := RejectLegacyTimeoutJSON([]byte(`{"method":"GET","url":"http://h"}`)); err != nil {
+		t.Fatal(err)
 	}
 }
 

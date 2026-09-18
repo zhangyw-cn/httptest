@@ -89,6 +89,7 @@ export default function ExportCurlDialog({
             <input
               type="checkbox"
               checked={options.maxRedirects}
+              disabled={!options.followRedirects}
               onChange={(e) =>
                 setOptions((prev) => ({
                   ...prev,

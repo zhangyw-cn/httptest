@@ -14,9 +14,9 @@ import (
 
 func (s *server) handleExecute(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		ID          string            `json:"id"`
-		RequestPath string            `json:"requestPath"`
-		Request     workspace.Request `json:"request"`
+		ID          string          `json:"id"`
+		RequestPath string          `json:"requestPath"`
+		Request     json.RawMessage `json:"request"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -26,6 +26,11 @@ func (s *server) handleExecute(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing id"})
 		return
 	}
+	var req workspace.Request
+	if err := decodeWorkspaceRequest(body.Request, &req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
 
 	vars, err := s.ws.ResolvedVars()
 	if err != nil {
@@ -33,7 +38,7 @@ func (s *server) handleExecute(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, executor.Result{
 				ErrorClass:   executor.ClassInvalid,
 				ErrorMessage: err.Error(),
-				Prepared:     body.Request,
+				Prepared:     req,
 			})
 			return
 		}
@@ -57,7 +62,7 @@ func (s *server) handleExecute(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
-	result := executor.Execute(ctx, body.Request, vars, mappings)
+	result := executor.Execute(ctx, req, vars, mappings)
 
 	raw, err := json.Marshal(result)
 	if err != nil {

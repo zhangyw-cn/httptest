@@ -45,6 +45,16 @@ describe("compactSettings", () => {
       }),
     ).toBeUndefined();
   });
+
+  it("keeps non-defaults mixed with defaults", () => {
+    expect(
+      compactSettings({
+        timeoutMs: 30000,
+        followRedirects: false,
+        maxRedirects: 10,
+      }),
+    ).toEqual({ followRedirects: false });
+  });
 });
 
 describe("parseHistoryResult", () => {

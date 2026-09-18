@@ -15,7 +15,9 @@ type Effective struct {
 
 func EffectiveSettings(s workspace.RequestSettings) (Effective, error) {
 	e := Effective{
-		TimeoutMs: 30000, FollowRedirects: true, MaxRedirects: 10,
+		TimeoutMs:       workspace.DefaultTimeoutMs,
+		FollowRedirects: true,
+		MaxRedirects:    workspace.DefaultMaxRedirects,
 	}
 	if s.TimeoutMs != nil {
 		if *s.TimeoutMs <= 0 {
@@ -32,8 +34,8 @@ func EffectiveSettings(s workspace.RequestSettings) (Effective, error) {
 	if s.InsecureSkipVerify != nil {
 		e.InsecureSkipVerify = *s.InsecureSkipVerify
 	}
-	if e.FollowRedirects && (e.MaxRedirects < 1 || e.MaxRedirects > 50) {
-		return Effective{}, fmt.Errorf("maxRedirects must be between 1 and 50")
+	if e.FollowRedirects && (e.MaxRedirects < 1 || e.MaxRedirects > workspace.MaxMaxRedirects) {
+		return Effective{}, fmt.Errorf("maxRedirects must be between 1 and %d", workspace.MaxMaxRedirects)
 	}
 	return e, nil
 }

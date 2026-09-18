@@ -46,6 +46,58 @@ func TestExecuteNoFollowRedirects(t *testing.T) {
 	}
 }
 
+func TestExecuteCustomMaxRedirects(t *testing.T) {
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, srv.URL+"/next", http.StatusFound)
+	}))
+	defer srv.Close()
+	max := 2
+	res := Execute(context.Background(), workspace.Request{
+		Method: "GET", URL: srv.URL,
+		Settings: workspace.RequestSettings{MaxRedirects: &max},
+	}, nil, nil)
+	if res.ErrorClass != ClassHTTP || res.Status != http.StatusFound {
+		t.Fatalf("%+v", res)
+	}
+	if !strings.Contains(res.ErrorMessage, "redirect limit reached (2)") {
+		t.Fatalf("want custom limit message, got %q", res.ErrorMessage)
+	}
+	if len(res.Redirects) != 2 {
+		t.Fatalf("redirects=%d want 2", len(res.Redirects))
+	}
+}
+
+func TestExecuteInsecureSkipVerify(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("ok"))
+	}))
+	defer srv.Close()
+
+	base := http.DefaultTransport.(*http.Transport)
+	prevTLS := base.TLSClientConfig
+
+	resFail := Execute(context.Background(), workspace.Request{
+		Method: "GET", URL: srv.URL,
+	}, nil, nil)
+	if resFail.ErrorClass != ClassTLS {
+		t.Fatalf("want tls without insecure, got %+v", resFail)
+	}
+
+	insecure := true
+	res := Execute(context.Background(), workspace.Request{
+		Method: "GET", URL: srv.URL,
+		Settings: workspace.RequestSettings{InsecureSkipVerify: &insecure},
+	}, nil, nil)
+	if res.ErrorClass != ClassHTTP || res.Status != 200 || res.Body != "ok" {
+		t.Fatalf("%+v", res)
+	}
+	if base.TLSClientConfig != prevTLS {
+		t.Fatal("DefaultTransport TLSClientConfig was mutated")
+	}
+}
+
 func TestExecuteJSONOK(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || r.URL.Path != "/login" {

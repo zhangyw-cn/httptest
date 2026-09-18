@@ -107,6 +107,23 @@ func TestPrepareInvalidTimeout(t *testing.T) {
 	}
 }
 
+func TestPrepareRejectsLegacyTimeout(t *testing.T) {
+	ws, err := workspace.Init(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := New(ws, nil)
+	payload := []byte(`{"request":{"method":"GET","url":"http://h/","timeout":"30s"}}`)
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, apiReq(http.MethodPost, "/api/prepare", payload))
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("%d %s", rr.Code, rr.Body.Bytes())
+	}
+	if !strings.Contains(rr.Body.String(), "settings.timeoutMs") {
+		t.Fatalf("%s", rr.Body.String())
+	}
+}
+
 func TestPrepareIllegalOverrideInvalid(t *testing.T) {
 	ws, err := workspace.Init(t.TempDir())
 	if err != nil {

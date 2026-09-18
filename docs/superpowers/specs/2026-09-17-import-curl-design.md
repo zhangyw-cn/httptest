@@ -1,8 +1,10 @@
 # httptest 导入 curl 设计规格
 
 日期：2026-09-17  
-状态：已与用户对齐，待用户审阅本文件后进入实现计划  
+状态：部分被后续规格覆盖（见下）  
 前置：现有导出 curl（`formatCurl` / `ExportCurlDialog` / `POST /api/prepare`）、UrlBar Send split、「⋯」式溢出菜单需求。本文件新增「导入 curl」，并调整导入/导出入口；不改变实际发送与 prepare 语义。
+
+> **覆盖说明（2026-09-18）：** `-L` / `--location`、`-k` / `--insecure`、`--max-redirs`、`--max-time` / `-m` 与请求 `settings` 的映射，以及不再使用顶层 `timeout`，以 [`2026-09-18-request-settings-design.md`](./2026-09-18-request-settings-design.md) 为准。下文中「`-L` 可出现但忽略」「`--max-time` → 顶层 `timeout`」已作废。
 
 ## 1. 目的与成功标准
 
@@ -13,7 +15,7 @@
 - UrlBar 最右侧为 **「⋯」按钮**；下拉含「导入 curl」「导出 curl」。Send 旁原 split 下拉与菜单项移除，Send 恢复为单按钮。
 - 导入：粘贴命令 → 解析成功则写入**当前草稿**（不自动保存到集合）；失败则对话框内报错，草稿不变。
 - 仅支持与产品模型对齐的 curl 子集；**任意未知/不支持 flag（含 `--resolve`）→ 整次失败**。
-- `-L` 及若干客户端开关可出现但忽略；`--max-time` 写入 `timeout`；`-A` / `-e` 映射为头；method / URL(+query) / headers / body 映射到现有 `HttpRequest`。
+- 客户端开关与超时映射见 [`2026-09-18-request-settings-design.md`](./2026-09-18-request-settings-design.md) §7；`-A` / `-e` 映射为头；method / URL(+query) / headers / body 映射到现有 `HttpRequest`。
 - 纯前端解析，无新 API、无新 npm 包；导出行为（prepare + 导出对话框）保持不变，仅入口位置变。
 
 非目标：粘贴自动检测、保存到集合、应用前预览/编辑、Cookie jar、代理、证书、multipart、`-u`、shell 变量 / `$()` / 反引号、保证与任意 curl 方言 100% 兼容。

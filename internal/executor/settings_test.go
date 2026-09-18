@@ -27,3 +27,15 @@ func TestEffectiveSettingsRejectsBadTimeoutAndMax(t *testing.T) {
 		t.Fatal("expected error")
 	}
 }
+
+func TestEffectiveSettingsIgnoresMaxWhenFollowOff(t *testing.T) {
+	follow := false
+	bad := 0
+	e, err := EffectiveSettings(workspace.RequestSettings{FollowRedirects: &follow, MaxRedirects: &bad})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if e.FollowRedirects || e.MaxRedirects != 0 {
+		t.Fatalf("%+v", e)
+	}
+}

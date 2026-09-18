@@ -11,9 +11,14 @@ import (
 
 func (s *server) handlePrepare(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Request workspace.Request `json:"request"`
+		Request json.RawMessage `json:"request"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	var req workspace.Request
+	if err := decodeWorkspaceRequest(body.Request, &req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
@@ -24,7 +29,7 @@ func (s *server) handlePrepare(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, executor.PrepareResult{
 				ErrorClass:   executor.ClassInvalid,
 				ErrorMessage: err.Error(),
-				Prepared:     body.Request,
+				Prepared:     req,
 			})
 			return
 		}
@@ -38,5 +43,5 @@ func (s *server) handlePrepare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, executor.BuildPrepareResult(body.Request, vars, mappings))
+	writeJSON(w, http.StatusOK, executor.BuildPrepareResult(req, vars, mappings))
 }

@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -37,8 +38,13 @@ func (s *server) handleGetRequest(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handlePutRequest(w http.ResponseWriter, r *http.Request) {
 	path := r.PathValue("path")
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
 	var req workspace.Request
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := decodeWorkspaceRequest(raw, &req); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
@@ -60,18 +66,23 @@ func (s *server) handleDeleteRequest(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handlePostRequest(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Path    string            `json:"path"`
-		Request workspace.Request `json:"request"`
+		Path    string          `json:"path"`
+		Request json.RawMessage `json:"request"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
 		return
 	}
-	if err := s.ws.PutRequest(body.Path, body.Request); err != nil {
+	var req workspace.Request
+	if err := decodeWorkspaceRequest(body.Request, &req); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	if err := s.ws.PutRequest(body.Path, req); err != nil {
 		writePathErr(w, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, body.Request)
+	writeJSON(w, http.StatusCreated, req)
 }
 
 func (s *server) handleListEnvironments(w http.ResponseWriter, r *http.Request) {

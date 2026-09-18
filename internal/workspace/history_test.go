@@ -103,12 +103,16 @@ func TestListHistorySkipsCorruptLines(t *testing.T) {
 	if _, err := f.WriteString("this is not json\n"); err != nil {
 		t.Fatal(err)
 	}
+	legacy := `{"id":"legacy-id","time":"2026-09-02T08:00:01Z","request":{"name":"Old","method":"GET","url":"http://old","timeout":"30s"},"result":{"status":200}}` + "\n"
+	if _, err := f.WriteString(legacy); err != nil {
+		t.Fatal(err)
+	}
 	if err := f.Close(); err != nil {
 		t.Fatal(err)
 	}
 	list, err := ws.ListHistory(50)
 	if err != nil {
-		t.Fatalf("ListHistory should skip corrupt lines: %v", err)
+		t.Fatalf("ListHistory should skip corrupt/legacy lines: %v", err)
 	}
 	if len(list) != 1 || list[0].ID != "good-id" {
 		t.Fatalf("want only valid entry, got %+v", list)
