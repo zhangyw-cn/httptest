@@ -44,7 +44,7 @@ httptest [DIR] [--listen 127.0.0.1:1370] [--open]
 
 ## 界面
 
-顶栏是产品名、工作区路径、环境选择器、覆盖选择器（覆盖可选「无」）与 Hosts 选择器（可选「无」），不含主题切换。左侧活动栏上方切换集合、历史、环境、覆盖与 Hosts，底部为设置；再点当前图标收起树（`Ctrl+B`）。树展开时宽 220px。Hosts 与环境、覆盖相互独立：切换环境不改 Hosts，切换 Hosts 不改环境。设置视图下左侧为分类树（外观），中间为主题浅色/深色/系统三档，不显示 UrlBar、请求编辑器与响应区。集合/历史视图下 Method、URL、Send、Stop、Save 横跨中间请求栏和右侧结果栏（`Ctrl+Enter` 发送，`Ctrl+S` 保存请求）；UrlBar 最右侧「⋯」可「导入 curl」（粘贴命令写入当前草稿；不支持的选项整次失败）与「导出 curl」（功能选项 + 预览 + 复制到剪贴板）。环境视图左侧列环境名，中间编辑模板变量（`Ctrl+S` 保存环境，`Ctrl+Enter` 不发送）；覆盖视图同理编辑本机覆盖集；Hosts 视图左侧列配置名，中间按类型编辑：`map` 为 hostname → IP 键值表，`hosts` 为经典 hosts 原文（`Ctrl+S` 保存，`Ctrl+Enter` 不发送）；新建 Hosts 时在对话框选择 `map` 或 `hosts`，创建后不可改类型。树选中只打开编辑，顶栏选择器才是发送用的当前环境、覆盖与 Hosts。新建/改名/删除在应用内对话框完成，不使用浏览器原生弹窗。请求栏为 `Query | Headers | Body`；右侧结果栏 meta 为状态码、总耗时、响应体积，一级页签为 `Request | Response | Raw`。Request 二级为 `Overview | Query | Headers | Body`（只读变量展开后的请求，Overview 含请求体积；命中 Hosts 映射时显示拨号 IP `resolvedIP`）；Response 二级为 `Body | Headers | Timeline`；Raw 为请求 dump 与响应 dump。
+顶栏是产品名、工作区路径、环境选择器、覆盖选择器（覆盖可选「无」）与 Hosts 选择器（可选「无」），不含主题切换。左侧活动栏上方切换集合、历史、环境、覆盖与 Hosts，底部为设置；再点当前图标收起树（`Ctrl+B`）。树展开时宽 220px。Hosts 与环境、覆盖相互独立：切换环境不改 Hosts，切换 Hosts 不改环境。设置视图下左侧为分类树（外观），中间为主题浅色/深色/系统三档，不显示 UrlBar、请求编辑器与响应区。集合/历史视图下 Method、URL、Send、Stop、Save 横跨中间请求栏和右侧结果栏（`Ctrl+Enter` 发送，`Ctrl+S` 保存请求）；UrlBar 最右侧「⋯」可「导入 curl」（粘贴命令写入当前草稿；不支持的选项整次失败）与「导出 curl」（功能选项 + 预览 + 复制到剪贴板）。环境视图左侧列环境名，中间编辑模板变量（`Ctrl+S` 保存环境，`Ctrl+Enter` 不发送）；覆盖视图同理编辑本机覆盖集；Hosts 视图左侧列配置名，中间按类型编辑：`map` 为 hostname → IP 键值表，`hosts` 为经典 hosts 原文（`Ctrl+S` 保存，`Ctrl+Enter` 不发送）；新建 Hosts 时在对话框选择 `map` 或 `hosts`，创建后不可改类型。树选中只打开编辑，顶栏选择器才是发送用的当前环境、覆盖与 Hosts。新建/改名/删除在应用内对话框完成，不使用浏览器原生弹窗。请求栏为 `Query | Headers | Body | 请求设置`（超时毫秒、跟随重定向、最大次数、跳过 TLS 校验）；右侧结果栏 meta 为状态码、总耗时、响应体积，一级页签为 `Request | Response | Raw`。Request 二级为 `Overview | Query | Headers | Body`（只读变量展开后的请求，Overview 含请求体积；命中 Hosts 映射时显示拨号 IP `resolvedIP`）；Response 二级为 `Body | Headers | Timeline`；Raw 为请求 dump 与响应 dump。
 
 ## 工作区
 
@@ -88,7 +88,11 @@ body:
   type: json    # none | json | raw | form
   content: |
     {"user": "{{username}}"}
-timeout: 30s    # 可选，默认 30s
+settings:
+  timeoutMs: 30000   # 可选，默认 30000
+  followRedirects: true
+  maxRedirects: 10
+  insecureSkipVerify: false
 ```
 
 - `method` 仅允许 GET、POST、PUT、PATCH、DELETE、HEAD、OPTIONS（大小写不敏感，落盘大写）。
@@ -97,6 +101,8 @@ timeout: 30s    # 可选，默认 30s
 - `body.type` 为 `json` 且未设 `Content-Type` 时，默认 `application/json`。
 - `body.type` 为 `none` 或 GET/HEAD 时不发送 body。
 - URL、query、header、body 文本均可出现 `{{name}}`。
+- `settings`（可选）：`timeoutMs` 为正整数毫秒，默认 30000；`followRedirects` 默认 true，可设为 false 关闭跟随；`maxRedirects` 仅在跟随时生效，默认 10，合法范围 1–50；`insecureSkipVerify` 默认 false。落盘时省略与默认值相同的字段（例如默认超时、开启跟随、10 次重定向、不跳过 TLS）。
+- **破坏性变更：** 顶层 `timeout` 与 `settings.timeout` 不再支持，请改为 `settings.timeoutMs`（毫秒整数，不再使用 `30s` 这类 duration 字符串）。
 
 ## 环境与覆盖
 
@@ -168,9 +174,9 @@ hosts: lan
 
 ## v1 明确不做
 
-Cookie 管理、Basic/Bearer 助手、multipart 上传、HTTP/2、WebSocket、gRPC、SSE、多请求标签页、账号登录、云同步、跳过 TLS 校验、关闭跟随重定向。
+Cookie 管理、Basic/Bearer 助手、multipart 上传、HTTP/2、WebSocket、gRPC、SSE、多请求标签页、账号登录、云同步。
 
-跟随重定向最多 10 次。HTTPS 使用系统 CA。出站忽略 `HTTP_PROXY` / `HTTPS_PROXY`。
+跟随重定向可在请求设置中关闭；开启时默认最多 10 次，可在 1–50 之间配置。未跳过 TLS 校验时 HTTPS 使用系统 CA。出站忽略 `HTTP_PROXY` / `HTTPS_PROXY`。
 
 ## 开发
 
