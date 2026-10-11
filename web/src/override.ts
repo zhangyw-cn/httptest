@@ -56,7 +56,6 @@ export function overrideDeleteDialog(
       ? `删除 ${name}？此操作会从磁盘去掉该文件。顶栏当前覆盖将变为未选择。`
       : `删除 ${name}？此操作会从磁盘去掉该文件。`,
     submitLabel: "删除",
-    error: null,
     path: name,
     subject: "override",
   };
@@ -71,7 +70,6 @@ export function overrideRenameConfirmDialog(
     title: "重命名当前发送覆盖",
     body: `将当前发送覆盖 ${name} 重命名为 ${next}？顶栏当前覆盖也会更新。`,
     submitLabel: "重命名",
-    error: null,
     path: name,
     next,
     subject: "override",

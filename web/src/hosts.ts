@@ -197,7 +197,6 @@ export function hostsDeleteDialog(name: string, isActive: boolean): DialogMode {
       ? `删除 ${name}？此操作会从磁盘去掉该文件。顶栏当前 Hosts 将变为无。`
       : `删除 ${name}？此操作会从磁盘去掉该文件。`,
     submitLabel: "删除",
-    error: null,
     path: name,
     subject: "hosts",
   };
@@ -212,7 +211,6 @@ export function hostsRenameConfirmDialog(
     title: "重命名当前发送 Hosts",
     body: `将当前发送 Hosts ${name} 重命名为 ${next}？顶栏当前 Hosts 也会更新。`,
     submitLabel: "重命名",
-    error: null,
     path: name,
     next,
     subject: "hosts",

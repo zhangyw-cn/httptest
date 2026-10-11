@@ -31,7 +31,6 @@ describe("override confirmation dialogs", () => {
       body:
         "删除 default？此操作会从磁盘去掉该文件。顶栏当前覆盖将变为未选择。",
       submitLabel: "删除",
-      error: null,
       path: "default",
       subject: "override",
     });
@@ -44,7 +43,6 @@ describe("override confirmation dialogs", () => {
       body:
         "将当前发送覆盖 default 重命名为 debug？顶栏当前覆盖也会更新。",
       submitLabel: "重命名",
-      error: null,
       path: "default",
       next: "debug",
       subject: "override",
