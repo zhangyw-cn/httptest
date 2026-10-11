@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { parseCurl, type ParsedCurlRequest, type ParseCurlResult } from "./curl";
+import { notifyError } from "./toast";
 
 interface Props {
   onApply: (parsed: ParsedCurlRequest) => void;
@@ -13,12 +14,11 @@ export function tryApplyImport(text: string): ParseCurlResult {
 
 export default function ImportCurlDialog({ onApply, onClose }: Props) {
   const [text, setText] = useState("");
-  const [error, setError] = useState<string | null>(null);
 
   function apply() {
     const result = tryApplyImport(text);
     if (!result.ok) {
-      setError(result.error);
+      notifyError(result.error);
       return;
     }
     onApply(result.request);
@@ -37,15 +37,11 @@ export default function ImportCurlDialog({ onApply, onClose }: Props) {
         <textarea
           className="curl-import-input"
           value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            setError(null);
-          }}
+          onChange={(e) => setText(e.target.value)}
           rows={12}
           spellCheck={false}
           placeholder="粘贴 curl 命令…"
         />
-        {error ? <p className="error">{error}</p> : null}
         <div className="dialog-actions">
           <button type="button" className="btn" onClick={onClose}>
             取消

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { defaultCurlOptions, effectiveCurlOptions, formatCurl } from "./curl";
+import { notifyError, notifyHint } from "./toast";
 import type { HttpRequest, ResolveSpec } from "./types";
 
 interface Props {
@@ -16,8 +17,6 @@ export default function ExportCurlDialog({
   onClose,
 }: Props) {
   const [options, setOptions] = useState(defaultCurlOptions(prepared.settings));
-  const [copied, setCopied] = useState(false);
-  const [copyError, setCopyError] = useState<string | null>(null);
 
   const effectiveOptions = effectiveCurlOptions(options, resolve);
 
@@ -30,16 +29,15 @@ export default function ExportCurlDialog({
 
   async function copyToClipboard() {
     if (!navigator.clipboard?.writeText) {
-      setCopyError("复制失败");
+      notifyError("复制失败");
       return;
     }
     try {
       await navigator.clipboard.writeText(preview);
-      setCopied(true);
-      setCopyError(null);
-      window.setTimeout(() => onClose(), 600);
+      notifyHint("已复制");
+      onClose();
     } catch {
-      setCopyError("复制失败");
+      notifyError("复制失败");
     }
   }
 
@@ -127,7 +125,6 @@ export default function ExportCurlDialog({
           </label>
         </fieldset>
         <pre className="curl-preview">{preview}</pre>
-        {copyError ? <p className="error">{copyError}</p> : null}
         <div className="dialog-actions">
           <button type="button" className="btn" onClick={onClose}>
             取消
@@ -137,7 +134,7 @@ export default function ExportCurlDialog({
             className="btn btn-primary"
             onClick={() => void copyToClipboard()}
           >
-            {copied ? "已复制" : "复制到剪贴板"}
+            复制到剪贴板
           </button>
         </div>
       </div>
