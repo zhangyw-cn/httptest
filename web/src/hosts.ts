@@ -7,11 +7,11 @@ export const HOSTS_CREATE_BLOCKED_LIST_ERROR =
 
 /** Block new-hosts when the sidebar list failed to load (empty list is not authoritative). */
 export function hostsNewBlockedReason(
-  hostsError: string | null,
+  listFailed: boolean,
   hostsSaving = false,
 ): string | null {
   if (hostsSaving) return "请等待 Hosts 保存完成";
-  if (hostsError != null) return HOSTS_CREATE_BLOCKED_LIST_ERROR;
+  if (listFailed) return HOSTS_CREATE_BLOCKED_LIST_ERROR;
   return null;
 }
 

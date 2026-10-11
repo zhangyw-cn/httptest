@@ -112,7 +112,6 @@ export default function App() {
   const [envPairs, setEnvPairs] = useState<EnvPair[]>(() => varsToPairs({}));
   const [envDirty, setEnvDirty] = useState(false);
   const [envSaving, setEnvSaving] = useState(false);
-  const [envError, setEnvError] = useState<string | null>(null);
   const [overrides, setOverrides] = useState<Override[]>([]);
   const [editingOverride, setEditingOverride] = useState<string | null>(null);
   const [overridePairs, setOverridePairs] = useState<EnvPair[]>(() =>
@@ -120,7 +119,6 @@ export default function App() {
   );
   const [overrideDirty, setOverrideDirty] = useState(false);
   const [overrideSaving, setOverrideSaving] = useState(false);
-  const [overrideError, setOverrideError] = useState<string | null>(null);
   const [hostsList, setHostsList] = useState<HostsFile[]>([]);
   const [editingHosts, setEditingHosts] = useState<string | null>(null);
   const [editingHostsType, setEditingHostsType] = useState<HostsType | null>(
@@ -130,7 +128,7 @@ export default function App() {
   const [hostsContent, setHostsContent] = useState("");
   const [hostsDirty, setHostsDirty] = useState(false);
   const [hostsSaving, setHostsSaving] = useState(false);
-  const [hostsError, setHostsError] = useState<string | null>(null);
+  const [hostsListFailed, setHostsListFailed] = useState(false);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
   const [draft, setDraft] = useState<HttpRequest>(defaultDraft);
   const [dirty, setDirty] = useState(false);
@@ -204,8 +202,8 @@ export default function App() {
   editingHostsTypeRef.current = editingHostsType;
   const hostsListRef = useRef(hostsList);
   hostsListRef.current = hostsList;
-  const hostsErrorRef = useRef(hostsError);
-  hostsErrorRef.current = hostsError;
+  const hostsListFailedRef = useRef(hostsListFailed);
+  hostsListFailedRef.current = hostsListFailed;
 
   const applyDraft = useCallback((next: HttpRequest, saved?: boolean) => {
     const n = normalizeRequest(next);
@@ -231,7 +229,6 @@ export default function App() {
     setEnvPairs(opened.pairs);
     envSavedRef.current = opened.snapshot;
     setEnvDirty(false);
-    setEnvError(null);
   }, []);
 
   const loadOverride = useCallback((override: Override) => {
@@ -240,7 +237,6 @@ export default function App() {
     setOverridePairs(varsToPairs(override.variables));
     overrideSavedRef.current = varsJSON(override.variables);
     setOverrideDirty(false);
-    setOverrideError(null);
   }, []);
 
   const loadHosts = useCallback((h: HostsFile) => {
@@ -257,7 +253,6 @@ export default function App() {
       setHostsContent("");
     }
     setHostsDirty(false);
-    setHostsError(null);
   }, []);
 
   useEffect(() => {
@@ -284,14 +279,13 @@ export default function App() {
         const hosts = await getHosts();
         if (!cancelled) {
           setHostsList(hosts);
-          setHostsError(null);
+          setHostsListFailed(false);
         }
       } catch (err) {
         if (!cancelled) {
           setHostsList([]);
-          setHostsError(
-            hostsAPIError(err instanceof Error ? err.message : String(err)),
-          );
+          setHostsListFailed(true);
+          notifyError(hostsAPIError(errorText(err)));
         }
       }
     })();
@@ -455,7 +449,7 @@ export default function App() {
 
   function openNewHostsDialog() {
     const blocked = hostsNewBlockedReason(
-      hostsErrorRef.current,
+      hostsListFailedRef.current,
       hostsSavingRef.current,
     );
     if (blocked) return;
@@ -579,7 +573,6 @@ export default function App() {
     const epoch = envEpochRef.current;
     envSavingRef.current = true;
     setEnvSaving(true);
-    setEnvError(null);
     try {
       const saved = await putEnvironment(name, {
         name,
@@ -604,9 +597,7 @@ export default function App() {
         setEnvDirty(apply.dirty);
       }
     } catch (err) {
-      setEnvError(
-        environmentAPIError(err instanceof Error ? err.message : String(err)),
-      );
+      notifyError(environmentAPIError(errorText(err)));
     } finally {
       envSavingRef.current = false;
       setEnvSaving(false);
@@ -626,7 +617,6 @@ export default function App() {
     const epoch = overrideEpochRef.current;
     overrideSavingRef.current = true;
     setOverrideSaving(true);
-    setOverrideError(null);
     try {
       const saved = await putOverride(name, { name, variables });
       const list = await getOverrides();
@@ -648,9 +638,7 @@ export default function App() {
         setOverrideDirty(apply.dirty);
       }
     } catch (err) {
-      setOverrideError(
-        overrideAPIError(err instanceof Error ? err.message : String(err)),
-      );
+      notifyError(overrideAPIError(errorText(err)));
     } finally {
       overrideSavingRef.current = false;
       setOverrideSaving(false);
@@ -670,7 +658,6 @@ export default function App() {
     const epoch = hostsEpochRef.current;
     hostsSavingRef.current = true;
     setHostsSaving(true);
-    setHostsError(null);
     try {
       if (hostsType === "hosts") {
         const content = hostsContentRef.current;
@@ -680,7 +667,7 @@ export default function App() {
           mappings: {},
         });
         if (vErr) {
-          setHostsError(vErr);
+          notifyError(vErr);
           return;
         }
         const saved = await putHosts(name, {
@@ -699,18 +686,18 @@ export default function App() {
         }
         try {
           setHostsList(await getHosts());
-          setHostsError(null);
+          setHostsListFailed(false);
         } catch (err) {
           // Keep prior list + editor; saved file is on disk.
-          setHostsError(
-            `已保存，但 Hosts 列表无法刷新：${hostsAPIError(err instanceof Error ? err.message : String(err))}`,
+          notifyError(
+            `已保存，但 Hosts 列表无法刷新：${hostsAPIError(errorText(err))}`,
           );
         }
         return;
       }
       const converted = hostPairsToMappings(hostsPairsRef.current);
       if (!converted.ok) {
-        setHostsError(converted.error);
+        notifyError(converted.error);
         return;
       }
       const mappings = converted.mappings;
@@ -720,7 +707,7 @@ export default function App() {
         content: "",
       });
       if (vErr) {
-        setHostsError(vErr);
+        notifyError(vErr);
         return;
       }
       const saved = await putHosts(name, {
@@ -747,17 +734,15 @@ export default function App() {
       }
       try {
         setHostsList(await getHosts());
-        setHostsError(null);
+        setHostsListFailed(false);
       } catch (err) {
         // Keep prior list + editor; saved file is on disk.
-        setHostsError(
-          `已保存，但 Hosts 列表无法刷新：${hostsAPIError(err instanceof Error ? err.message : String(err))}`,
+        notifyError(
+          `已保存，但 Hosts 列表无法刷新：${hostsAPIError(errorText(err))}`,
         );
       }
     } catch (err) {
-      setHostsError(
-        hostsAPIError(err instanceof Error ? err.message : String(err)),
-      );
+      notifyError(hostsAPIError(errorText(err)));
     } finally {
       hostsSavingRef.current = false;
       setHostsSaving(false);
@@ -944,7 +929,7 @@ export default function App() {
         }
         if (current.intent === "create-hosts") {
           const blocked = hostsNewBlockedReason(
-            hostsErrorRef.current,
+            hostsListFailedRef.current,
             hostsSavingRef.current,
           );
           if (blocked) {
@@ -1218,7 +1203,7 @@ export default function App() {
               envBusy={envSaving}
               overrideBusy={overrideSaving}
               hostsBusy={hostsSaving}
-              hostsListError={hostsError}
+              hostsListFailed={hostsListFailed}
             />
           ))}
         <div className="work">
@@ -1234,7 +1219,6 @@ export default function App() {
               pairs={envPairs}
               dirty={envDirty}
               saving={envSaving}
-              error={envError}
               onPairsChange={onEnvPairsChange}
               onSave={() => void onSaveEnv()}
               onRename={openRenameEnvDialog}
@@ -1245,7 +1229,6 @@ export default function App() {
               pairs={overridePairs}
               dirty={overrideDirty}
               saving={overrideSaving}
-              error={overrideError}
               emptyTitle="在左侧选择一套覆盖，或新建"
               maskValues
               onPairsChange={onOverridePairsChange}
@@ -1260,7 +1243,6 @@ export default function App() {
                 content={hostsContent}
                 dirty={hostsDirty}
                 saving={hostsSaving}
-                error={hostsError}
                 emptyTitle="在左侧选择一套 Hosts，或新建"
                 onContentChange={(next) => {
                   hostsEpochRef.current += 1;
@@ -1277,7 +1259,6 @@ export default function App() {
                   pairs={hostsPairs}
                   dirty={hostsDirty}
                   saving={hostsSaving}
-                  error={hostsError}
                   emptyTitle="在左侧选择一套 Hosts，或新建"
                   keyHeader="主机名"
                   valueHeader="IP"

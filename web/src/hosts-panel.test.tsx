@@ -30,15 +30,15 @@ describe("hosts activity", () => {
         pairs={[]}
         dirty={false}
         saving={false}
-        error="无法加载 Hosts 列表"
         onPairsChange={vi.fn()}
         onSave={vi.fn()}
         onRename={vi.fn()}
         emptyTitle="在左侧选择一套 Hosts，或新建"
       />,
     );
-    expect(markup).toContain("无法加载 Hosts 列表");
-    expect(markup).toContain("env-editor-error");
+    expect(markup).not.toContain("env-editor-error");
+    expect(markup).not.toContain("无法加载 Hosts 列表");
+    expect(markup).toContain("在左侧选择一套 Hosts，或新建");
   });
 
   it("disables new-hosts controls when list load failed", () => {
@@ -70,11 +70,12 @@ describe("hosts activity", () => {
         onSelectHosts={vi.fn()}
         onNewHosts={vi.fn()}
         onDeleteHosts={vi.fn()}
-        hostsListError="无法加载 Hosts 列表"
+        hostsListFailed
       />,
     );
-    expect(markup).toContain("Hosts 列表加载失败");
-    expect(markup).toContain("无法加载 Hosts 列表");
+    expect(markup).toContain("还没有 Hosts");
+    expect(markup).not.toContain("Hosts 列表加载失败");
+    expect(markup).not.toContain("无法加载 Hosts 列表");
     expect(markup).toContain('disabled=""');
   });
 
@@ -109,14 +110,14 @@ describe("hosts activity", () => {
         content=""
         dirty={false}
         saving={false}
-        error="无法加载 Hosts 列表"
         emptyTitle="在左侧选择一套 Hosts，或新建"
         onContentChange={vi.fn()}
         onSave={vi.fn()}
         onRename={vi.fn()}
       />,
     );
-    expect(markup).toContain("无法加载 Hosts 列表");
-    expect(markup).toContain("env-editor-error");
+    expect(markup).not.toContain("env-editor-error");
+    expect(markup).not.toContain("无法加载 Hosts 列表");
+    expect(markup).toContain("在左侧选择一套 Hosts，或新建");
   });
 });

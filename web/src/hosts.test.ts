@@ -14,11 +14,9 @@ import {
 
 describe("hostsNewBlockedReason", () => {
   it("blocks create when list load failed", () => {
-    expect(hostsNewBlockedReason("无法加载 Hosts 列表")).toBe(
-      HOSTS_CREATE_BLOCKED_LIST_ERROR,
-    );
-    expect(hostsNewBlockedReason(null)).toBeNull();
-    expect(hostsNewBlockedReason(null, true)).toBe("请等待 Hosts 保存完成");
+    expect(hostsNewBlockedReason(true)).toBe(HOSTS_CREATE_BLOCKED_LIST_ERROR);
+    expect(hostsNewBlockedReason(false)).toBeNull();
+    expect(hostsNewBlockedReason(false, true)).toBe("请等待 Hosts 保存完成");
   });
 });
 

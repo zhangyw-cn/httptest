@@ -4,6 +4,7 @@ import { buildRequestTree, type TreeNode } from "./tree";
 import type { LeftView } from "./activity";
 import { hostsRowStates } from "./hosts";
 import { overrideRowStates } from "./override";
+import { notifyError } from "./toast";
 import type {
   Environment,
   HistoryEntry,
@@ -42,7 +43,7 @@ interface Props {
   envBusy?: boolean;
   overrideBusy?: boolean;
   hostsBusy?: boolean;
-  hostsListError?: string | null;
+  hostsListFailed?: boolean;
 }
 
 function TreeItems({
@@ -133,10 +134,9 @@ export default function Sidebar({
   envBusy = false,
   overrideBusy = false,
   hostsBusy = false,
-  hostsListError = null,
+  hostsListFailed = false,
 }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
-  const [histError, setHistError] = useState<string | null>(null);
   const tree = buildRequestTree(requests);
 
   useEffect(() => {
@@ -147,11 +147,11 @@ export default function Sidebar({
         const items = await listHistory();
         if (!cancelled) {
           setHistory(items);
-          setHistError(null);
         }
       } catch (err) {
         if (!cancelled) {
-          setHistError(err instanceof Error ? err.message : String(err));
+          setHistory([]);
+          notifyError(err instanceof Error ? err.message : String(err));
         }
       }
     })();
@@ -266,7 +266,7 @@ export default function Sidebar({
   }
 
   if (view === "hosts") {
-    const hostsCreateDisabled = hostsBusy || hostsListError != null;
+    const hostsCreateDisabled = hostsBusy || hostsListFailed;
     return (
       <aside className="sidebar">
         <div className="sidebar-head">
@@ -274,7 +274,7 @@ export default function Sidebar({
           <button
             type="button"
             className="btn-icon"
-            title={hostsListError ?? "新建"}
+            title="新建"
             onClick={onNewHosts}
             disabled={hostsCreateDisabled}
           >
@@ -284,14 +284,8 @@ export default function Sidebar({
         <div className="sidebar-body">
           {hostsList.length === 0 ? (
             <div className="empty-state">
-              <p className="empty-title">
-                {hostsListError ? "Hosts 列表加载失败" : "还没有 Hosts"}
-              </p>
-              <p className="empty-hint">
-                {hostsListError
-                  ? hostsListError
-                  : "用侧栏 ＋ 或下方按钮创建"}
-              </p>
+              <p className="empty-title">还没有 Hosts</p>
+              <p className="empty-hint">用侧栏 ＋ 或下方按钮创建</p>
               <button
                 type="button"
                 className="btn"
@@ -416,8 +410,7 @@ export default function Sidebar({
     <aside className="sidebar">
       <div className="sidebar-head">历史</div>
       <div className="sidebar-body">
-        {histError && <p className="error">{histError}</p>}
-        {history.length === 0 && !histError ? (
+        {history.length === 0 ? (
           <div className="empty-state">
             <p className="empty-title">还没有历史</p>
             <p className="empty-hint">发送成功的请求会列在这里</p>
