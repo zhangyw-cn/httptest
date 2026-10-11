@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { notifySticky } from "./toast";
 
 interface Props {
   children: ReactNode;
@@ -17,16 +18,11 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error(error, info.componentStack);
+    notifySticky(`界面出错：${error.message}`);
   }
 
   render() {
-    if (this.state.error) {
-      return (
-        <div className="banner error">
-          界面出错：{this.state.error.message}
-        </div>
-      );
-    }
+    if (this.state.error) return null;
     return this.props.children;
   }
 }
