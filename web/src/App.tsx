@@ -86,6 +86,7 @@ import {
   writeStoredTheme,
   type ThemePref,
 } from "./theme";
+import { notifyError, publishResultNotices } from "./toast";
 import type {
   Environment,
   HistoryEntry,
@@ -98,6 +99,10 @@ import type {
   Result,
   WorkspaceInfo,
 } from "./types";
+
+function errorText(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 export default function App() {
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
@@ -137,7 +142,6 @@ export default function App() {
   });
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useState<ThemePref>(() => readStoredTheme());
   const [settingsCategory, setSettingsCategory] =
     useState<SettingsCategory>("appearance");
@@ -272,10 +276,9 @@ export default function App() {
         setLocal(loc);
         setEnvs(environments);
         setOverrides(overrideList);
-        setError(null);
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
+          notifyError(errorText(err));
         }
       }
       try {
@@ -505,27 +508,31 @@ export default function App() {
     });
   }
 
+  function showResult(result: Result) {
+    setResult(result);
+    publishResultNotices(result);
+  }
+
   function onSelectHistory(entry: HistoryEntry) {
     applyDraft(entry.request);
     if (entry.requestPath) setCurrentPath(entry.requestPath);
     else setCurrentPath(null);
-    setResult(parseHistoryResult(entry.result));
+    showResult(parseHistoryResult(entry.result));
   }
 
   const onSend = useCallback(async () => {
     const id = newId();
     setExecuteId(id);
     setSending(true);
-    setError(null);
     try {
       const { result: res } = await execute(
         draftRef.current,
         currentPathRef.current ?? undefined,
         id,
       );
-      setResult(res);
+      showResult(res);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      notifyError(errorText(err));
     } finally {
       setSending(false);
     }
@@ -543,12 +550,11 @@ export default function App() {
 
   const onExportCurl = useCallback(async () => {
     if (preparingExport) return;
-    setError(null);
     setPreparingExport(true);
     try {
       const res = await prepare(draftRef.current);
       if (res.errorClass) {
-        setResult({
+        showResult({
           status: 0,
           statusText: "",
           headers: {},
@@ -579,7 +585,7 @@ export default function App() {
         timeoutSeconds: res.timeoutSeconds ?? 30,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      notifyError(errorText(err));
     } finally {
       setPreparingExport(false);
     }
@@ -804,11 +810,10 @@ export default function App() {
       });
       return;
     }
-    setError(null);
     try {
       await saveToPath(path);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      notifyError(errorText(err));
     }
   }, [saveToPath]);
 
@@ -1209,7 +1214,6 @@ export default function App() {
         onOverrideChange={onOverrideChange}
         onHostsChange={onHostsChange}
       />
-      {error && <div className="banner error">{error}</div>}
       {/* eslint-disable-next-line react/no-unknown-property */}
       <div className="main" {...(mainInert ? { inert: "" } : {})}>
         <ActivityBar
