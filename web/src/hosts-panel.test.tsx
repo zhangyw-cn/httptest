@@ -85,7 +85,6 @@ describe("hosts activity", () => {
           kind: "path",
           title: "新建 Hosts",
           submitLabel: "创建",
-          error: null,
           intent: "create-hosts",
           hint: "名称，例如 lan",
         }}
@@ -98,6 +97,8 @@ describe("hosts activity", () => {
     expect(markup).toContain("hosts（文本）");
     expect(markup).toContain('value="map"');
     expect(markup).toContain("checked");
+    expect(markup).toContain("名称，例如 lan");
+    expect(markup).not.toContain("名称非法");
   });
 
   it("shows list load error in HostsContentEditor empty state", () => {

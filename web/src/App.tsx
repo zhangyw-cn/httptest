@@ -146,7 +146,6 @@ export default function App() {
   const [settingsCategory, setSettingsCategory] =
     useState<SettingsCategory>("appearance");
   const [dialog, setDialog] = useState<DialogMode | null>(null);
-  const [dialogError, setDialogError] = useState<string | null>(null);
   const [exportCurl, setExportCurl] = useState<{
     prepared: HttpRequest;
     resolve?: ResolveSpec;
@@ -334,24 +333,20 @@ export default function App() {
   }
 
   function openNewDialog() {
-    setDialogError(null);
     setDialog({
       kind: "path",
       title: "请求路径",
       submitLabel: "创建",
-      error: null,
       intent: "create",
     });
   }
 
   function openDeleteDialog(path: string) {
-    setDialogError(null);
     setDialog({
       kind: "confirm",
       title: "删除请求",
       body: `删除 ${path}？此操作会从磁盘去掉该文件。`,
       submitLabel: "删除",
-      error: null,
       path,
     });
   }
@@ -370,12 +365,10 @@ export default function App() {
 
   function openNewEnvDialog() {
     if (envSavingRef.current) return;
-    setDialogError(null);
     setDialog({
       kind: "path",
       title: "环境名",
       submitLabel: "创建",
-      error: null,
       intent: "create-env",
       hint: "文件名，例如 local，不能含 /",
     });
@@ -384,7 +377,6 @@ export default function App() {
   function openDeleteEnvDialog(name: string) {
     if (envSavingRef.current) return;
     const isActive = local?.environment === name;
-    setDialogError(null);
     setDialog({
       kind: "confirm",
       title: "删除环境",
@@ -392,7 +384,6 @@ export default function App() {
         ? `删除 ${name}？此操作会从磁盘去掉该文件。顶栏当前环境将变为未选择。`
         : `删除 ${name}？此操作会从磁盘去掉该文件。`,
       submitLabel: "删除",
-      error: null,
       path: name,
       subject: "environment",
     });
@@ -403,12 +394,10 @@ export default function App() {
     const name = editingEnvRef.current;
     if (!name) return;
     const isActive = local?.environment === name;
-    setDialogError(null);
     setDialog({
       kind: "path",
       title: "重命名环境",
       submitLabel: "重命名",
-      error: null,
       intent: "rename-env",
       hint: isActive
         ? "文件名，例如 local，不能含 /。顶栏当前环境将改为新名称。"
@@ -430,12 +419,10 @@ export default function App() {
 
   function openNewOverrideDialog() {
     if (overrideSavingRef.current) return;
-    setDialogError(null);
     setDialog({
       kind: "path",
       title: "覆盖名",
       submitLabel: "创建",
-      error: null,
       intent: "create-override",
       hint: "文件名，例如 default，不能含 /",
     });
@@ -444,7 +431,6 @@ export default function App() {
   function openDeleteOverrideDialog(name: string) {
     if (overrideSavingRef.current) return;
     const isActive = local?.override === name;
-    setDialogError(null);
     setDialog(overrideDeleteDialog(name, isActive));
   }
 
@@ -452,12 +438,10 @@ export default function App() {
     if (overrideSavingRef.current) return;
     const name = editingOverrideRef.current;
     if (!name) return;
-    setDialogError(null);
     setDialog({
       kind: "path",
       title: "重命名覆盖",
       submitLabel: "重命名",
-      error: null,
       intent: "rename-override",
       hint: "文件名，例如 default，不能含 /",
     });
@@ -475,12 +459,10 @@ export default function App() {
       hostsSavingRef.current,
     );
     if (blocked) return;
-    setDialogError(null);
     setDialog({
       kind: "path",
       title: "新建 Hosts",
       submitLabel: "创建",
-      error: null,
       intent: "create-hosts",
       hint: "文件名，例如 lan，不能含 /",
     });
@@ -489,7 +471,6 @@ export default function App() {
   function openDeleteHostsDialog(name: string) {
     if (hostsSavingRef.current) return;
     const isActive = local?.hosts === name;
-    setDialogError(null);
     setDialog(hostsDeleteDialog(name, isActive));
   }
 
@@ -497,12 +478,10 @@ export default function App() {
     if (hostsSavingRef.current) return;
     const name = editingHostsRef.current;
     if (!name) return;
-    setDialogError(null);
     setDialog({
       kind: "path",
       title: "重命名 Hosts",
       submitLabel: "重命名",
-      error: null,
       intent: "rename-hosts",
       hint: "文件名，例如 lan，不能含 /",
     });
@@ -800,12 +779,10 @@ export default function App() {
   const onSave = useCallback(async () => {
     const path = currentPathRef.current;
     if (!path) {
-      setDialogError(null);
       setDialog({
         kind: "path",
         title: "请求路径",
         submitLabel: "保存",
-        error: null,
         intent: "save",
       });
       return;
@@ -823,20 +800,19 @@ export default function App() {
   ) {
     const current = dialogRef.current;
     if (!current) return;
-    setDialogError(null);
     try {
       if (current.kind === "path") {
         const p = path?.trim() ?? "";
         if (!p) return;
         if (current.intent === "rename-hosts") {
           if (hostsSavingRef.current) {
-            setDialogError("请等待 Hosts 保存完成");
+            notifyError("请等待 Hosts 保存完成");
             return;
           }
           const oldName = editingHostsRef.current;
           if (!oldName) return;
           if (p === oldName) {
-            setDialogError("不能改成当前名称");
+            notifyError("不能改成当前名称");
             return;
           }
           const others = hostsListRef.current
@@ -844,7 +820,7 @@ export default function App() {
             .filter((name) => name !== oldName);
           const err = hostsNameError(p, others);
           if (err) {
-            setDialogError(err);
+            notifyError(err);
             return;
           }
           if (local?.hosts === oldName) {
@@ -857,18 +833,17 @@ export default function App() {
           setLocal(loc);
           loadHosts(renamed);
           setDialog(null);
-          setDialogError(null);
           return;
         }
         if (current.intent === "rename-override") {
           if (overrideSavingRef.current) {
-            setDialogError("请等待覆盖保存完成");
+            notifyError("请等待覆盖保存完成");
             return;
           }
           const oldName = editingOverrideRef.current;
           if (!oldName) return;
           if (p === oldName) {
-            setDialogError("不能改成当前名称");
+            notifyError("不能改成当前名称");
             return;
           }
           const others = overridesRef.current
@@ -876,7 +851,7 @@ export default function App() {
             .filter((name) => name !== oldName);
           const err = overrideNameError(p, others);
           if (err) {
-            setDialogError(err);
+            notifyError(err);
             return;
           }
           if (local?.override === oldName) {
@@ -892,18 +867,17 @@ export default function App() {
           setLocal(loc);
           loadOverride(renamed);
           setDialog(null);
-          setDialogError(null);
           return;
         }
         if (current.intent === "rename-env") {
           if (envSavingRef.current) {
-            setDialogError("请等待环境保存完成");
+            notifyError("请等待环境保存完成");
             return;
           }
           const oldName = editingEnvRef.current;
           if (!oldName) return;
           if (p === oldName) {
-            setDialogError("不能改成当前名称");
+            notifyError("不能改成当前名称");
             return;
           }
           const others = envsRef.current
@@ -911,7 +885,7 @@ export default function App() {
             .filter((n) => n !== oldName);
           const err = envNameError(p, others);
           if (err) {
-            setDialogError(err);
+            notifyError(err);
             return;
           }
           const renamed = await renameEnvironment(oldName, p);
@@ -923,12 +897,11 @@ export default function App() {
           setLocal(loc);
           loadEnv(renamed);
           setDialog(null);
-          setDialogError(null);
           return;
         }
         if (current.intent === "create-env") {
           if (envSavingRef.current) {
-            setDialogError("请等待环境保存完成");
+            notifyError("请等待环境保存完成");
             return;
           }
           const err = envNameError(
@@ -936,7 +909,7 @@ export default function App() {
             envs.map((env) => env.name),
           );
           if (err) {
-            setDialogError(err);
+            notifyError(err);
             return;
           }
           await putEnvironment(p, {
@@ -947,12 +920,11 @@ export default function App() {
           setEnvs(list);
           loadEnv({ name: p, variables: {} });
           setDialog(null);
-          setDialogError(null);
           return;
         }
         if (current.intent === "create-override") {
           if (overrideSavingRef.current) {
-            setDialogError("请等待覆盖保存完成");
+            notifyError("请等待覆盖保存完成");
             return;
           }
           const err = overrideNameError(
@@ -960,7 +932,7 @@ export default function App() {
             overridesRef.current.map((item) => item.name),
           );
           if (err) {
-            setDialogError(err);
+            notifyError(err);
             return;
           }
           await putOverride(p, { name: p, variables: {} });
@@ -968,7 +940,6 @@ export default function App() {
           setOverrides(list);
           loadOverride({ name: p, variables: {} });
           setDialog(null);
-          setDialogError(null);
           return;
         }
         if (current.intent === "create-hosts") {
@@ -977,7 +948,7 @@ export default function App() {
             hostsSavingRef.current,
           );
           if (blocked) {
-            setDialogError(blocked);
+            notifyError(blocked);
             return;
           }
           const err = hostsNameError(
@@ -985,7 +956,7 @@ export default function App() {
             hostsListRef.current.map((item) => item.name),
           );
           if (err) {
-            setDialogError(err);
+            notifyError(err);
             return;
           }
           const hostsType = opts?.hostsType ?? "map";
@@ -1004,7 +975,6 @@ export default function App() {
             content: "",
           });
           setDialog(null);
-          setDialogError(null);
           return;
         }
         if (current.intent === "create") {
@@ -1021,7 +991,7 @@ export default function App() {
       } else {
         if (current.subject === "hosts") {
           if (hostsSavingRef.current) {
-            setDialogError("请等待 Hosts 保存完成");
+            notifyError("请等待 Hosts 保存完成");
             return;
           }
           if (current.next) {
@@ -1045,12 +1015,11 @@ export default function App() {
             }
           }
           setDialog(null);
-          setDialogError(null);
           return;
         }
         if (current.subject === "override") {
           if (overrideSavingRef.current) {
-            setDialogError("请等待覆盖保存完成");
+            notifyError("请等待覆盖保存完成");
             return;
           }
           if (current.next) {
@@ -1078,12 +1047,11 @@ export default function App() {
             }
           }
           setDialog(null);
-          setDialogError(null);
           return;
         }
         if (current.subject === "environment") {
           if (envSavingRef.current) {
-            setDialogError("请等待环境保存完成");
+            notifyError("请等待环境保存完成");
             return;
           }
           await deleteEnvironment(current.path);
@@ -1100,7 +1068,6 @@ export default function App() {
             setEnvDirty(false);
           }
           setDialog(null);
-          setDialogError(null);
           return;
         }
         await deleteRequest(current.path);
@@ -1112,7 +1079,6 @@ export default function App() {
         await reloadWorkspace();
       }
       setDialog(null);
-      setDialogError(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       const envOp =
@@ -1130,7 +1096,7 @@ export default function App() {
           (current.intent === "create-hosts" ||
             current.intent === "rename-hosts")) ||
         (current.kind === "confirm" && current.subject === "hosts");
-      setDialogError(
+      notifyError(
         hostsOp
           ? hostsAPIError(message)
           : overrideOp
@@ -1178,7 +1144,6 @@ export default function App() {
       } else if (action === "escape") {
         if (dialogRef.current) {
           setDialog(null);
-          setDialogError(null);
         } else if (importCurlOpenRef.current) {
           setImportCurlOpen(false);
         } else if (exportCurlRef.current) {
@@ -1192,13 +1157,8 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [onSave, onSaveEnv, onSaveHosts, onSaveOverride, onSend, onStop]);
 
-  const dialogMode =
-    dialog === null
-      ? null
-      : { ...dialog, error: dialogError ?? dialog.error };
-
   const curlOverlayOpen = importCurlOpen || exportCurl !== null;
-  const mainInert = dialogMode !== null || curlOverlayOpen;
+  const mainInert = dialog !== null || curlOverlayOpen;
 
   const mode = workMode(left.view);
 
@@ -1359,17 +1319,16 @@ export default function App() {
           )}
         </div>
       </div>
-      {dialogMode && (
+      {dialog && (
         <Dialog
           key={
-            dialogMode.kind === "path"
-              ? dialogMode.intent
-              : dialogMode.path
+            dialog.kind === "path"
+              ? dialog.intent
+              : dialog.path
           }
-          mode={dialogMode}
+          mode={dialog}
           onClose={() => {
             setDialog(null);
-            setDialogError(null);
           }}
           onSubmit={(p, opts) => onDialogSubmit(p, opts)}
         />

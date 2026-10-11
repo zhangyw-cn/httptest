@@ -6,7 +6,6 @@ export type DialogMode =
       kind: "path";
       title: string;
       submitLabel: string;
-      error: string | null;
       intent:
         | "create"
         | "save"
@@ -23,7 +22,6 @@ export type DialogMode =
       title: string;
       body: string;
       submitLabel: string;
-      error: string | null;
       path: string;
       subject?: "request" | "environment" | "override" | "hosts";
       next?: string;
@@ -129,7 +127,6 @@ export default function Dialog({ mode, onClose, onSubmit }: Props) {
         ) : (
           <p>{mode.body}</p>
         )}
-        {mode.error ? <p className="error">{mode.error}</p> : null}
         <div className="dialog-actions">
           <button
             ref={cancelRef}
