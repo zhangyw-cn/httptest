@@ -18,6 +18,7 @@ const ERROR_MS = 8000;
 const HINT_MS = 3000;
 
 let items: ToastItem[] = [];
+let snapshot: ToastItem[] = [];
 let nextId = 1;
 const listeners = new Set<Listener>();
 const timers = new Map<number, ReturnType<typeof setTimeout>>();
@@ -25,7 +26,7 @@ const deadlines = new Map<number, number>();
 const remaining = new Map<number, number>();
 
 function emit() {
-  const snapshot = items.slice();
+  snapshot = items.slice();
   for (const listener of listeners) listener(snapshot);
 }
 
@@ -49,7 +50,7 @@ function arm(id: number, ms: number) {
 }
 
 export function getToasts(): ToastItem[] {
-  return items.slice();
+  return snapshot;
 }
 
 export function subscribe(listener: Listener): () => void {

@@ -23,6 +23,15 @@ afterEach(() => {
 });
 
 describe("toast queue", () => {
+  it("returns the same snapshot until the queue changes", () => {
+    const first = getToasts();
+    expect(getToasts()).toBe(first);
+    notifyError("缺少变量：baseUrl");
+    const afterNotify = getToasts();
+    expect(afterNotify).not.toBe(first);
+    expect(getToasts()).toBe(afterNotify);
+  });
+
   it("drops empty messages", () => {
     notifyError("");
     notifyHint("");
