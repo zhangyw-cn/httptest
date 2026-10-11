@@ -247,11 +247,6 @@ button:focus-visible {
   gap: 0.25rem;
 }
 
-.banner {
-  padding: 0.35rem 0.85rem;
-  font-size: 0.85rem;
-}
-
 .toaster {
   position: fixed;
   top: 0.75rem;
@@ -458,10 +453,6 @@ button:focus-visible {
 
 .response {
   border-right: none;
-}
-
-.response-error-state {
-  box-shadow: inset 3px 0 0 var(--err);
 }
 
 .sidebar-head {
@@ -746,10 +737,6 @@ button:focus-visible {
   color: var(--err);
 }
 
-.error {
-  color: var(--err);
-}
-
 .muted {
   color: var(--muted);
 }
@@ -794,10 +781,6 @@ button:focus-visible {
   margin: 0 0 0.75rem;
   color: var(--muted);
   font-size: 0.85rem;
-}
-
-.dialog p.error {
-  color: var(--err);
 }
 
 .dialog-path {
@@ -904,10 +887,6 @@ button:focus-visible {
 .env-editor-body {
   padding: 0.6rem;
   overflow: auto;
-}
-
-.env-editor-error {
-  margin: 0.4rem 0.6rem 0;
 }
 
 .hosts-type-tag {
