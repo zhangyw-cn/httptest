@@ -337,9 +337,10 @@ describe("ResultPane non-http error", () => {
         })}
       />,
     );
-    expect(markup).toContain("response-error-state");
-    expect(markup).toContain("dns");
-    expect(markup).toContain("connection refused");
+    expect(markup).not.toContain("response-error-state");
+    expect(markup).not.toContain("response-meta");
+    expect(markup).not.toContain("dns");
+    expect(markup).not.toContain("connection refused");
     expect(markup).toContain(">Request<");
     expect(markup).toContain(">Response<");
     expect(markup).toContain(">Raw<");

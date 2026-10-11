@@ -163,47 +163,24 @@ export function ResultPaneContent({
   const isHttp = result.errorClass === "http";
 
   return (
-    <section
-      className={isHttp ? "response" : "response response-error-state"}
-    >
-      <div className="response-meta">
-        {isHttp ? (
-          <>
-            <span
-              className={`status status-${Math.floor(result.status / 100)}xx`}
-            >
-              {result.status} {result.statusText}
-            </span>
-            <span>{msLabel(result.timings.totalMs)} ms</span>
-            <span title="响应线上字节（解压前）">
-              响应 {sizeLabel(result.responseSize)}
-              {result.body.length !== result.responseSize
-                ? ` · 正文 ${sizeLabel(result.body.length)}`
-                : ""}
-              {result.truncated ? "（截断）" : ""}
-            </span>
-            {result.errorMessage ? (
-              <div className="error">{result.errorMessage}</div>
-            ) : null}
-            {result.historyError ? (
-              <div className="error">
-                历史记录未写入：{result.historyError}
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <div className="error">
-            <strong>{result.errorClass || "error"}</strong>
-            {result.errorMessage ? <div>{result.errorMessage}</div> : null}
-            {result.historyError ? (
-              <div>历史记录未写入：{result.historyError}</div>
-            ) : null}
-            {result.missingVars && result.missingVars.length > 0 ? (
-              <div>缺少变量：{result.missingVars.join(", ")}</div>
-            ) : null}
-          </div>
-        )}
-      </div>
+    <section className="response">
+      {isHttp ? (
+        <div className="response-meta">
+          <span
+            className={`status status-${Math.floor(result.status / 100)}xx`}
+          >
+            {result.status} {result.statusText}
+          </span>
+          <span>{msLabel(result.timings.totalMs)} ms</span>
+          <span title="响应线上字节（解压前）">
+            响应 {sizeLabel(result.responseSize)}
+            {result.body.length !== result.responseSize
+              ? ` · 正文 ${sizeLabel(result.body.length)}`
+              : ""}
+            {result.truncated ? "（截断）" : ""}
+          </span>
+        </div>
+      ) : null}
 
       <div className="tabs">
         <button
