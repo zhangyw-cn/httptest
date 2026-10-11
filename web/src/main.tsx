@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import ErrorBoundary from "./ErrorBoundary";
+import Toaster from "./Toaster";
 import { applyTheme, readStoredTheme } from "./theme";
 import "./styles.css";
 
@@ -14,6 +15,7 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
+    <Toaster />
     <ErrorBoundary>
       <App />
     </ErrorBoundary>
