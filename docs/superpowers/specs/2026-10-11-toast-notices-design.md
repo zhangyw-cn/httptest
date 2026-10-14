@@ -60,7 +60,7 @@ StrictMode
 
 容器固定在视口顶部中央，`z-index` 高于对话框遮罩（现为 20）。容器本身不接收点击，只有每条提示接收点击，避免挡住顶栏其余区域。
 
-单条：`background: var(--surface)`，`box-shadow: 0 4px 16px rgb(0 0 0 / 28%)`，无边框、无左侧色条。失败用 `--err`，提示用 `--ink`。`max-width: 22rem`，过长换行。条与条间距 `0.5rem`。容器 `top: 0.75rem`，水平居中。右上有关闭按钮，可读名称是「关闭」。
+单条：`background: var(--surface)`，`box-shadow: 0 4px 16px rgb(0 0 0 / 28%)`。圆角、细边框和左侧色条见 `docs/superpowers/specs/2026-10-15-toast-outline-design.md`，本句不再要求无边框、无左侧色条。失败用 `--err`，提示用 `--ink`。`max-width: 22rem`，过长换行。条与条间距 `0.5rem`。容器 `top: 0.75rem`，水平居中。右上有关闭按钮，可读名称是「关闭」。
 
 失败条目 `role="alert"`，提示条目 `role="status"`。
 
