@@ -271,15 +271,35 @@ button:focus-visible {
   padding: 0.55rem 0.65rem;
   background: var(--surface);
   box-shadow: 0 4px 16px rgb(0 0 0 / 28%);
-  border: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.toast::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
 }
 
 .toast-error {
   color: var(--err);
 }
 
+.toast-error::before {
+  background: var(--err);
+}
+
 .toast-hint {
   color: var(--ink);
+}
+
+.toast-hint::before {
+  background: var(--accent);
 }
 
 .toast-message {
