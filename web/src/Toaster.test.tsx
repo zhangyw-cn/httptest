@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
 import Toaster from "./Toaster";
 import { installDomShim } from "./installDomShim";
-import { notifyError, notifyHint, resetToastsForTests } from "./toast";
+import { notifyError, notifyInfo, notifyWarning, resetToastsForTests } from "./toast";
 
 afterEach(() => {
   resetToastsForTests();
@@ -38,19 +38,25 @@ describe("Toaster", () => {
     }
   });
 
-  it("renders an error and a hint in a top-center stack with close buttons", () => {
+  it("renders an error, a warning, and an info in a top-center stack", () => {
     notifyError("缺少变量：baseUrl");
-    notifyHint("已复制");
+    notifyWarning("请等待 Hosts 保存完成");
+    notifyInfo("已复制");
     const markup = renderToStaticMarkup(<Toaster />);
     expect(markup).toContain('class="toaster"');
     expect(markup.indexOf("已复制")).toBeLessThan(
+      markup.indexOf("请等待 Hosts 保存完成"),
+    );
+    expect(markup.indexOf("请等待 Hosts 保存完成")).toBeLessThan(
       markup.indexOf("缺少变量：baseUrl"),
     );
-    expect(markup).toContain('class="toast toast-hint"');
-    expect(markup).toContain('role="status"');
+    expect(markup).toContain('class="toast toast-info"');
+    expect(markup).toContain('class="toast toast-warning"');
     expect(markup).toContain('class="toast toast-error"');
+    expect(markup).toContain('role="status"');
     expect(markup).toContain('role="alert"');
     expect(markup).toContain('aria-label="关闭"');
+    expect(markup).not.toContain("toast-hint");
     expect(markup).not.toContain("banner");
   });
 });

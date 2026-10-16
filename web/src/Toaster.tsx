@@ -10,7 +10,11 @@ export default function Toaster() {
         <div
           key={item.id}
           className={
-            item.kind === "error" ? "toast toast-error" : "toast toast-hint"
+            item.kind === "error"
+              ? "toast toast-error"
+              : item.kind === "warning"
+                ? "toast toast-warning"
+                : "toast toast-info"
           }
           role={item.kind === "error" ? "alert" : "status"}
           onMouseEnter={() => pause(item.id)}

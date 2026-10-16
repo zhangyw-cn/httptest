@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { defaultCurlOptions, effectiveCurlOptions, formatCurl } from "./curl";
-import { notifyError, notifyHint } from "./toast";
+import { notifyError, notifyInfo } from "./toast";
 import type { HttpRequest, ResolveSpec } from "./types";
 
 interface Props {
@@ -34,7 +34,7 @@ export default function ExportCurlDialog({
     }
     try {
       await navigator.clipboard.writeText(preview);
-      notifyHint("已复制");
+      notifyInfo("已复制");
       onClose();
     } catch {
       notifyError("复制失败");
