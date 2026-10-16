@@ -1,7 +1,7 @@
 export interface ToastItem {
   id: number;
   message: string;
-  kind: "error" | "hint";
+  kind: "error" | "warning" | "info";
   sticky: boolean;
 }
 
@@ -15,7 +15,8 @@ export interface ResultNoticeInput {
 type Listener = (items: ToastItem[]) => void;
 
 const ERROR_MS = 8000;
-const HINT_MS = 3000;
+const WARNING_MS = 5000;
+const INFO_MS = 3000;
 
 let items: ToastItem[] = [];
 let snapshot: ToastItem[] = [];
@@ -24,6 +25,7 @@ const listeners = new Set<Listener>();
 const timers = new Map<number, ReturnType<typeof setTimeout>>();
 const deadlines = new Map<number, number>();
 const remaining = new Map<number, number>();
+const holds = new Map<number, number>();
 
 function emit() {
   snapshot = items.slice();
@@ -72,7 +74,10 @@ function enqueue(
       item.message === message && item.kind === kind && item.sticky === sticky,
   );
   if (existing) {
-    if (!existing.sticky) arm(existing.id, ms);
+    if (!existing.sticky) {
+      if (remaining.has(existing.id)) remaining.set(existing.id, ms);
+      else arm(existing.id, ms);
+    }
     return;
   }
   const item: ToastItem = { id: nextId++, message, kind, sticky };
@@ -85,8 +90,12 @@ export function notifyError(message: string) {
   enqueue(message, "error", false, ERROR_MS);
 }
 
-export function notifyHint(message: string) {
-  enqueue(message, "hint", false, HINT_MS);
+export function notifyWarning(message: string) {
+  enqueue(message, "warning", false, WARNING_MS);
+}
+
+export function notifyInfo(message: string) {
+  enqueue(message, "info", false, INFO_MS);
 }
 
 export function notifySticky(message: string) {
@@ -96,6 +105,7 @@ export function notifySticky(message: string) {
 export function dismiss(id: number) {
   clearTimer(id);
   remaining.delete(id);
+  holds.delete(id);
   const next = items.filter((item) => item.id !== id);
   if (next.length === items.length) return;
   items = next;
@@ -105,13 +115,25 @@ export function dismiss(id: number) {
 export function pause(id: number) {
   const item = items.find((entry) => entry.id === id);
   if (!item || item.sticky) return;
+  const count = holds.get(id) ?? 0;
+  if (count > 0) {
+    holds.set(id, count + 1);
+    return;
+  }
   const deadline = deadlines.get(id);
   if (deadline === undefined) return;
+  holds.set(id, 1);
   remaining.set(id, Math.max(0, deadline - Date.now()));
   clearTimer(id);
 }
 
 export function resume(id: number) {
+  const count = holds.get(id) ?? 0;
+  if (count > 1) {
+    holds.set(id, count - 1);
+    return;
+  }
+  if (count === 1) holds.delete(id);
   const left = remaining.get(id);
   if (left === undefined) return;
   arm(id, left);
@@ -147,6 +169,7 @@ export function publishResultNotices(result: ResultNoticeInput) {
 export function resetToastsForTests() {
   for (const id of timers.keys()) clearTimer(id);
   remaining.clear();
+  holds.clear();
   items = [];
   nextId = 1;
   emit();

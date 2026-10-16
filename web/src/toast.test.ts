@@ -3,8 +3,9 @@ import {
   dismiss,
   getToasts,
   notifyError,
-  notifyHint,
+  notifyInfo,
   notifySticky,
+  notifyWarning,
   noticesForResult,
   pause,
   publishResultNotices,
@@ -34,19 +35,38 @@ describe("toast queue", () => {
 
   it("drops empty messages", () => {
     notifyError("");
-    notifyHint("");
+    notifyInfo("");
+    notifyWarning("");
     notifySticky("");
     expect(getToasts()).toEqual([]);
   });
 
-  it("removes an error after 8000ms and a hint after 3000ms", () => {
+  it("removes an error after 8000ms and an info after 3000ms", () => {
     notifyError("保存失败");
-    notifyHint("已复制");
+    notifyInfo("已复制");
     expect(getToasts().map((t) => t.message)).toEqual(["已复制", "保存失败"]);
     vi.advanceTimersByTime(3000);
     expect(getToasts().map((t) => t.message)).toEqual(["保存失败"]);
     vi.advanceTimersByTime(5000);
     expect(getToasts()).toEqual([]);
+  });
+
+  it("removes a warning after 5000ms and keeps the error", () => {
+    notifyError("保存失败");
+    notifyWarning("请等待 Hosts 保存完成");
+    vi.advanceTimersByTime(5000);
+    expect(getToasts().map((t) => t.message)).toEqual(["保存失败"]);
+    vi.advanceTimersByTime(3000);
+    expect(getToasts()).toEqual([]);
+  });
+
+  it("keeps an error and a warning that share a message", () => {
+    notifyError("保存失败");
+    notifyWarning("保存失败");
+    expect(getToasts().map((t) => [t.kind, t.message])).toEqual([
+      ["warning", "保存失败"],
+      ["error", "保存失败"],
+    ]);
   });
 
   it("resets the full duration when the same timed message is enqueued again", () => {
@@ -76,6 +96,38 @@ describe("toast queue", () => {
     notifySticky("界面出错：boom");
     expect(getToasts()).toHaveLength(1);
     dismiss(getToasts()[0].id);
+    expect(getToasts()).toEqual([]);
+  });
+
+  it("keeps a paused toast paused when the same message is enqueued again", () => {
+    notifyError("保存失败");
+    const id = getToasts()[0].id;
+    pause(id);
+    notifyError("保存失败");
+    expect(getToasts()[0].id).toBe(id);
+    vi.advanceTimersByTime(10_000);
+    expect(getToasts()).toHaveLength(1);
+    resume(id);
+    vi.advanceTimersByTime(7999);
+    expect(getToasts()).toHaveLength(1);
+    vi.advanceTimersByTime(1);
+    expect(getToasts()).toEqual([]);
+  });
+
+  it("stays paused until every hold is released", () => {
+    notifyError("保存失败");
+    const id = getToasts()[0].id;
+    pause(id);
+    pause(id);
+    vi.advanceTimersByTime(10_000);
+    expect(getToasts()).toHaveLength(1);
+    resume(id);
+    vi.advanceTimersByTime(10_000);
+    expect(getToasts()).toHaveLength(1);
+    resume(id);
+    vi.advanceTimersByTime(7999);
+    expect(getToasts()).toHaveLength(1);
+    vi.advanceTimersByTime(1);
     expect(getToasts()).toEqual([]);
   });
 
