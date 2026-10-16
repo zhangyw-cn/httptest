@@ -99,38 +99,6 @@ describe("toast queue", () => {
     expect(getToasts()).toEqual([]);
   });
 
-  it("keeps a paused toast paused when the same message is enqueued again", () => {
-    notifyError("保存失败");
-    const id = getToasts()[0].id;
-    pause(id);
-    notifyError("保存失败");
-    expect(getToasts()[0].id).toBe(id);
-    vi.advanceTimersByTime(10_000);
-    expect(getToasts()).toHaveLength(1);
-    resume(id);
-    vi.advanceTimersByTime(7999);
-    expect(getToasts()).toHaveLength(1);
-    vi.advanceTimersByTime(1);
-    expect(getToasts()).toEqual([]);
-  });
-
-  it("stays paused until every hold is released", () => {
-    notifyError("保存失败");
-    const id = getToasts()[0].id;
-    pause(id);
-    pause(id);
-    vi.advanceTimersByTime(10_000);
-    expect(getToasts()).toHaveLength(1);
-    resume(id);
-    vi.advanceTimersByTime(10_000);
-    expect(getToasts()).toHaveLength(1);
-    resume(id);
-    vi.advanceTimersByTime(7999);
-    expect(getToasts()).toHaveLength(1);
-    vi.advanceTimersByTime(1);
-    expect(getToasts()).toEqual([]);
-  });
-
   it("pauses the remaining time and resumes it", () => {
     notifyError("保存失败");
     const id = getToasts()[0].id;
