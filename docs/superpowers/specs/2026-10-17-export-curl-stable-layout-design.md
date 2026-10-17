@@ -1,7 +1,7 @@
 # 导出 curl 对话框固定外框
 
 日期：2026-10-17  
-状态：待用户审阅  
+状态：用户已审阅。实现计划：`docs/superpowers/plans/2026-10-17-export-curl-stable-layout.md`  
 前置：`docs/superpowers/specs/2026-10-17-export-curl-panel-design.md` 的命令排版、说明文案和对话框结构。本文件只改导出对话框的外框尺寸和分栏。覆盖该规格第 4.2 节的宽度、64rem 断点、一列堆叠，以及预览栏 `min-height: 12rem`。不改变实际发送、`POST /api/prepare`、导入 curl、命令文本或说明句子。
 
 ## 1. 目的与成功标准

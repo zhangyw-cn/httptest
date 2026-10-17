@@ -828,14 +828,12 @@ button:focus-visible {
 }
 
 .export-curl-dialog {
-  width: min(40rem, 92vw);
-  max-height: calc(100vh - 2rem);
+  width: min(58rem, 92vw);
+  max-width: min(58rem, 92vw);
+  min-width: 0;
+  height: min(32rem, calc(100vh - 2rem));
   display: flex;
   flex-direction: column;
-}
-
-.export-curl-dialog.with-explain {
-  width: min(58rem, 92vw);
 }
 
 .curl-export-body {
@@ -844,7 +842,9 @@ button:focus-visible {
   grid-template-rows: minmax(0, 1fr);
   gap: 0.75rem;
   min-height: 0;
+  min-width: 0;
   flex: 1;
+  overflow: hidden;
 }
 
 .export-curl-dialog.with-explain .curl-export-body {
@@ -882,7 +882,7 @@ button:focus-visible {
   flex-direction: column;
   gap: 0.4rem;
   min-width: 0;
-  min-height: 12rem;
+  min-height: 0;
 }
 
 .curl-export-preview-head {
@@ -952,17 +952,34 @@ button:focus-visible {
   font-size: 0.78rem;
 }
 
-@media (max-width: 63.99rem) {
-  .export-curl-dialog,
-  .export-curl-dialog.with-explain {
-    width: min(40rem, 92vw);
-  }
-
+@media (max-width: 47.99rem) {
   .curl-export-body,
   .export-curl-dialog.with-explain .curl-export-body {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: none;
-    overflow: auto;
+    grid-template-rows: fit-content(6.5rem) minmax(0, 1fr);
+  }
+
+  .export-curl-dialog.with-explain .curl-export-body {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 16rem);
+  }
+
+  .curl-options {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    max-height: 6.5rem;
+  }
+
+  .curl-export-preview {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .curl-export-explain {
+    grid-column: 2;
+    grid-row: 2;
   }
 }
 
