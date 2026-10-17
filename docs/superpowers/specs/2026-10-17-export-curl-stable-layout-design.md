@@ -16,7 +16,7 @@
 - 视口小于 48rem 时，选项在顶部横排，下面是预览；说明打开后，下面是预览加说明列。说明列上限 16rem，内容区更窄时缩小，外框仍不超过 `92vw`。外框宽高公式与宽屏相同。
 - 拖动窗口跨过 48rem 时，外框宽度仍由 `min(58rem, 92vw)` 连续变化，不从 58rem 跳到 40rem。内部从左右栏换成上下排。
 
-非目标：改 `ExportCurlDialog.tsx` 的 DOM、改 `curl.ts`、改 Go、跑会改写 `internal/server/ui/` 的构建、新增 npm 包、截图测试、其它导出格式。
+非目标：改 `ExportCurlDialog.tsx` 的 DOM、改 `curl.ts`、改 Go 逻辑、新增 npm 包、截图测试、其它导出格式。样式落地后按 README「开发」另起一个提交，在 `web/` 运行 `npm run build`，把嵌入资源写入 `internal/server/ui/`。源码那一次提交不改 `internal/`。
 
 ## 2. 外框
 
@@ -112,6 +112,7 @@ grid-template-rows: minmax(0, 1fr);
 | --- | --- |
 | `web/src/styles.css` | 固定导出对话框宽高；宽屏两列或三列；小于 48rem 时选项横排在顶部；预览 `min-height` 改为 0；删除 40rem / 58rem 宽度切换和 64rem 一列规则 |
 | `README.md` | 「界面」里导出 curl 的分句 |
+| `internal/server/ui/` | 源码提交之后单独重建。`fd7b539` 的嵌入 JS 同时带上了此前未重建的导出 curl 说明栏 |
 
 `README.md` 中把：
 
@@ -121,7 +122,7 @@ grid-template-rows: minmax(0, 1fr);
 
 > 「导出 curl」（宽屏左侧功能选项、右侧预览，视口小于 48rem 时选项在顶部；可选说明栏；复制到剪贴板）
 
-不改 `web/src/ExportCurlDialog.tsx`、`web/src/ExportCurlDialog.test.tsx`、`web/src/curl.ts`、`internal/`。不运行 `npm run build`。
+源码提交不改 `web/src/ExportCurlDialog.tsx`、`web/src/ExportCurlDialog.test.tsx`、`web/src/curl.ts`。随后的嵌入资源提交才运行 `cd web && npm run build` 并更新 `internal/server/ui/`。
 
 ## 8. 测试
 

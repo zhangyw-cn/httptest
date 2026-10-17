@@ -16,7 +16,8 @@
 - 视口小于 48rem 用 `@media (max-width: 47.99rem)`。选项在第 1 行，行高 `fit-content(6.5rem)`。说明打开时第 2 行是 `minmax(0, 1fr) minmax(0, 16rem)`。
 - 预览 `.curl-export-preview` 的 `min-height` 改为 `0`。`.curl-preview` 保持 `white-space: pre`，不用 `pre-wrap`，也不用 `word-break: break-all`。
 - 导入对话框仍是 `min(560px, 92vw)`。
-- 不改 `web/src/ExportCurlDialog.tsx`、`web/src/ExportCurlDialog.test.tsx`、`web/src/curl.ts`、`internal/`。不运行 `npm run build`。不加 npm 包，不为像素尺寸加断言。
+- 源码提交不改 `web/src/ExportCurlDialog.tsx`、`web/src/ExportCurlDialog.test.tsx`、`web/src/curl.ts`、`internal/`。不加 npm 包，不为像素尺寸加断言。
+- 样式提交之后另起一个 `chore` 提交：在 `web/` 运行 `npm run build`，更新 `internal/server/ui/`。这与 README「开发」一致。`fd7b539` 的嵌入 JS 同时带上了此前未重建的导出 curl 说明栏。
 - 每个提交只 `git add` 该任务列出的文件。
 
 ## File Structure
@@ -295,4 +296,4 @@ EOF
 )"
 ```
 
-不要 `git add` `internal/server/ui/`。不要运行 `npm run build`。
+这一次提交不要 `git add` `internal/server/ui/`，也不要运行 `npm run build`。嵌入资源留到下一个 `chore` 提交。
