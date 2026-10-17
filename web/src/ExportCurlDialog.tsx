@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { defaultCurlOptions, effectiveCurlOptions, formatCurl } from "./curl";
+import {
+  defaultCurlOptions,
+  effectiveCurlOptions,
+  explainCurl,
+  formatCurl,
+} from "./curl";
 import { notifyError, notifyInfo } from "./toast";
 import type { HttpRequest, ResolveSpec } from "./types";
 
@@ -17,15 +22,17 @@ export default function ExportCurlDialog({
   onClose,
 }: Props) {
   const [options, setOptions] = useState(defaultCurlOptions(prepared.settings));
+  const [showExplain, setShowExplain] = useState(false);
 
   const effectiveOptions = effectiveCurlOptions(options, resolve);
-
-  const preview = formatCurl({
+  const commandInput = {
     prepared,
     resolve,
     timeoutSeconds,
     options: effectiveOptions,
-  });
+  };
+  const preview = formatCurl(commandInput);
+  const explanations = explainCurl(commandInput);
 
   async function copyToClipboard() {
     if (!navigator.clipboard?.writeText) {
@@ -44,87 +51,116 @@ export default function ExportCurlDialog({
   return (
     <div className="dialog-backdrop" role="presentation" onClick={onClose}>
       <div
-        className="dialog export-curl-dialog"
+        className={
+          showExplain
+            ? "dialog export-curl-dialog with-explain"
+            : "dialog export-curl-dialog"
+        }
         role="dialog"
         aria-modal="true"
         aria-labelledby="export-curl-title"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="export-curl-title">导出 curl</h2>
-        <fieldset className="curl-options">
-          <legend className="curl-options-legend">功能选项</legend>
-          <label className="curl-option">
-            <input
-              type="checkbox"
-              checked={effectiveOptions.useResolve}
-              disabled={!resolve}
-              onChange={(e) =>
-                setOptions((prev) => ({
-                  ...prev,
-                  useResolve: e.target.checked,
-                }))
-              }
-            />
-            使用当前 Hosts 解析
-          </label>
-          {!resolve ? (
-            <p className="curl-option-hint muted">当前 Hosts 未命中此主机</p>
+        <div className="curl-export-body">
+          <fieldset className="curl-options" aria-label="功能选项">
+            <label className="curl-option">
+              <input
+                type="checkbox"
+                checked={effectiveOptions.useResolve}
+                disabled={!resolve}
+                onChange={(e) =>
+                  setOptions((prev) => ({
+                    ...prev,
+                    useResolve: e.target.checked,
+                  }))
+                }
+              />
+              使用当前 Hosts 解析
+            </label>
+            <label className="curl-option">
+              <input
+                type="checkbox"
+                checked={options.followRedirects}
+                onChange={(e) =>
+                  setOptions((prev) => ({
+                    ...prev,
+                    followRedirects: e.target.checked,
+                  }))
+                }
+              />
+              跟随重定向
+            </label>
+            <label className="curl-option">
+              <input
+                type="checkbox"
+                checked={options.maxRedirects}
+                disabled={!options.followRedirects}
+                onChange={(e) =>
+                  setOptions((prev) => ({
+                    ...prev,
+                    maxRedirects: e.target.checked,
+                  }))
+                }
+              />
+              限制最大重定向
+            </label>
+            <label className="curl-option">
+              <input
+                type="checkbox"
+                checked={options.maxTime}
+                onChange={(e) =>
+                  setOptions((prev) => ({ ...prev, maxTime: e.target.checked }))
+                }
+              />
+              限制超时
+            </label>
+            <label className="curl-option">
+              <input
+                type="checkbox"
+                checked={options.insecure}
+                onChange={(e) =>
+                  setOptions((prev) => ({
+                    ...prev,
+                    insecure: e.target.checked,
+                  }))
+                }
+              />
+              跳过 TLS 校验
+            </label>
+          </fieldset>
+          <div className="curl-export-preview">
+            <div className="curl-export-preview-head">
+              <h3>预览</h3>
+              <button
+                type="button"
+                className="btn curl-explain-toggle"
+                aria-pressed={showExplain}
+                onClick={() => setShowExplain((open) => !open)}
+              >
+                说明
+              </button>
+            </div>
+            <pre className="curl-preview">{preview}</pre>
+          </div>
+          {showExplain ? (
+            <section
+              className="curl-export-explain"
+              id="export-curl-explain"
+              aria-labelledby="export-curl-explain-title"
+            >
+              <h3 id="export-curl-explain-title">说明</h3>
+              <ul className="curl-explain-list">
+                {explanations.map((item, index) => (
+                  <li key={`${index}-${item.text}`}>
+                    <div className="curl-explain-text">{item.text}</div>
+                    <p className="curl-explain-detail">{item.explanation}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ) : null}
-          <label className="curl-option">
-            <input
-              type="checkbox"
-              checked={options.followRedirects}
-              onChange={(e) =>
-                setOptions((prev) => ({
-                  ...prev,
-                  followRedirects: e.target.checked,
-                }))
-              }
-            />
-            跟随重定向
-          </label>
-          <label className="curl-option">
-            <input
-              type="checkbox"
-              checked={options.maxRedirects}
-              disabled={!options.followRedirects}
-              onChange={(e) =>
-                setOptions((prev) => ({
-                  ...prev,
-                  maxRedirects: e.target.checked,
-                }))
-              }
-            />
-            限制最大重定向
-          </label>
-          <label className="curl-option">
-            <input
-              type="checkbox"
-              checked={options.maxTime}
-              onChange={(e) =>
-                setOptions((prev) => ({ ...prev, maxTime: e.target.checked }))
-              }
-            />
-            限制超时
-          </label>
-          <p className="curl-option-hint muted">
-            使用请求 timeout（默认 30000ms）
-          </p>
-          <label className="curl-option">
-            <input
-              type="checkbox"
-              checked={options.insecure}
-              onChange={(e) =>
-                setOptions((prev) => ({
-                  ...prev,
-                  insecure: e.target.checked,
-                }))
-              }
-            />
-            跳过 TLS 校验
-          </label>
-        </fieldset>
-        <pre className="curl-preview">{preview}</pre>
+        </div>
         <div className="dialog-actions">
           <button type="button" className="btn" onClick={onClose}>
             取消

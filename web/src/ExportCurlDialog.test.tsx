@@ -31,7 +31,15 @@ describe("ExportCurlDialog", () => {
     expect(markup).toContain("限制超时");
     expect(markup).toContain("跳过 TLS 校验");
     expect(markup).toContain("限制最大重定向");
-    expect(markup).toContain("默认 30000ms");
+    expect(markup).toContain("预览");
+    expect(markup).toContain("说明");
+    expect(markup).toContain('aria-pressed="false"');
+    expect(markup).not.toContain("export-curl-explain");
+    expect(markup).not.toContain("with-explain");
+    expect(markup).not.toContain("默认 30000ms");
+    expect(markup).not.toContain("重定向次数上限，单位为次");
+    expect(markup).not.toContain("将主机的端口解析到指定 IP");
+    expect(markup).not.toContain("请求体原文");
     expect(markup).toContain("curl");
     expect(markup).toContain("复制到剪贴板");
     expect(markup).toContain("-L");
@@ -47,7 +55,8 @@ describe("ExportCurlDialog", () => {
         onClose={vi.fn()}
       />,
     );
-    expect(markup).toContain("当前 Hosts 未命中此主机");
+    expect(markup).toMatch(/disabled[\s\S]{0,80}使用当前 Hosts 解析/);
+    expect(markup).not.toContain("当前 Hosts 未命中此主机");
   });
 
   it("does not emit -L when prepared followRedirects is false", () => {

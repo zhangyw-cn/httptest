@@ -823,25 +823,43 @@ button:focus-visible {
   gap: 0.4rem;
 }
 
-.export-curl-dialog,
 .import-curl-dialog {
   width: min(560px, 92vw);
+}
+
+.export-curl-dialog {
+  width: min(40rem, 92vw);
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+}
+
+.export-curl-dialog.with-explain {
+  width: min(58rem, 92vw);
+}
+
+.curl-export-body {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: 0.75rem;
+  min-height: 0;
+  flex: 1;
+}
+
+.export-curl-dialog.with-explain .curl-export-body {
+  grid-template-columns: 11rem minmax(0, 1fr) 16rem;
 }
 
 .curl-options {
   border: 1px solid var(--line);
   border-radius: 6px;
-  margin: 0 0 0.75rem;
+  margin: 0;
   padding: 0.55rem 0.65rem;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-}
-
-.curl-options-legend {
-  font-size: 0.85rem;
-  color: var(--muted);
-  padding: 0 0.25rem;
+  min-height: 0;
+  overflow: auto;
 }
 
 .curl-option {
@@ -858,24 +876,91 @@ button:focus-visible {
   opacity: 0.7;
 }
 
-.curl-option-hint {
+.curl-export-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  min-height: 12rem;
+}
+
+.curl-export-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.curl-export-preview-head h3,
+.curl-export-explain h3 {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.curl-explain-toggle[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .curl-preview {
-  margin: 0 0 0.75rem;
-  padding: 0.55rem 0.65rem;
-  max-height: 14rem;
+  margin: 0;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
+  padding: 0.55rem 0.65rem;
   font-family: var(--mono);
   font-size: 0.78rem;
   line-height: 1.45;
-  white-space: pre-wrap;
-  word-break: break-all;
+  white-space: pre;
+  word-break: normal;
   background: var(--field);
   border: 1px solid var(--line);
   border-radius: 6px;
+}
+
+.curl-export-explain {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.55rem 0.65rem;
+}
+
+.curl-explain-list {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.curl-explain-text {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.curl-explain-detail {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 63.99rem) {
+  .export-curl-dialog,
+  .export-curl-dialog.with-explain {
+    width: min(40rem, 92vw);
+  }
+
+  .curl-export-body,
+  .export-curl-dialog.with-explain .curl-export-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .import-curl-dialog .curl-import-input {
