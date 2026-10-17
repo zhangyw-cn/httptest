@@ -19,6 +19,8 @@ export default function Toaster() {
           role={item.kind === "error" ? "alert" : "status"}
           onMouseEnter={() => pause(item.id)}
           onMouseLeave={() => resume(item.id)}
+          onFocus={() => pause(item.id)}
+          onBlur={() => resume(item.id)}
         >
           <p className="toast-message">{item.message}</p>
           <button
