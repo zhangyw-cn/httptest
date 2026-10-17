@@ -7,6 +7,14 @@ import {
   formatCurl,
 } from "./curl";
 
+function labelContaining(markup: string, text: string): string {
+  const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return (
+    markup.match(new RegExp(`<label[^>]*>[\\s\\S]*?${escaped}</label>`))?.[0] ??
+    ""
+  );
+}
+
 const prepared = {
   name: "",
   method: "GET" as const,
@@ -55,7 +63,7 @@ describe("ExportCurlDialog", () => {
         onClose={vi.fn()}
       />,
     );
-    expect(markup).toMatch(/disabled[\s\S]{0,80}使用当前 Hosts 解析/);
+    expect(labelContaining(markup, "使用当前 Hosts 解析")).toContain("disabled");
     expect(markup).not.toContain("当前 Hosts 未命中此主机");
   });
 
@@ -89,7 +97,7 @@ describe("ExportCurlDialog", () => {
         onClose={vi.fn()}
       />,
     );
-    expect(markup).toMatch(/disabled[\s\S]{0,80}限制最大重定向/);
+    expect(labelContaining(markup, "限制最大重定向")).toContain("disabled");
   });
 
   it("enables hosts option text when resolve provided", () => {

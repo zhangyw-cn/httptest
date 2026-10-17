@@ -228,15 +228,20 @@ function buildCurlPieces(input: CurlCommandInput): CurlPiece[] {
 }
 
 function renderCurl(pieces: CurlPiece[]): string {
-  const lines = packShortOptionLines(
+  const packed = packShortOptionLines(
     pieces.filter((piece) => piece.flow === "pack").map((piece) => piece.text),
     80,
   );
+  const structural: string[] = [];
   let open: string[] | null = null;
   const flush = () => {
     if (!open) return;
     const body = open.join(" ");
-    lines.push(lines.length === 0 ? `curl ${body}` : `  ${body}`);
+    structural.push(
+      packed.length === 0 && structural.length === 0
+        ? `curl ${body}`
+        : `  ${body}`,
+    );
     open = null;
   };
   for (const piece of pieces) {
@@ -250,11 +255,10 @@ function renderCurl(pieces: CurlPiece[]): string {
     open.push(piece.text);
   }
   flush();
-  return lines
-    .map((line, index) =>
-      index === lines.length - 1 || line.endsWith(" \\") ? line : `${line} \\`,
-    )
-    .join("\n");
+  const structuralLines = structural.map((line, index) =>
+    index === structural.length - 1 ? line : `${line} \\`,
+  );
+  return [...packed, ...structuralLines].join("\n");
 }
 
 export function explainCurl(input: CurlCommandInput): CurlExplanation[] {

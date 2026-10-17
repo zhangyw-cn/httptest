@@ -811,4 +811,12 @@ describe("packShortOptionLines", () => {
   it("returns no lines when there are no short options", () => {
     expect(packShortOptionLines([], 80)).toEqual([]);
   });
+
+  it("keeps options on one line at the width and wraps when one column over", () => {
+    expect(packShortOptionLines(["-L", "-k"], 12)).toEqual(["curl -L -k \\"]);
+    expect(packShortOptionLines(["-L", "-k"], 11)).toEqual([
+      "curl -L \\",
+      "  -k \\",
+    ]);
+  });
 });

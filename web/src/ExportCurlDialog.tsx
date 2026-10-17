@@ -136,6 +136,7 @@ export default function ExportCurlDialog({
                 type="button"
                 className="btn curl-explain-toggle"
                 aria-pressed={showExplain}
+                aria-controls={showExplain ? "export-curl-explain" : undefined}
                 onClick={() => setShowExplain((open) => !open)}
               >
                 说明
