@@ -150,7 +150,6 @@ export default function Sidebar({
         }
       } catch (err) {
         if (!cancelled) {
-          setHistory([]);
           notifyError(err instanceof Error ? err.message : String(err));
         }
       }
