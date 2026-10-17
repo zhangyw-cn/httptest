@@ -73,6 +73,25 @@ function encodeFormBody(content: string | Record<string, string>): string {
   return params.toString();
 }
 
+export function packShortOptionLines(parts: string[], width: number): string[] {
+  if (parts.length === 0) return [];
+  const lines: string[] = [];
+  let prefix = "curl";
+  let current = prefix;
+  for (const part of parts) {
+    const candidate = `${current} ${part} \\`;
+    if (current !== prefix && candidate.length > width) {
+      lines.push(`${current} \\`);
+      prefix = "  ";
+      current = `${prefix}${part}`;
+      continue;
+    }
+    current = `${current} ${part}`;
+  }
+  lines.push(`${current} \\`);
+  return lines;
+}
+
 export function formatCurl(input: {
   prepared: HttpRequest;
   resolve?: ResolveSpec | null;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyParsedCurl,
   formatCurl,
+  packShortOptionLines,
   parseCurl,
   shellSingleQuote,
   defaultCurlOptions,
@@ -604,5 +605,25 @@ describe("applyParsedCurl", () => {
       followRedirects: true,
       insecureSkipVerify: true,
     });
+  });
+});
+
+describe("packShortOptionLines", () => {
+  it("wraps between complete options at the given width", () => {
+    expect(packShortOptionLines(["-L", "--max-redirs 10", "-k"], 20)).toEqual([
+      "curl -L \\",
+      "  --max-redirs 10 \\",
+      "  -k \\",
+    ]);
+  });
+
+  it("keeps one over-long option on its own line", () => {
+    expect(packShortOptionLines(["--max-redirs 10"], 10)).toEqual([
+      "curl --max-redirs 10 \\",
+    ]);
+  });
+
+  it("returns no lines when there are no short options", () => {
+    expect(packShortOptionLines([], 80)).toEqual([]);
   });
 });
