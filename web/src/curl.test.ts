@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyParsedCurl,
+  explainCurl,
   formatCurl,
   packShortOptionLines,
   parseCurl,
@@ -351,6 +352,190 @@ describe("formatCurl", () => {
       },
     });
     expect(s).not.toContain("--max-redirs");
+  });
+});
+
+describe("formatCurl layout", () => {
+  const allOn = {
+    useResolve: true,
+    followRedirects: true,
+    maxRedirects: true,
+    maxTime: true,
+    insecure: true,
+  };
+
+  it("packs short options and keeps structural arguments on their own lines", () => {
+    const s = formatCurl({
+      prepared: base({
+        method: "POST",
+        url: "https://api.local/v1/items",
+        query: { q: "1" },
+        body: { type: "json", content: `{"a":1}` },
+      }),
+      resolve: { host: "api.local", port: "443", ip: "2001:db8::1" },
+      timeoutSeconds: 30,
+      options: allOn,
+    });
+    expect(s).toBe(
+      [
+        "curl -L --max-redirs 10 -k --max-time 30 \\",
+        "  --resolve 'api.local:443:[2001:db8::1]' \\",
+        "  -X POST 'https://api.local/v1/items?q=1' \\",
+        "  -H 'Content-Type: application/json' \\",
+        "  -H 'User-Agent: httptest/0.1' \\",
+        `  --data-raw '{"a":1}'`,
+      ].join("\n"),
+    );
+  });
+
+  it("starts with curl when every short option is off", () => {
+    const s = formatCurl({
+      prepared: base(),
+      timeoutSeconds: 30,
+      options: {
+        useResolve: false,
+        followRedirects: false,
+        maxRedirects: false,
+        maxTime: false,
+        insecure: false,
+      },
+    });
+    expect(s).toBe(
+      [
+        "curl -X GET 'http://example.com/a' \\",
+        "  -H 'User-Agent: httptest/0.1'",
+      ].join("\n"),
+    );
+  });
+
+  it("does not wrap a header that is longer than 80 columns", () => {
+    const value = "x".repeat(100);
+    const s = formatCurl({
+      prepared: base({ headers: { "X-Long": value } }),
+      timeoutSeconds: 30,
+      options: {
+        useResolve: false,
+        followRedirects: false,
+        maxRedirects: false,
+        maxTime: false,
+        insecure: false,
+      },
+    });
+    expect(s.split("\n").at(-1)).toBe(
+      `  -H ${shellSingleQuote(`X-Long: ${value}`)}`,
+    );
+  });
+});
+
+describe("explainCurl", () => {
+  const allOn = {
+    useResolve: true,
+    followRedirects: true,
+    maxRedirects: true,
+    maxTime: true,
+    insecure: true,
+  };
+
+  it("explains each parameter that appears in the representative command", () => {
+    const input = {
+      prepared: base({
+        method: "POST",
+        url: "https://api.local/v1/items",
+        query: { q: "1" },
+        body: { type: "json", content: `{"a":1}` },
+      }),
+      resolve: { host: "api.local", port: "443", ip: "2001:db8::1" },
+      timeoutSeconds: 30,
+      options: allOn,
+    };
+    const command = formatCurl(input);
+    const explained = explainCurl(input);
+    expect(explained).toEqual([
+      { text: "-L", explanation: "跟随重定向" },
+      { text: "--max-redirs 10", explanation: "重定向次数上限，单位为次" },
+      { text: "-k", explanation: "跳过 TLS 证书校验" },
+      { text: "--max-time 30", explanation: "最长等待时间，单位为秒" },
+      {
+        text: "--resolve 'api.local:443:[2001:db8::1]'",
+        explanation: "将主机的端口解析到指定 IP",
+      },
+      { text: "-X POST", explanation: "HTTP 方法" },
+      {
+        text: "'https://api.local/v1/items?q=1'",
+        explanation: "请求地址，查询参数已写在 URL 里",
+      },
+      {
+        text: "-H 'Content-Type: application/json'",
+        explanation: "请求头",
+      },
+      { text: "-H 'User-Agent: httptest/0.1'", explanation: "请求头" },
+      { text: `--data-raw '{"a":1}'`, explanation: "请求体原文" },
+    ]);
+    expect(command.replaceAll(" \\\n  ", " ")).toBe(
+      `curl ${explained.map((item) => item.text).join(" ")}`,
+    );
+  });
+
+  it("omits disabled options and keeps the max-time unit generic", () => {
+    const explained = explainCurl({
+      prepared: base(),
+      timeoutSeconds: 0.5,
+      options: {
+        useResolve: false,
+        followRedirects: false,
+        maxRedirects: true,
+        maxTime: true,
+        insecure: false,
+      },
+    });
+    expect(explained.map((item) => item.text)).toEqual([
+      "--max-time 0.5",
+      "-X GET",
+      "'http://example.com/a'",
+      "-H 'User-Agent: httptest/0.1'",
+    ]);
+    expect(explained[0]?.explanation).toBe("最长等待时间，单位为秒");
+  });
+
+  it("uses the same body explanation for form data", () => {
+    const explained = explainCurl({
+      prepared: base({
+        method: "POST",
+        body: { type: "form", content: { b: "2", a: "1" } },
+      }),
+      timeoutSeconds: 30,
+      options: {
+        useResolve: false,
+        followRedirects: false,
+        maxRedirects: false,
+        maxTime: false,
+        insecure: false,
+      },
+    });
+    const body = explained.find((item) => item.text.startsWith("--data-raw"));
+    expect(body?.explanation).toBe("请求体原文");
+    expect(body?.text).toContain("a=1");
+    expect(body?.text).toContain("b=2");
+  });
+
+  it("omits the body explanation for HEAD", () => {
+    const explained = explainCurl({
+      prepared: base({
+        method: "HEAD",
+        body: { type: "json", content: "{}" },
+      }),
+      timeoutSeconds: 30,
+      options: {
+        useResolve: false,
+        followRedirects: false,
+        maxRedirects: false,
+        maxTime: false,
+        insecure: false,
+      },
+    });
+    expect(explained.some((item) => item.text.startsWith("--data-raw"))).toBe(
+      false,
+    );
   });
 });
 

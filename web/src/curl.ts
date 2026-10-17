@@ -92,33 +92,86 @@ export function packShortOptionLines(parts: string[], width: number): string[] {
   return lines;
 }
 
-export function formatCurl(input: {
+export interface CurlExplanation {
+  text: string;
+  explanation: string;
+}
+
+const CURL_EXPLANATION = {
+  location: "跟随重定向",
+  maxRedirs: "重定向次数上限，单位为次",
+  insecure: "跳过 TLS 证书校验",
+  maxTime: "最长等待时间，单位为秒",
+  resolve: "将主机的端口解析到指定 IP",
+  method: "HTTP 方法",
+  url: "请求地址，查询参数已写在 URL 里",
+  header: "请求头",
+  body: "请求体原文",
+} as const;
+
+interface CurlPiece {
+  text: string;
+  explanation: string;
+  flow: "pack" | "break" | "join";
+}
+
+interface CurlCommandInput {
   prepared: HttpRequest;
   resolve?: ResolveSpec | null;
   timeoutSeconds: number;
   options: CurlOptions;
-}): string {
+}
+
+function buildCurlPieces(input: CurlCommandInput): CurlPiece[] {
   const { prepared, resolve, timeoutSeconds, options } = input;
-  const parts: string[] = ["curl"];
+  const pieces: CurlPiece[] = [];
 
   if (options.followRedirects) {
-    parts.push("-L");
+    pieces.push({
+      text: "-L",
+      explanation: CURL_EXPLANATION.location,
+      flow: "pack",
+    });
     if (options.maxRedirects) {
-      parts.push(
-        `--max-redirs ${prepared.settings?.maxRedirects ?? 10}`,
-      );
+      pieces.push({
+        text: `--max-redirs ${prepared.settings?.maxRedirects ?? 10}`,
+        explanation: CURL_EXPLANATION.maxRedirs,
+        flow: "pack",
+      });
     }
   }
-  if (options.insecure) parts.push("-k");
-  if (options.maxTime) parts.push(`--max-time ${formatSeconds(timeoutSeconds)}`);
+  if (options.insecure) {
+    pieces.push({
+      text: "-k",
+      explanation: CURL_EXPLANATION.insecure,
+      flow: "pack",
+    });
+  }
+  if (options.maxTime) {
+    pieces.push({
+      text: `--max-time ${formatSeconds(timeoutSeconds)}`,
+      explanation: CURL_EXPLANATION.maxTime,
+      flow: "pack",
+    });
+  }
   if (options.useResolve && resolve) {
-    parts.push(
-      `--resolve ${shellSingleQuote(resolveArg(resolve.host, resolve.port, resolve.ip))}`,
-    );
+    pieces.push({
+      text: `--resolve ${shellSingleQuote(resolveArg(resolve.host, resolve.port, resolve.ip))}`,
+      explanation: CURL_EXPLANATION.resolve,
+      flow: "break",
+    });
   }
 
-  parts.push(`-X ${prepared.method}`);
-  parts.push(shellSingleQuote(urlWithQuery(prepared)));
+  pieces.push({
+    text: `-X ${prepared.method}`,
+    explanation: CURL_EXPLANATION.method,
+    flow: "break",
+  });
+  pieces.push({
+    text: shellSingleQuote(urlWithQuery(prepared)),
+    explanation: CURL_EXPLANATION.url,
+    flow: "join",
+  });
 
   const headers: Record<string, string> = { ...prepared.headers };
   const method = prepared.method.toUpperCase();
@@ -141,23 +194,78 @@ export function formatCurl(input: {
   for (const key of Object.keys(headers).sort((a, b) =>
     a.toLowerCase().localeCompare(b.toLowerCase()),
   )) {
-    parts.push(`-H ${shellSingleQuote(`${key}: ${headers[key]}`)}`);
+    pieces.push({
+      text: `-H ${shellSingleQuote(`${key}: ${headers[key]}`)}`,
+      explanation: CURL_EXPLANATION.header,
+      flow: "break",
+    });
   }
 
   if (method !== "GET" && method !== "HEAD") {
     const { body } = prepared;
     if (body.type === "json" && body.content !== undefined) {
-      parts.push(`--data-raw ${shellSingleQuote(String(body.content))}`);
+      pieces.push({
+        text: `--data-raw ${shellSingleQuote(String(body.content))}`,
+        explanation: CURL_EXPLANATION.body,
+        flow: "break",
+      });
     } else if (body.type === "raw" && body.content !== undefined) {
-      parts.push(`--data-raw ${shellSingleQuote(String(body.content))}`);
+      pieces.push({
+        text: `--data-raw ${shellSingleQuote(String(body.content))}`,
+        explanation: CURL_EXPLANATION.body,
+        flow: "break",
+      });
     } else if (body.type === "form" && body.content !== undefined) {
-      parts.push(
-        `--data-raw ${shellSingleQuote(encodeFormBody(body.content))}`,
-      );
+      pieces.push({
+        text: `--data-raw ${shellSingleQuote(encodeFormBody(body.content))}`,
+        explanation: CURL_EXPLANATION.body,
+        flow: "break",
+      });
     }
   }
 
-  return parts.join(" \\\n  ");
+  return pieces;
+}
+
+function renderCurl(pieces: CurlPiece[]): string {
+  const lines = packShortOptionLines(
+    pieces.filter((piece) => piece.flow === "pack").map((piece) => piece.text),
+    80,
+  );
+  let open: string[] | null = null;
+  const flush = () => {
+    if (!open) return;
+    const body = open.join(" ");
+    lines.push(lines.length === 0 ? `curl ${body}` : `  ${body}`);
+    open = null;
+  };
+  for (const piece of pieces) {
+    if (piece.flow === "pack") continue;
+    if (piece.flow === "break") {
+      flush();
+      open = [piece.text];
+      continue;
+    }
+    if (!open) open = [];
+    open.push(piece.text);
+  }
+  flush();
+  return lines
+    .map((line, index) =>
+      index === lines.length - 1 || line.endsWith(" \\") ? line : `${line} \\`,
+    )
+    .join("\n");
+}
+
+export function explainCurl(input: CurlCommandInput): CurlExplanation[] {
+  return buildCurlPieces(input).map(({ text, explanation }) => ({
+    text,
+    explanation,
+  }));
+}
+
+export function formatCurl(input: CurlCommandInput): string {
+  return renderCurl(buildCurlPieces(input));
 }
 
 export type ParsedCurlRequest = Omit<HttpRequest, "name">;
