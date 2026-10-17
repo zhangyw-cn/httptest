@@ -1,7 +1,13 @@
 import { act } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import ErrorBoundary from "./ErrorBoundary";
-import { installDomShim } from "./installDomShim";
+import { installDomShim, uninstallDomShim } from "../test/installDomShim";
+import { getToasts, resetToastsForTests } from "./toast";
+
+afterEach(() => {
+  resetToastsForTests();
+  uninstallDomShim();
+});
 
 function Boom(): React.ReactElement {
   throw new Error("boom");
@@ -28,6 +34,13 @@ describe("ErrorBoundary", () => {
       const markup = container.innerHTML;
       expect(markup).not.toContain("banner");
       expect(markup).not.toContain("界面出错");
+      expect(getToasts()).toEqual([
+        expect.objectContaining({
+          message: "界面出错：boom",
+          kind: "error",
+          sticky: true,
+        }),
+      ]);
     } finally {
       await act(async () => {
         root.unmount();

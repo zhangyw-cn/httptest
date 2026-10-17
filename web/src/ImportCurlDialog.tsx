@@ -7,7 +7,7 @@ interface Props {
   onClose: () => void;
 }
 
-/** Parse paste text; dialog keeps open and shows error when !ok. */
+/** Parse paste text. The dialog stays open and toasts the error when the result is not ok. */
 export function tryApplyImport(text: string): ParseCurlResult {
   return parseCurl(text);
 }

@@ -23,7 +23,7 @@ describe("hosts activity", () => {
     ]);
   });
 
-  it("shows list load error in EnvEditor empty state", () => {
+  it("keeps the empty title without an editor error", () => {
     const markup = renderToStaticMarkup(
       <EnvEditor
         name={null}
@@ -102,7 +102,7 @@ describe("hosts activity", () => {
     expect(markup).not.toContain("名称非法");
   });
 
-  it("shows list load error in HostsContentEditor empty state", () => {
+  it("keeps the hosts empty title without an editor error", () => {
     const markup = renderToStaticMarkup(
       <HostsContentEditor
         name={null}

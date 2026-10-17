@@ -2,11 +2,12 @@ import { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
 import Toaster from "./Toaster";
-import { installDomShim } from "./installDomShim";
+import { installDomShim, uninstallDomShim } from "../test/installDomShim";
 import { notifyError, notifyInfo, notifyWarning, resetToastsForTests } from "./toast";
 
 afterEach(() => {
   resetToastsForTests();
+  uninstallDomShim();
 });
 
 describe("Toaster", () => {

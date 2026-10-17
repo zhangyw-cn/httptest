@@ -235,3 +235,10 @@ export function installDomShim() {
   globalThis.window = windowObj as unknown as Window & typeof globalThis;
   globalThis.document = doc as unknown as Document;
 }
+
+export function uninstallDomShim() {
+  const doc = globalThis.document as { __httptestShim?: boolean } | undefined;
+  if (!doc?.__httptestShim) return;
+  Reflect.deleteProperty(globalThis, "window");
+  Reflect.deleteProperty(globalThis, "document");
+}

@@ -326,7 +326,7 @@ describe("ResultPaneContent request primary", () => {
 });
 
 describe("ResultPane non-http error", () => {
-  it("shows errorClass in meta and still renders primary Request / Response / Raw tabs", () => {
+  it("omits the error block and still renders Request / Response / Raw tabs", () => {
     const markup = renderToStaticMarkup(
       <ResultPane
         result={sampleResult({
