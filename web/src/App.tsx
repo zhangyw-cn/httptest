@@ -104,6 +104,10 @@ function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+function startupDraft(): HttpRequest {
+  return { ...defaultDraft(), url: "https://ifconfig.me/all.json" };
+}
+
 export default function App() {
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
   const [local, setLocal] = useState<LocalConfig | null>(null);
@@ -130,7 +134,7 @@ export default function App() {
   const [hostsSaving, setHostsSaving] = useState(false);
   const [hostsListFailed, setHostsListFailed] = useState(false);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
-  const [draft, setDraft] = useState<HttpRequest>(defaultDraft);
+  const [draft, setDraft] = useState<HttpRequest>(startupDraft);
   const [dirty, setDirty] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [executeId, setExecuteId] = useState<string | null>(null);
@@ -151,7 +155,7 @@ export default function App() {
   } | null>(null);
   const [preparingExport, setPreparingExport] = useState(false);
   const [importCurlOpen, setImportCurlOpen] = useState(false);
-  const savedRef = useRef(JSON.stringify(defaultDraft()));
+  const savedRef = useRef(JSON.stringify(startupDraft()));
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const currentPathRef = useRef(currentPath);
