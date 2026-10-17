@@ -11,7 +11,7 @@
 在同一视口下：
 
 - 外框宽度始终是 `min(58rem, 92vw)`。
-- 外框高度始终是 `min(32rem, calc(100vh - 2rem))`。这是整个 `.export-curl-dialog`，含标题、1rem 内边距和底部按钮。
+- 外框高度始终是 `min(32rem, calc(100vh - 2rem))`，支持动态视口时改为 `min(32rem, calc(100dvh - 2rem))`。这是整个 `.export-curl-dialog`，含标题、1rem 内边距和底部按钮。`.app` 在 `100vh` 后再写 `100dvh`。
 - 视口至少 48rem 时，说明关闭为两列，打开为三列。打开后预览变窄，外框不变。
 - 视口小于 48rem 时，选项在顶部横排，下面是预览；说明打开后，下面是预览加说明列。说明列上限 16rem，内容区更窄时缩小，外框仍不超过 `92vw`。外框宽高公式与宽屏相同。
 - 拖动窗口跨过 48rem 时，外框宽度仍由 `min(58rem, 92vw)` 连续变化，不从 58rem 跳到 40rem。内部从左右栏换成上下排。
@@ -26,12 +26,12 @@
 
 - `width` 与 `max-width` 都是 `min(58rem, 92vw)`。
 - `min-width: 0`。对话框是遮罩里的 flex 子项，这条防止预览长行把它撑得比 `92vw` 更宽。
-- `height: min(32rem, calc(100vh - 2rem))`。
-- 删除现在的 `max-height: calc(100vh - 2rem)`。高度只由这一条 `height` 决定。
+- 先写 `height: min(32rem, calc(100vh - 2rem))`，再写 `height: min(32rem, calc(100dvh - 2rem))`。不支持 `dvh` 的浏览器用第一条。
+- 删除现在的 `max-height: calc(100vh - 2rem)`。高度只由这两条 `height` 决定。
 - 继续 `display: flex; flex-direction: column`。
 - 删除 `.export-curl-dialog.with-explain` 的单独宽度。说明打开后宽度与关闭时相同。
 
-遮罩仍是 flex 居中。高度取 `calc(100vh - 2rem)` 时，上下各余 1rem。
+遮罩仍是 flex 居中。高度取 `calc(100dvh - 2rem)`（否则 `calc(100vh - 2rem)`）时，上下各余 1rem。
 
 标题和 `.dialog-actions` 不滚动。`.curl-export-body` 为 `flex: 1; min-height: 0; min-width: 0`，占满剩余高度。栏间距仍是 `0.75rem`。
 
@@ -59,7 +59,7 @@ grid-template-rows: minmax(0, 1fr);
 
 `@media (max-width: 47.99rem)` 表示视口宽度小于 48rem。等于 48rem 时用第 3 节。
 
-说明关闭时，网格为一列 `minmax(0, 1fr)`。说明打开时，网格为 `minmax(0, 1fr) minmax(0, 16rem)`。两行都是 `fit-content(6.5rem) minmax(0, 1fr)`。选项行用 `fit-content(6.5rem)` 随内容变高，上限 6.5rem。说明列有空间时是 16rem；内容区更窄时缩小，外框保持在 `92vw` 以内。
+说明关闭时，网格为一列 `minmax(0, 1fr)`。说明打开时，网格为 `minmax(0, 1fr) minmax(0, min(16rem, 50%))`。两行都是 `fit-content(6.5rem) minmax(0, 1fr)`。选项行用 `fit-content(6.5rem)` 随内容变高，上限 6.5rem。内容区一半不小于 16rem 时，说明列是 16rem；更窄时说明列不超过一半，预览至少留下另一半。外框保持在 `92vw` 以内。
 
 显式摆放，避免自动放置把预览放进说明列：
 
@@ -76,6 +76,7 @@ grid-template-rows: minmax(0, 1fr);
 - `align-content: flex-start`
 - `max-height: 6.5rem`
 - `overflow: auto`
+- `min-inline-size: 0`，覆盖 `fieldset` 默认的 `min-inline-size: min-content`。最长标签在 11rem 列内滚动，不盖住预览
 - 项间距仍是 `0.35rem`
 
 选项横排占满内容宽度。说明开关不改变选项区的可用宽度，因此也不改变它的高度。五项换行超过 6.5rem 时，在选项区内部滚动。预览和说明分掉第 2 行的剩余高度。
@@ -131,7 +132,7 @@ grid-template-rows: minmax(0, 1fr);
 手工确认，同一视口内量外框：
 
 - 开关说明、勾选选项、命令行数变化时，宽高不变。
-- 视口至少 48rem：关闭时两列，打开时三列，预览变窄，外框仍是 `min(58rem, 92vw)` 乘 `min(32rem, calc(100vh - 2rem))`。
+- 视口至少 48rem：关闭时两列，打开时三列，预览变窄，外框仍是 `min(58rem, 92vw)` 乘 `min(32rem, calc(100dvh - 2rem))`（不支持时用 `100vh`）。
 - 视口小于 48rem：选项在顶部，打开说明后预览与说明并排，外框公式相同。选项超过 6.5rem 时只滚选项区。
-- 窗口高度小于 32rem 加上下边距时，对话框高度为 `calc(100vh - 2rem)`，页面本身不因此出现滚动条。
+- 窗口高度小于 32rem 加上下边距时，对话框高度为 `calc(100dvh - 2rem)`（不支持时用 `100vh`），页面本身不因此出现滚动条。
 - 长行在预览栏内横向滚动。

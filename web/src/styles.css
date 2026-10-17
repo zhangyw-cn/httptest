@@ -92,6 +92,7 @@ body,
 
 .app {
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -832,6 +833,7 @@ button:focus-visible {
   max-width: min(58rem, 92vw);
   min-width: 0;
   height: min(32rem, calc(100vh - 2rem));
+  height: min(32rem, calc(100dvh - 2rem));
   display: flex;
   flex-direction: column;
 }
@@ -860,6 +862,7 @@ button:focus-visible {
   flex-direction: column;
   gap: 0.35rem;
   min-height: 0;
+  min-inline-size: 0;
   overflow: auto;
 }
 
@@ -960,7 +963,7 @@ button:focus-visible {
   }
 
   .export-curl-dialog.with-explain .curl-export-body {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 16rem);
+    grid-template-columns: minmax(0, 1fr) minmax(0, min(16rem, 50%));
   }
 
   .curl-options {

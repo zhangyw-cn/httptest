@@ -11,9 +11,9 @@
 ## Global Constraints
 
 - 规格：`docs/superpowers/specs/2026-10-17-export-curl-stable-layout-design.md`。它覆盖 `docs/superpowers/specs/2026-10-17-export-curl-panel-design.md` 第 4.2 节的宽度、64rem 断点、一列堆叠，以及预览栏 `min-height: 12rem`。命令排版、说明文案、勾选语义不动。
-- 外框宽度始终是 `min(58rem, 92vw)`。外框高度始终是 `min(32rem, calc(100vh - 2rem))`。这是整个 `.export-curl-dialog`。
+- 外框宽度始终是 `min(58rem, 92vw)`。外框高度先写 `min(32rem, calc(100vh - 2rem))`，再写 `min(32rem, calc(100dvh - 2rem))`。这是整个 `.export-curl-dialog`。`.app` 在 `100vh` 后再写 `100dvh`。
 - 视口至少 48rem：说明关闭为 `11rem minmax(0, 1fr)`；打开为 `11rem minmax(0, 1fr) 16rem`。
-- 视口小于 48rem 用 `@media (max-width: 47.99rem)`。选项在第 1 行，行高 `fit-content(6.5rem)`。说明打开时第 2 行是 `minmax(0, 1fr) minmax(0, 16rem)`。
+- 视口小于 48rem 用 `@media (max-width: 47.99rem)`。选项在第 1 行，行高 `fit-content(6.5rem)`。说明打开时第 2 行是 `minmax(0, 1fr) minmax(0, min(16rem, 50%))`。`.curl-options` 设 `min-inline-size: 0`。
 - 预览 `.curl-export-preview` 的 `min-height` 改为 `0`。`.curl-preview` 保持 `white-space: pre`，不用 `pre-wrap`，也不用 `word-break: break-all`。
 - 导入对话框仍是 `min(560px, 92vw)`。
 - 源码提交不改 `web/src/ExportCurlDialog.tsx`、`web/src/ExportCurlDialog.test.tsx`、`web/src/curl.ts`、`internal/`。不加 npm 包，不为像素尺寸加断言。
@@ -60,6 +60,7 @@ Expected: PASS。若失败，先停，不要改样式。
   max-width: min(58rem, 92vw);
   min-width: 0;
   height: min(32rem, calc(100vh - 2rem));
+  height: min(32rem, calc(100dvh - 2rem));
   display: flex;
   flex-direction: column;
 }
@@ -88,6 +89,7 @@ Expected: PASS。若失败，先停，不要改样式。
   flex-direction: column;
   gap: 0.35rem;
   min-height: 0;
+  min-inline-size: 0;
   overflow: auto;
 }
 
@@ -188,7 +190,7 @@ Expected: PASS。若失败，先停，不要改样式。
   }
 
   .export-curl-dialog.with-explain .curl-export-body {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 16rem);
+    grid-template-columns: minmax(0, 1fr) minmax(0, min(16rem, 50%));
   }
 
   .curl-options {
@@ -215,7 +217,7 @@ Expected: PASS。若失败，先停，不要改样式。
 这段相对现状的差别：
 
 - 对话框宽度在说明开关时都是 `min(58rem, 92vw)`，并加上同样的 `max-width` 和 `min-width: 0`。
-- `max-height: calc(100vh - 2rem)` 换成 `height: min(32rem, calc(100vh - 2rem))`。
+- `max-height: calc(100vh - 2rem)` 换成两条 `height`：先 `min(32rem, calc(100vh - 2rem))`，再 `min(32rem, calc(100dvh - 2rem))`。窄屏说明列是 `minmax(0, min(16rem, 50%))`。`.curl-options` 有 `min-inline-size: 0`。
 - 删除 `.export-curl-dialog.with-explain { width: min(58rem, 92vw); }`。
 - `.curl-export-body` 增加 `min-width: 0` 和 `overflow: hidden`。
 - `.curl-export-preview` 的 `min-height: 12rem` 改为 `0`。
@@ -278,9 +280,9 @@ Expected:
 先按 README 启动：Go 服务听 `http://127.0.0.1:1370`，再在 `web/` 运行 `npm run dev`。打开一次「导出 curl」。用开发者工具量 `.export-curl-dialog` 的宽高，同一视口内重复量：
 
 - 开关「说明」、勾选选项、命令行数变化时，宽高数值不变。
-- 视口至少 48rem：关闭时两列，打开时三列，预览变窄。宽是 `min(58rem, 92vw)`，高是 `min(32rem, calc(100vh - 2rem))`。
+- 视口至少 48rem：关闭时两列，打开时三列，预览变窄。宽是 `min(58rem, 92vw)`，高是 `min(32rem, calc(100dvh - 2rem))`（不支持时用 `100vh`）。
 - 把视口缩到小于 48rem：选项到顶部横排，打开说明后预览与说明并排。外框宽高公式与上一条相同。选项区超过 6.5rem 时只滚选项区。
-- 把窗口压到比 32rem 加上下边距更矮：对话框高度变成 `calc(100vh - 2rem)`，文档本身不出现滚动条。
+- 把窗口压到比 32rem 加上下边距更矮：对话框高度变成 `calc(100dvh - 2rem)`（不支持时用 `100vh`），文档本身不因此出现滚动条。窄屏打开说明时，说明列不超过内容区一半。
 - 很长的一行 curl 在 `.curl-preview` 里横向滚动，对话框不变宽。
 
 - [ ] **Step 8: 提交**
